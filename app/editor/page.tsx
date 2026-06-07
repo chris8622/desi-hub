@@ -43,12 +43,34 @@ export default function EditorPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    const current = getLS<{ title: string; content: string; channel: string } | null>("dh_current_draft", null);
-    if (current) {
-      setTitle(current.title || "");
-      setContent(current.content || "");
-      setChannel(current.channel || "Blog");
-      setLS("dh_current_draft", null);
+    // Research-Kontext von Research-Seite übernehmen
+    const ctx = getLS<{ query: string; summary: string; sources: {title:string;url:string}[]; mode?: string } | null>("dh_research_context", null);
+    if (ctx) {
+      setLS("dh_research_context", null);
+      const mode = ctx.mode || "blog";
+      const sourcesBlock = ctx.sources?.length
+        ? `\n\n---\n## Quellen\n${ctx.sources.map(s => `- [${s.title}](${s.url})`).join("\n")}`
+        : "";
+      const researchBlock = ctx.summary
+        ? `\n\n> **Research-Zusammenfassung:**\n> ${ctx.summary.replace(/<[^>]+>/g," ").replace(/\s{2,}/g," ").trim()}`
+        : "";
+      if (mode === "newsletter") {
+        setChannel("Newsletter");
+        setTitle(`Newsletter: ${ctx.query}`);
+        setContent(`# ${ctx.query}\n\nHallo [Name],\n\n${researchBlock}\n\n## Das nehme ich für dich mit\n\n[Hier deine persönliche Perspektive einfügen]\n\n## Was du jetzt tun kannst\n\n1. \n2. \n3. \n\nHerzlich,\nDesi${sourcesBlock}`);
+      } else {
+        setChannel("Blog");
+        setTitle(`Blog: ${ctx.query}`);
+        setContent(`# ${ctx.query}\n${researchBlock}\n\n## Einleitung\n\n[Hier deine persönliche Einleitung schreiben]\n\n## Was steckt dahinter?\n\n[Hintergrundinformationen aus der Research]\n\n## Was das für dich bedeutet\n\n[Praktische Tipps und persönliche Perspektive]\n\n## Fazit\n\n[Zusammenfassung und Call-to-Action]${sourcesBlock}`);
+      }
+    } else {
+      const current = getLS<{ title: string; content: string; channel: string } | null>("dh_current_draft", null);
+      if (current) {
+        setTitle(current.title || "");
+        setContent(current.content || "");
+        setChannel(current.channel || "Blog");
+        setLS("dh_current_draft", null);
+      }
     }
     setDrafts(getLS<Draft[]>("dh_drafts", []));
   }, []);

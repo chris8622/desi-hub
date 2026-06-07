@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
 
 type Source = { title: string; url: string; snippet: string; credibility?: { level: string; label: string; color: string } };
@@ -25,6 +26,7 @@ const SUGGESTED = [
 ];
 
 export default function ResearchPage() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
@@ -33,6 +35,8 @@ export default function ResearchPage() {
   const [factCheck, setFactCheck] = useState<FactCheck | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [deepLoading, setDeepLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setHistory(getLS<HistoryItem[]>("dh_research_history", []));
@@ -94,15 +98,44 @@ export default function ResearchPage() {
     }
   };
 
+  const buildMd = () => {
+    const plain = summary.replace(/<[^>]+>/g, "").replace(/\n{3,}/g, "\n\n");
+    return `# Research: ${query}\n_Datum: ${new Date().toLocaleDateString("de-AT")}_\n\n${plain}\n\n---\n\n## Quellen\n${sources.map(s => `- [${s.title}](${s.url})`).join("\n")}`;
+  };
+
   const exportMd = () => {
     if (!summary) return;
-    const plain = summary.replace(/<[^>]+>/g, "").replace(/\n{3,}/g, "\n\n");
-    const md = `# Research: ${query}\n_Datum: ${new Date().toLocaleDateString("de-AT")}_\n\n${plain}\n\n---\n\n## Quellen\n${sources.map(s => `- [${s.title}](${s.url})`).join("\n")}`;
-    const blob = new Blob([md], { type: "text/markdown" });
+    const blob = new Blob([buildMd()], { type: "text/markdown" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `research-${query.replace(/\s+/g, "-").toLowerCase()}.md`;
     a.click();
+  };
+
+  // Research in localStorage speichern + zur Zielseite navigieren
+  const saveContext = (destination: "/editor" | "/content", mode?: string) => {
+    const ctx = { query, summary, sources: sources.map(s => ({ title: s.title, url: s.url, snippet: s.snippet })), factCheck, date: new Date().toISOString(), mode };
+    setLS("dh_research_context", ctx);
+    router.push(destination);
+  };
+
+  const saveResearch = () => {
+    const h = getLS<HistoryItem[]>("dh_research_history", []);
+    const item: HistoryItem = { query, date: new Date().toISOString(), summary };
+    const updated = [item, ...h.filter(x => x.query !== query)].slice(0, 30);
+    setLS("dh_research_history", updated);
+    setHistory(updated);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  // Tiefere Research: mehr Quellen, wissenschaftliche Suche
+  const deepResearch = async () => {
+    setDeepLoading(true);
+    setStatus("🔬 Tiefe Research läuft — suche Studien & wissenschaftliche Quellen…");
+    const extendedQuery = `${query} wissenschaftliche studie peer review ergebnisse`;
+    await runSearch(extendedQuery);
+    setDeepLoading(false);
   };
 
   return (
@@ -166,18 +199,73 @@ export default function ResearchPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
             {/* Summary card */}
             <div className="card" style={{ padding: "1.5rem" }}>
-              <div className="flex-between" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                <div style={{ fontWeight: 600, fontSize: "1rem" }}>
-                  📋 Zusammenfassung: <em>{query}</em>
+              <div className="flex-between" style={{ marginBottom: "1rem" }}>
+                <div style={{ fontWeight: 700, fontSize: "1rem" }}>
+                  📋 Research: <em style={{ fontWeight: 400 }}>{query}</em>
                 </div>
-                <button className="btn btn-secondary btn-sm" onClick={exportMd}>
-                  Als .md exportieren
-                </button>
+                <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+                  {new Date().toLocaleDateString("de-AT", { day: "2-digit", month: "long" })}
+                </span>
               </div>
-              <div
-                style={{ lineHeight: 1.7, fontSize: "0.9rem" }}
-                dangerouslySetInnerHTML={{ __html: summary }}
-              />
+              <div style={{ lineHeight: 1.7, fontSize: "0.9rem" }} dangerouslySetInnerHTML={{ __html: summary }} />
+            </div>
+
+            {/* ── ACTION BAR ── */}
+            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "1.25rem 1.5rem" }}>
+              <div style={{ fontSize: "0.72rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)", marginBottom: "1rem" }}>
+                Was möchtest du als nächstes tun?
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "0.65rem" }}>
+
+                {/* Speichern */}
+                <button onClick={saveResearch} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.25rem", padding: "0.9rem 1rem", background: saved ? "var(--sage-light)" : "var(--surface2)", border: `1px solid ${saved ? "var(--sage)" : "var(--border)"}`, borderRadius: "var(--radius-sm)", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+                  <span style={{ fontSize: "1.3rem" }}>{saved ? "✅" : "💾"}</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.85rem", color: saved ? "var(--sage)" : "var(--text)" }}>{saved ? "Gespeichert!" : "Research speichern"}</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Im Suchverlauf ablegen</span>
+                </button>
+
+                {/* Blogartikel */}
+                <button onClick={() => saveContext("/editor", "blog")} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.25rem", padding: "0.9rem 1rem", background: "var(--accent-light)", border: "1px solid rgba(196,112,74,0.25)", borderRadius: "var(--radius-sm)", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}
+                  onMouseOver={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)"}
+                  onMouseOut={e => (e.currentTarget as HTMLElement).style.borderColor = "rgba(196,112,74,0.25)"}>
+                  <span style={{ fontSize: "1.3rem" }}>✍️</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--accent2)" }}>Blogartikel schreiben</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Research als Grundlage</span>
+                </button>
+
+                {/* Carousel */}
+                <button onClick={() => saveContext("/content", "carousel")} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.25rem", padding: "0.9rem 1rem", background: "var(--gold-light)", border: "1px solid rgba(184,148,80,0.25)", borderRadius: "var(--radius-sm)", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}
+                  onMouseOver={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--gold)"}
+                  onMouseOut={e => (e.currentTarget as HTMLElement).style.borderColor = "rgba(184,148,80,0.25)"}>
+                  <span style={{ fontSize: "1.3rem" }}>📱</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--gold)" }}>Carousel erstellen</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Insta-Slides generieren</span>
+                </button>
+
+                {/* Newsletter */}
+                <button onClick={() => saveContext("/editor", "newsletter")} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.25rem", padding: "0.9rem 1rem", background: "var(--sage-light)", border: "1px solid rgba(107,143,113,0.25)", borderRadius: "var(--radius-sm)", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}
+                  onMouseOver={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--sage)"}
+                  onMouseOut={e => (e.currentTarget as HTMLElement).style.borderColor = "rgba(107,143,113,0.25)"}>
+                  <span style={{ fontSize: "1.3rem" }}>📧</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--sage)" }}>Newsletter schreiben</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Für deine E-Mail Liste</span>
+                </button>
+
+                {/* Tiefer recherchieren */}
+                <button onClick={deepResearch} disabled={deepLoading} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.25rem", padding: "0.9rem 1rem", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", cursor: deepLoading ? "not-allowed" : "pointer", transition: "all 0.2s", textAlign: "left", opacity: deepLoading ? 0.6 : 1 }}>
+                  <span style={{ fontSize: "1.3rem" }}>{deepLoading ? "⏳" : "🔬"}</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text)" }}>{deepLoading ? "Suche läuft…" : "Tiefer recherchieren"}</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Studien & Wissenschaft</span>
+                </button>
+
+                {/* MD Export */}
+                <button onClick={exportMd} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.25rem", padding: "0.9rem 1rem", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+                  <span style={{ fontSize: "1.3rem" }}>📄</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--text)" }}>Als .md exportieren</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Für Claude / Notion</span>
+                </button>
+
+              </div>
             </div>
 
             {/* Faktencheck */}

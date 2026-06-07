@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
 
@@ -33,6 +33,18 @@ const TYPE_LABEL: Record<string, string> = {
 export default function ContentPage() {
   const router = useRouter();
   const [tab, setTab] = useState<"carousel" | "ideen">("carousel");
+  const [researchBanner, setResearchBanner] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Research-Kontext von Research-Seite aufgreifen
+    const ctx = getLS<{ query: string; summary: string; mode?: string } | null>("dh_research_context", null);
+    if (ctx && ctx.mode === "carousel") {
+      setLS("dh_research_context", null);
+      setCarouselTopic(ctx.query);
+      setResearchBanner(ctx.query);
+      setTab("carousel");
+    }
+  }, []);
 
   // Carousel state
   const [carouselTopic, setCarouselTopic] = useState("");
@@ -168,6 +180,17 @@ export default function ContentPage() {
             </button>
           ))}
         </div>
+
+        {/* Research-Banner */}
+        {researchBanner && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", background: "var(--accent-light)", border: "1px solid rgba(196,112,74,0.3)", borderRadius: "var(--radius-sm)", padding: "0.75rem 1rem", marginBottom: "1rem" }}>
+            <span>🔍</span>
+            <span style={{ fontSize: "0.85rem", color: "var(--accent2)" }}>
+              Research-Thema übernommen: <strong>{researchBanner}</strong> — Topic ist vorausgefüllt, einfach generieren!
+            </span>
+            <button onClick={() => setResearchBanner(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "1rem" }}>×</button>
+          </div>
+        )}
 
         {/* Carousel tab */}
         {tab === "carousel" && (
