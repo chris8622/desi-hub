@@ -28,7 +28,10 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ password }),
       });
       if (res.ok) {
-        try { localStorage.setItem("desi_auth", "1"); } catch {}
+        try {
+          localStorage.setItem("desi_auth", "1");
+          localStorage.setItem("desi_auth_token", password); // store password as token for API auth
+        } catch {}
         setAuthed(true);
       } else {
         setError("Falsches Passwort. Bitte nochmal versuchen.");

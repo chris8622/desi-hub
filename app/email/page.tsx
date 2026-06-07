@@ -16,16 +16,37 @@ function setLS(key: string, val: unknown) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 }
 
+// Quote-aware CSV line parser — handles quoted fields containing commas
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else { inQuotes = !inQuotes; }
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current.trim().replace(/^"|"$/g, ""));
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim().replace(/^"|"$/g, ""));
+  return result;
+}
+
 function parseCSV(text: string): { name: string; email: string; addedAt: string }[] {
   const lines = text.trim().split("\n");
   if (lines.length < 2) return [];
-  const header = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/"/g, ""));
+  const header = parseCSVLine(lines[0]).map(h => h.toLowerCase());
   const emailIdx = header.findIndex(h => h.includes("email"));
   const nameIdx = header.findIndex(h => h.includes("name"));
   const dateIdx = header.findIndex(h => h.includes("date") || h.includes("datum"));
 
   return lines.slice(1).map(line => {
-    const cols = line.split(",").map(c => c.trim().replace(/"/g, ""));
+    const cols = parseCSVLine(line);
     return {
       email: cols[emailIdx] || cols[1] || "",
       name: cols[nameIdx] || cols[0] || "",
@@ -115,7 +136,7 @@ export default function EmailPage() {
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
         body: JSON.stringify({ type: "newsletter", topic: nlSubject, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
       });
       const data = await res.json();

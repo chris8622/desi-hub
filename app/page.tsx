@@ -30,6 +30,8 @@ export default function DashboardPage() {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [lastResearch, setLastResearch] = useState<string>("—");
   const [today, setToday] = useState("");
+  const [greeting, setGreeting] = useState("Guten Tag");
+  const [missingGroqKey, setMissingGroqKey] = useState(false);
 
   useEffect(() => {
     setPlanner(getLS<PlannerItem[]>("dh_planner", []));
@@ -41,8 +43,15 @@ export default function DashboardPage() {
       setLastResearch(new Date(history[history.length - 1].date).toLocaleDateString("de-AT"));
     }
 
+    // Time-based greeting
     const now = new Date();
+    const hour = now.getHours();
+    setGreeting(hour < 12 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend");
     setToday(now.toLocaleDateString("de-AT", { weekday: "long", year: "numeric", month: "long", day: "numeric" }));
+
+    // Check if Groq key is set
+    const groqKey = getLS<{ groq_key?: string }>("dh_settings", {}).groq_key;
+    setMissingGroqKey(!groqKey);
   }, []);
 
   const thisWeek = (() => {
@@ -74,10 +83,24 @@ export default function DashboardPage() {
       {/* Header */}
       <div style={{ marginBottom: "2rem" }}>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: "0.25rem" }}>
-          Guten Morgen, Desi 🌿
+          {greeting}, Desi 🌿
         </h1>
         <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>{today}</p>
       </div>
+
+      {/* Onboarding banner — shown when no Groq key is set */}
+      {missingGroqKey && (
+        <div style={{background:"var(--gold-light)", border:"1px solid rgba(184,148,80,0.35)", borderRadius:"var(--radius)", padding:"1rem 1.25rem", marginBottom:"1.5rem", display:"flex", alignItems:"center", gap:"1rem"}}>
+          <span style={{fontSize:"1.5rem"}}>⚙️</span>
+          <div style={{flex:1}}>
+            <strong style={{fontSize:"0.9rem", color:"var(--gold)"}}>Einrichtung erforderlich</strong>
+            <p style={{fontSize:"0.8rem", color:"var(--muted)", marginTop:"0.15rem"}}>Trage deinen kostenlosen Groq API Key ein um alle KI-Funktionen zu nutzen.</p>
+          </div>
+          <Link href="/settings" style={{background:"var(--gold)", color:"white", borderRadius:"var(--radius-sm)", padding:"0.5rem 1rem", textDecoration:"none", fontSize:"0.82rem", fontWeight:700, whiteSpace:"nowrap"}}>
+            Jetzt einrichten →
+          </Link>
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", marginBottom: "2rem" }}>

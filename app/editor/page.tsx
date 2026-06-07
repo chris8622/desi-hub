@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import LoginGate from "@/components/LoginGate";
 
 type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
@@ -40,13 +40,17 @@ export default function EditorPage() {
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [autosaveIndicator, setAutosaveIndicator] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const lastSavedContentRef = useRef<string>("");
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     // Research-Kontext von Research-Seite übernehmen
     const ctx = getLS<{ query: string; summary: string; sources: {title:string;url:string}[]; mode?: string } | null>("dh_research_context", null);
     if (ctx) {
-      setLS("dh_research_context", null);
+      setLS("dh_research_context", null); // always clear after reading
       const mode = ctx.mode || "blog";
       const sourcesBlock = ctx.sources?.length
         ? `\n\n---\n## Quellen\n${ctx.sources.map(s => `- [${s.title}](${s.url})`).join("\n")}`
@@ -69,11 +73,51 @@ export default function EditorPage() {
         setTitle(current.title || "");
         setContent(current.content || "");
         setChannel(current.channel || "Blog");
+        lastSavedContentRef.current = current.content || "";
         setLS("dh_current_draft", null);
+      } else {
+        // Check for autosave if no draft was explicitly loaded
+        const autosave = getLS<{ title: string; content: string; channel: string } | null>("dh_editor_autosave", null);
+        if (autosave && autosave.content) {
+          const restore = window.confirm(
+            `Nicht gespeicherter Entwurf gefunden: "${autosave.title || "Ohne Titel"}"\n\nMöchtest du ihn wiederherstellen?`
+          );
+          if (restore) {
+            setTitle(autosave.title || "");
+            setContent(autosave.content || "");
+            setChannel(autosave.channel || "Blog");
+          }
+        }
       }
     }
     setDrafts(getLS<Draft[]>("dh_drafts", []));
   }, []);
+
+  // Autosave with 2-second debounce
+  const triggerAutosave = useCallback((newTitle: string, newContent: string, newChannel: string) => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = setTimeout(() => {
+      setLS("dh_editor_autosave", { title: newTitle, content: newContent, channel: newChannel });
+      setAutosaveIndicator(true);
+      setTimeout(() => setAutosaveIndicator(false), 2000);
+    }, 2000);
+  }, []);
+
+  // Dirty state tracking and beforeunload warning
+  useEffect(() => {
+    setIsDirty(content !== lastSavedContentRef.current);
+  }, [content]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "Du hast ungespeicherte Änderungen. Wirklich verlassen?";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
 
   const insertAtCursor = (before: string, after: string = "") => {
     const ta = textareaRef.current;
@@ -114,6 +158,11 @@ export default function EditorPage() {
       setDrafts(updated);
       setActiveDraftId(newDraft.id);
     }
+
+    // Clear autosave after explicit save, update last-saved reference
+    setLS("dh_editor_autosave", null);
+    lastSavedContentRef.current = content;
+    setIsDirty(false);
 
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -216,6 +265,11 @@ export default function EditorPage() {
             </select>
             <button className="btn btn-ghost btn-sm" onClick={exportMd}>📥 .md</button>
             <button className="btn btn-ghost btn-sm" onClick={copyText}>{copied ? "✓ Kopiert" : "📋 Kopieren"}</button>
+            {autosaveIndicator && (
+              <span style={{ fontSize: "0.75rem", color: "var(--muted)", alignSelf: "center", whiteSpace: "nowrap" }}>
+                Automatisch gespeichert ✓
+              </span>
+            )}
             <button className="btn btn-primary btn-sm" onClick={saveDraft}>{saved ? "✓ Gespeichert" : "Speichern"}</button>
           </div>
 
@@ -239,7 +293,11 @@ export default function EditorPage() {
                 className="textarea"
                 style={{ flex: 1, resize: "none", fontFamily: "monospace", fontSize: "0.85rem", lineHeight: 1.7 }}
                 value={content}
-                onChange={e => setContent(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value;
+                  setContent(val);
+                  triggerAutosave(title, val, channel);
+                }}
                 placeholder="# Überschrift&#10;&#10;Beginne hier zu schreiben…"
               />
             </div>

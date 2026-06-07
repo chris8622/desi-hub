@@ -71,6 +71,13 @@ Antworte mit JSON:
 };
 
 export async function POST(req: Request) {
+  // Simple auth check — token is the app password stored in localStorage on login
+  const appPassword = process.env.APP_PASSWORD;
+  const authHeader = req.headers.get("x-app-token");
+  if (appPassword && authHeader !== appPassword) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { type, topic, context, groqKey: clientKey } = await req.json();
   const groqKey = clientKey || process.env.GROQ_API_KEY || "";
 

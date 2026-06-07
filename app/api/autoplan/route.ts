@@ -19,6 +19,13 @@ interface PlanEntry {
 }
 
 export async function POST(req: Request) {
+  // Simple auth check — token is the app password stored in localStorage on login
+  const appPassword = process.env.APP_PASSWORD;
+  const authHeader = req.headers.get("x-app-token");
+  if (appPassword && authHeader !== appPassword) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { settings, weekStart, groqKey } = await req.json() as {
     settings: Settings;
     weekStart: string; // "YYYY-MM-DD" of Monday
@@ -28,12 +35,11 @@ export async function POST(req: Request) {
   const apiKey = groqKey || process.env.GROQ_API_KEY;
   if (!apiKey) return Response.json({ error: "Kein Groq API Key" }, { status: 400 });
 
-  // Wochentage berechnen (Mo–So)
-  const start = new Date(weekStart);
+  // Wochentage berechnen (Mo–So) — lokale Datumsberechnung ohne Timezone-Shift
+  const [y, m, d] = weekStart.split("-").map(Number);
   const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    return d.toISOString().split("T")[0];
+    const dt = new Date(y, m - 1, d + i);
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
   });
 
   // Posting-Slots verteilen

@@ -51,7 +51,23 @@ export default function PlannerPage() {
   const [autoMsg, setAutoMsg] = useState("");
 
   useEffect(() => {
-    setItems(getLS<PlannerItem[]>("dh_planner", []));
+    const loadedItems = getLS<PlannerItem[]>("dh_planner", []);
+    setItems(loadedItems);
+
+    // Auto-fill week if auto_plan is enabled and this week is empty
+    const settings = getLS<{ auto_plan?: boolean; groq_key?: string }>("dh_settings", {});
+    if (settings.auto_plan !== false && settings.groq_key) {
+      const weekDates = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(weekStart); d.setDate(d.getDate() + i);
+        return d.toISOString().split("T")[0];
+      });
+      const existingThisWeek = loadedItems.filter(it => weekDates.includes(it.date));
+      if (existingThisWeek.length === 0) {
+        // Run in background — do not await, do not block UI
+        setTimeout(() => { autoFillWeek(); }, 100);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function autoFillWeek() {
@@ -65,7 +81,7 @@ export default function PlannerPage() {
     try {
       const res = await fetch("/api/autoplan", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
         body: JSON.stringify({ settings, weekStart: formatDate(weekStart), groqKey }),
       });
       const data = await res.json() as { plan?: PlannerItem[]; error?: string };

@@ -69,7 +69,7 @@ export default function ResearchPage() {
     try {
       const res = await fetch("/api/research", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
         body: JSON.stringify({
           query: q,
           groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "",

@@ -351,6 +351,49 @@ export default function SettingsPage() {
         )}
       </div>
 
+      {/* Export & Backup */}
+      <div className="card" style={{ marginBottom: "1.25rem" }}>
+        <h3 style={{ marginBottom: "0.4rem" }}>💾 Backup & Export</h3>
+        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1rem" }}>
+          Alle Daten werden im Browser gespeichert. Erstelle regelmäßig ein Backup.
+        </p>
+        <div style={{ display: "flex", gap: "0.65rem", flexWrap: "wrap" }}>
+          <button className="btn btn-secondary" onClick={() => {
+            const backup = {
+              exportedAt: new Date().toISOString(),
+              settings: JSON.parse(localStorage.getItem("dh_settings") || "{}"),
+              ideen: JSON.parse(localStorage.getItem("dh_ideenpool") || "[]"),
+              planner: JSON.parse(localStorage.getItem("dh_planner") || "[]"),
+              drafts: JSON.parse(localStorage.getItem("dh_drafts") || "[]"),
+              subscribers: JSON.parse(localStorage.getItem("dh_subscribers") || "[]"),
+              newsletters: JSON.parse(localStorage.getItem("dh_newsletters") || "[]"),
+              researchHistory: JSON.parse(localStorage.getItem("dh_research_history") || "[]"),
+            };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+            const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+            a.download = `desi-hub-backup-${new Date().toISOString().split("T")[0]}.json`; a.click();
+          }}>📦 Backup herunterladen</button>
+          <label className="btn btn-secondary" style={{ cursor: "pointer" }}>
+            📥 Backup wiederherstellen
+            <input type="file" accept=".json" style={{ display: "none" }} onChange={async (e) => {
+              const file = e.target.files?.[0]; if (!file) return;
+              const text = await file.text();
+              try {
+                const backup = JSON.parse(text);
+                if (backup.settings) localStorage.setItem("dh_settings", JSON.stringify(backup.settings));
+                if (backup.ideen) localStorage.setItem("dh_ideenpool", JSON.stringify(backup.ideen));
+                if (backup.planner) localStorage.setItem("dh_planner", JSON.stringify(backup.planner));
+                if (backup.drafts) localStorage.setItem("dh_drafts", JSON.stringify(backup.drafts));
+                if (backup.subscribers) localStorage.setItem("dh_subscribers", JSON.stringify(backup.subscribers));
+                if (backup.newsletters) localStorage.setItem("dh_newsletters", JSON.stringify(backup.newsletters));
+                alert("Backup erfolgreich wiederhergestellt! Seite wird neu geladen.");
+                window.location.reload();
+              } catch { alert("Fehler beim Lesen der Backup-Datei."); }
+            }} />
+          </label>
+        </div>
+      </div>
+
       <button className="btn btn-primary" onClick={save} style={{ width: "100%", justifyContent: "center", padding: "0.85rem" }}>
         {saved ? "✓ Gespeichert!" : "Einstellungen speichern"}
       </button>

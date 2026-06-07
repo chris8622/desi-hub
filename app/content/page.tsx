@@ -38,16 +38,27 @@ export default function ContentPage() {
 
   useEffect(() => {
     const ctx = getLS<{ query: string; summary: string; sources?: {title:string;url:string}[]; mode?: string } | null>("dh_research_context", null);
-    if (ctx && ctx.mode === "carousel") {
-      setLS("dh_research_context", null);
-      setCarouselTopic(ctx.query);
-      setResearchBanner(ctx.query);
-      setTab("carousel");
-      // Research-Zusammenfassung als Kontext speichern
-      if (ctx.summary) {
-        const plain = ctx.summary.replace(/<[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 2000);
-        const sourceList = ctx.sources?.slice(0, 5).map(s => `- ${s.title} (${s.url})`).join("\n") || "";
-        setResearchContext(`Research-Erkenntnisse zum Thema "${ctx.query}":\n${plain}${sourceList ? `\n\nQuellen:\n${sourceList}` : ""}`);
+    if (ctx) {
+      setLS("dh_research_context", null); // always clear immediately after reading
+      if (ctx.mode === "carousel") {
+        setCarouselTopic(ctx.query);
+        setResearchBanner(ctx.query);
+        setTab("carousel");
+        // Research-Zusammenfassung als Kontext speichern
+        if (ctx.summary) {
+          const plain = ctx.summary.replace(/<[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 2000);
+          const sourceList = ctx.sources?.slice(0, 5).map(s => `- ${s.title} (${s.url})`).join("\n") || "";
+          setResearchContext(`Research-Erkenntnisse zum Thema "${ctx.query}":\n${plain}${sourceList ? `\n\nQuellen:\n${sourceList}` : ""}`);
+        }
+      } else {
+        // Prefill ideas tab with research context
+        setIdeaTopic(ctx.query);
+        setResearchBanner(ctx.query);
+        setTab("ideen");
+        if (ctx.summary) {
+          const plain = ctx.summary.replace(/<[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 2000);
+          setResearchContext(plain);
+        }
       }
     }
   }, []);
@@ -71,7 +82,7 @@ export default function ContentPage() {
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
         body: JSON.stringify({ type: "carousel", topic: carouselTopic, context: researchContext || undefined, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
       });
       const data = await res.json();
@@ -91,7 +102,7 @@ export default function ContentPage() {
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
         body: JSON.stringify({ type: "ideas", topic: ideaTopic, context: researchContext || undefined, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
       });
       const data = await res.json();
