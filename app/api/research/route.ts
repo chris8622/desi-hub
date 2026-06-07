@@ -162,7 +162,7 @@ Struktur:
         ]);
 
         // Ergebnisse auswerten
-        let summary = !apiKey
+        let summary = !groqKey
           ? `<p style="color:var(--gold)">⚠️ <strong>Kein Groq API Key hinterlegt</strong> — die KI-Zusammenfassung ist nicht verfügbar. Bitte trage deinen kostenlosen Groq Key in den <a href="/settings" style="color:var(--accent)">Einstellungen</a> ein.</p>`
           : "<p>Zusammenfassung konnte nicht erstellt werden. Bitte versuche es erneut.</p>";
         if (summaryRes.status === "fulfilled" && summaryRes.value.ok) {
