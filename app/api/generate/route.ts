@@ -6,17 +6,24 @@ Ton: warm, persönlich, ehrlich, inspirierend — nie zu formal, nie zu lässig.
 Antworte immer mit validem JSON, ohne Markdown-Codeblöcke.`;
 
 const PROMPTS: Record<string, (topic: string, context?: string) => string> = {
-  carousel: (topic, ctx) => `Erstelle ein Instagram-Karussell zum Thema: "${topic}"${ctx ? `\nZusatzinfos: ${ctx}` : ""}
+  carousel: (topic, ctx) => `Erstelle ein Instagram-Karussell zum Thema: "${topic}"
+
+${ctx ? `Du hast folgende Research-Erkenntnisse zur Verfügung — nutze sie um das Karussell inhaltlich fundiert und spezifisch zu machen:
+
+${ctx}
+
+Wichtig: Baue konkrete Fakten, Erkenntnisse und echte Insights aus der Research ein. Kein generisches Wissen.` : ""}
+
 Antworte mit JSON:
 {
-  "title": "Karussell-Titel",
+  "title": "Karussell-Titel (neugierig machend, max 8 Wörter)",
   "slides": [
-    {"headline": "Slide-Titel", "points": ["Punkt 1", "Punkt 2", "Punkt 3"], "cta": "optional CTA auf letzter Slide"}
+    {"headline": "Slide-Titel (kurz & stark)", "points": ["Konkreter Punkt 1", "Konkreter Punkt 2", "Konkreter Punkt 3"], "cta": "optional nur auf letzter Slide"}
   ],
-  "caption": "Caption für den Post (mit Emojis, max 150 Wörter)",
+  "caption": "Caption für den Post (persönlich, mit Emojis, max 150 Wörter, endet mit Frage an die Community)",
   "hashtags": ["hashtag1", "hashtag2"]
 }
-Erstelle 5-7 Slides. Letzte Slide hat einen CTA.`,
+Erstelle 5-7 Slides. Erste Slide = Hook. Letzte Slide = CTA.`,
 
   caption: (topic, ctx) => `Erstelle eine Instagram-Caption für: "${topic}"${ctx ? `\nKontext: ${ctx}` : ""}
 Antworte mit JSON:

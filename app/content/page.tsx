@@ -34,15 +34,21 @@ export default function ContentPage() {
   const router = useRouter();
   const [tab, setTab] = useState<"carousel" | "ideen">("carousel");
   const [researchBanner, setResearchBanner] = useState<string | null>(null);
+  const [researchContext, setResearchContext] = useState<string>("");
 
   useEffect(() => {
-    // Research-Kontext von Research-Seite aufgreifen
-    const ctx = getLS<{ query: string; summary: string; mode?: string } | null>("dh_research_context", null);
+    const ctx = getLS<{ query: string; summary: string; sources?: {title:string;url:string}[]; mode?: string } | null>("dh_research_context", null);
     if (ctx && ctx.mode === "carousel") {
       setLS("dh_research_context", null);
       setCarouselTopic(ctx.query);
       setResearchBanner(ctx.query);
       setTab("carousel");
+      // Research-Zusammenfassung als Kontext speichern
+      if (ctx.summary) {
+        const plain = ctx.summary.replace(/<[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 2000);
+        const sourceList = ctx.sources?.slice(0, 5).map(s => `- ${s.title} (${s.url})`).join("\n") || "";
+        setResearchContext(`Research-Erkenntnisse zum Thema "${ctx.query}":\n${plain}${sourceList ? `\n\nQuellen:\n${sourceList}` : ""}`);
+      }
     }
   }, []);
 
@@ -66,7 +72,7 @@ export default function ContentPage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "carousel", topic: carouselTopic, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
+        body: JSON.stringify({ type: "carousel", topic: carouselTopic, context: researchContext || undefined, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -86,7 +92,7 @@ export default function ContentPage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "ideas", topic: ideaTopic, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
+        body: JSON.stringify({ type: "ideas", topic: ideaTopic, context: researchContext || undefined, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -183,12 +189,19 @@ export default function ContentPage() {
 
         {/* Research-Banner */}
         {researchBanner && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", background: "var(--accent-light)", border: "1px solid rgba(196,112,74,0.3)", borderRadius: "var(--radius-sm)", padding: "0.75rem 1rem", marginBottom: "1rem" }}>
-            <span>🔍</span>
-            <span style={{ fontSize: "0.85rem", color: "var(--accent2)" }}>
-              Research-Thema übernommen: <strong>{researchBanner}</strong> — Topic ist vorausgefüllt, einfach generieren!
-            </span>
-            <button onClick={() => setResearchBanner(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "1rem" }}>×</button>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem", background: "var(--accent-light)", border: "1px solid rgba(196,112,74,0.3)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem", marginBottom: "1rem" }}>
+            <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>🔍</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: "0.85rem", color: "var(--accent2)", fontWeight: 600 }}>
+                Research übernommen: <em style={{ fontWeight: 400 }}>{researchBanner}</em>
+              </div>
+              {researchContext && (
+                <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: "0.2rem" }}>
+                  ✓ Research-Zusammenfassung wird beim Generieren mitverwendet — das Carousel basiert auf echten Erkenntnissen.
+                </div>
+              )}
+            </div>
+            <button onClick={() => { setResearchBanner(null); setResearchContext(""); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "1.1rem", flexShrink: 0 }}>×</button>
           </div>
         )}
 
