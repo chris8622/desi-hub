@@ -261,7 +261,7 @@ function EditorInner() {
 
   return (
     <LoginGate>
-      <div style={{ display: "flex", gap: "1.25rem", height: "calc(100vh - 4rem)", maxWidth: "100%" }}>
+      <div style={{ display: "flex", gap: "1.25rem", height: "calc(100vh - 8rem)", maxWidth: "100%", minHeight: 500 }}>
         {/* Left: drafts sidebar */}
         <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

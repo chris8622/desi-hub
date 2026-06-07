@@ -47,18 +47,30 @@ Antworte mit JSON:
 }
 Typen: "instagram", "blog", "newsletter". Mix aus allen drei.`,
 
-  blog: (topic, ctx) => `Schreibe einen vollständigen Blogartikel für: "${topic}"${ctx ? `\nKontext: ${ctx}` : ""}
+  blog: (topic, ctx) => `Du bist Desi, eine authentische Content Creatorin (Mind, Health, Ästhetik, Selbstoptimierung). Schreibe einen vollständigen, sofort veröffentlichbaren Blogartikel auf Deutsch.
+
+Thema: "${topic}"
+${ctx ? `\nRecherche-Grundlage (nutze diese Fakten und Erkenntnisse):\n${ctx}` : ""}
+
+WICHTIG: Schreibe ALLES vollständig aus — KEINE Platzhalter wie [hier einfügen] oder [schreib hier]. Der Artikel muss direkt kopiert und veröffentlicht werden können.
+
+Ton: persönlich, warm, kompetent — wie eine gute Freundin die Expertin ist. Nutze "du". Erste Person ("Ich habe...").
+
 Antworte mit JSON:
 {
-  "title": "SEO-optimierter Titel",
-  "intro": "Einleitung (3-4 Sätze)",
+  "title": "Packender, SEO-optimierter Titel (max 60 Zeichen)",
+  "intro": "Persönliche, packende Einleitung die sofort anspricht (4-5 Sätze, persönliche Geschichte oder Frage)",
   "sections": [
-    {"heading": "Abschnittstitel", "content": "Abschnittsinhalt (150-250 Wörter)"}
+    {
+      "heading": "Abschnittstitel",
+      "content": "Vollständig ausgeschriebener Abschnittsinhalt (200-300 Wörter, konkret, mit Beispielen oder Tipps)"
+    }
   ],
-  "conclusion": "Fazit (3-4 Sätze)",
-  "metaDescription": "SEO-Meta-Description (max 155 Zeichen)"
+  "conclusion": "Persönliches Fazit mit Call-to-Action (3-4 Sätze, motivierend)",
+  "metaDescription": "SEO-Meta-Description (max 155 Zeichen)",
+  "readingTime": "Geschätzte Lesezeit in Minuten (Zahl)"
 }
-4-5 Abschnitte.`,
+Schreibe 4-5 inhaltlich starke Abschnitte. Jeder Abschnitt vollständig ausformuliert.`,
 
   newsletter: (topic, ctx) => `Schreibe einen Newsletter für: "${topic}"${ctx ? `\nKontext: ${ctx}` : ""}
 Antworte mit JSON:
