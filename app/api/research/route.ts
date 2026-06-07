@@ -57,9 +57,10 @@ async function fetchPageContent(url: string): Promise<string> {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const query    = body.query as string;
-  const groqKey  = (body.groqKey as string | undefined) || process.env.GROQ_API_KEY || "";
-  const serperKey = process.env.SERPER_API_KEY || "";
+  const query          = body.query as string;
+  const groqKey        = (body.groqKey as string | undefined) || process.env.GROQ_API_KEY || "";
+  const serperKey      = process.env.SERPER_API_KEY || "";
+  const trustedDomains = (body.trustedDomains as string[] | undefined) || [];
 
   const encoder = new TextEncoder();
   const stream  = new ReadableStream({
@@ -71,11 +72,24 @@ export async function POST(req: Request) {
         // ── 1. Serper: Forum + Reddit + Fact-Check Suche ─────
         send({ type: "status", data: "🔍 Suche in Foren & Quellen…" });
 
-        const searches = [
+        const searches: { q: string; gl: string; hl: string; num: number }[] = [
           { q: `${query} forum diskussion erfahrungen`, gl: "at", hl: "de", num: 8 },
           { q: `${query} site:reddit.com`, gl: "at", hl: "de", num: 5 },
           { q: `${query} wissenschaft studie belegt`, gl: "at", hl: "de", num: 4 },
         ];
+
+        // Gezielte Suche auf bevorzugten Quellen
+        if (trustedDomains.length > 0) {
+          // Bis zu 5 Domains in einer site:-Suche bündeln
+          const chunks: string[][] = [];
+          for (let i = 0; i < Math.min(trustedDomains.length, 10); i += 5)
+            chunks.push(trustedDomains.slice(i, i + 5));
+          for (const chunk of chunks) {
+            const siteFilter = chunk.map(d => `site:${d}`).join(" OR ");
+            searches.push({ q: `${query} (${siteFilter})`, gl: "at", hl: "de", num: 5 });
+          }
+          send({ type: "status", data: `🏛️ Suche gezielt auf ${trustedDomains.length} bevorzugten Quellen…` });
+        }
 
         type SR = { title: string; link: string; snippet?: string };
         const allResults: SR[] = [];

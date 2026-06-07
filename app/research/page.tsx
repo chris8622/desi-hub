@@ -40,12 +40,14 @@ export default function ResearchPage() {
   const [saved, setSaved] = useState(false);
   const [groqKey, setGroqKey] = useState("");
   const [trustedSources, setTrustedSources] = useState<Set<string>>(new Set());
+  const [preferredDomains, setPreferredDomains] = useState<string[]>([]);
   const [verifyingClaim, setVerifyingClaim] = useState<string | null>(null);
 
   useEffect(() => {
     setHistory(getLS<HistoryItem[]>("dh_research_history", []));
-    const key = getLS<{ groq_key?: string }>("dh_settings", {}).groq_key || "";
-    setGroqKey(key);
+    const settings = getLS<{ groq_key?: string; trusted_sources?: string[] }>("dh_settings", {});
+    setGroqKey(settings.groq_key || "");
+    setPreferredDomains(settings.trusted_sources || []);
     const saved = getLS<string[]>("dh_trusted_sources", []);
     setTrustedSources(new Set(saved));
     // Prefill aus Ideen-Pool
@@ -67,7 +69,11 @@ export default function ResearchPage() {
       const res = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
+        body: JSON.stringify({
+          query: q,
+          groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "",
+          trustedDomains: getLS<{trusted_sources?:string[]}>("dh_settings",{}).trusted_sources || [],
+        }),
       });
 
       if (!res.body) throw new Error("Kein Stream");
@@ -223,17 +229,29 @@ export default function ResearchPage() {
           {/* Suggested topics */}
           <div style={{ marginTop: "0.85rem", display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
             {SUGGESTED.map(topic => (
-              <button
-                key={topic}
-                className="badge badge-muted"
+              <button key={topic} className="badge badge-muted"
                 onClick={() => { setQuery(topic); runSearch(topic); }}
                 style={{ cursor: "pointer", border: "none", fontSize: "0.8rem", padding: "0.3rem 0.7rem" }}
-                disabled={loading}
-              >
+                disabled={loading}>
                 {topic}
               </button>
             ))}
           </div>
+
+          {/* Bevorzugte Quellen Hinweis */}
+          {preferredDomains.length > 0 && (
+            <div style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.75rem", color: "var(--sage)" }}>
+              <span>⭐</span>
+              <span>
+                Gezielt durchsucht: {preferredDomains.slice(0, 4).join(", ")}
+                {preferredDomains.length > 4 ? ` +${preferredDomains.length - 4} weitere` : ""}
+              </span>
+              <button onClick={() => router.push("/settings")}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--sage)", fontSize: "0.72rem", textDecoration: "underline", padding: 0 }}>
+                verwalten
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Status */}
@@ -409,11 +427,26 @@ export default function ResearchPage() {
                       <div className="card-sm" style={{ padding: "0.85rem 1rem", cursor: "pointer", transition: "box-shadow 0.15s" }}
                         onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)"}
                         onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = ""}>
-                        {s.credibility && (
-                          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: s.credibility.color, marginBottom: "0.3rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            {s.credibility.level === "trusted" ? "✅" : s.credibility.level === "medium" ? "📰" : s.credibility.level === "forum" ? "💬" : s.credibility.level === "low" ? "⚠️" : "❓"} {s.credibility.label}
-                          </div>
-                        )}
+                        {(() => {
+                          try {
+                            const domain = new URL(s.url).hostname.replace("www.", "");
+                            const isPreferred = preferredDomains.some(d => domain === d || domain.endsWith("." + d));
+                            return (
+                              <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", marginBottom: "0.35rem" }}>
+                                {isPreferred && (
+                                  <span style={{ fontSize: "0.68rem", fontWeight: 700, background: "var(--sage-light)", color: "var(--sage)", border: "1px solid rgba(107,143,113,0.3)", borderRadius: 999, padding: "0.1rem 0.5rem" }}>
+                                    ⭐ Bevorzugte Quelle
+                                  </span>
+                                )}
+                                {s.credibility && (
+                                  <span style={{ fontSize: "0.68rem", fontWeight: 700, color: s.credibility.color, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                    {s.credibility.level === "trusted" ? "✅" : s.credibility.level === "medium" ? "📰" : s.credibility.level === "forum" ? "💬" : s.credibility.level === "low" ? "⚠️" : "❓"} {s.credibility.label}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          } catch { return null; }
+                        })()}
                         <div style={{ fontWeight: 500, fontSize: "0.85rem", marginBottom: "0.3rem", color: "var(--text)", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
                           {s.title}
                         </div>

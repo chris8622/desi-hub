@@ -13,9 +13,35 @@ const DEFAULT_SETTINGS = {
   freq_newsletter: 1,
   auto_plan: true,
   groq_key: "",
+  trusted_sources: [
+    "pubmed.ncbi.nlm.nih.gov",
+    "who.int",
+    "gesundheit.gv.at",
+    "cochrane.org",
+    "derstandard.at",
+    "orf.at",
+  ],
 };
 
-type Settings = typeof DEFAULT_SETTINGS;
+const SUGGESTED_TRUSTED = [
+  { domain: "pubmed.ncbi.nlm.nih.gov",  label: "PubMed",          desc: "Wissenschaftliche Studien" },
+  { domain: "who.int",                   label: "WHO",             desc: "Weltgesundheitsorganisation" },
+  { domain: "cochrane.org",              label: "Cochrane",        desc: "Systematische Reviews" },
+  { domain: "gesundheit.gv.at",          label: "Gesundheit.gv.at",desc: "Österreich offiz. Gesundheitsportal" },
+  { domain: "sozialministerium.at",      label: "Sozialministerium",desc: "Österreich Ministerium" },
+  { domain: "rki.de",                    label: "RKI",             desc: "Robert Koch-Institut" },
+  { domain: "springer.com",             label: "Springer",         desc: "Wissenschaftsverlag" },
+  { domain: "nature.com",               label: "Nature",           desc: "Top Wissenschaftsjournal" },
+  { domain: "orf.at",                   label: "ORF",              desc: "Österreichischer Rundfunk" },
+  { domain: "derstandard.at",           label: "Der Standard",     desc: "Österr. Qualitätszeitung" },
+  { domain: "spiegel.de",              label: "Spiegel",           desc: "Deutsche Qualitätspresse" },
+  { domain: "zeit.de",                 label: "Die Zeit",          desc: "Deutsche Qualitätspresse" },
+  { domain: "apotheken-umschau.de",    label: "Apotheken Umschau", desc: "Medizin für Laien" },
+  { domain: "mayoclinic.org",          label: "Mayo Clinic",       desc: "Renommierte US-Klinik" },
+  { domain: "healthline.com",          label: "Healthline",        desc: "Medizinisch geprüfte Gesundheitsinfos" },
+];
+
+type Settings = typeof DEFAULT_SETTINGS & { trusted_sources: string[] };
 
 // ─── Groq Key Tester ────────────────────────────────────
 function TestKeyButton({ groqKey }: { groqKey: string }) {
@@ -216,6 +242,87 @@ export default function SettingsPage() {
               Beim Öffnen des Planers werden leere Slots für die aktuelle Woche vorgeschlagen
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Bevorzugte Quellen */}
+      <div className="card" style={{ marginBottom: "1.25rem" }}>
+        <h3 style={{ marginBottom: "0.4rem" }}>🏛️ Bevorzugte Quellen</h3>
+        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1.25rem" }}>
+          Bei jeder Research wird gezielt auf diesen Seiten gesucht — ideal für wissenschaftlich belegte Infos.
+          Aktive Quellen werden immer zusätzlich durchsucht.
+        </p>
+
+        {/* Schnellauswahl */}
+        <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "0.65rem" }}>
+          Vorschläge
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1.25rem" }}>
+          {SUGGESTED_TRUSTED.map(src => {
+            const active = (s.trusted_sources || []).includes(src.domain);
+            return (
+              <button key={src.domain}
+                onClick={() => setS(p => ({
+                  ...p,
+                  trusted_sources: active
+                    ? (p.trusted_sources || []).filter(d => d !== src.domain)
+                    : [...(p.trusted_sources || []), src.domain]
+                }))}
+                title={src.desc}
+                style={{
+                  display: "inline-flex", flexDirection: "column", alignItems: "flex-start",
+                  padding: "0.5rem 0.85rem", borderRadius: "var(--radius-sm)", cursor: "pointer",
+                  border: `1px solid ${active ? "var(--sage)" : "var(--border)"}`,
+                  background: active ? "var(--sage-light)" : "var(--surface2)",
+                  transition: "all 0.15s", textAlign: "left",
+                }}>
+                <span style={{ fontSize: "0.8rem", fontWeight: 700, color: active ? "var(--sage)" : "var(--text)" }}>
+                  {active ? "✓ " : ""}{src.label}
+                </span>
+                <span style={{ fontSize: "0.68rem", color: "var(--muted)", marginTop: "0.1rem" }}>{src.desc}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Aktive Quellen */}
+        {(s.trusted_sources || []).length > 0 && (
+          <>
+            <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "0.5rem" }}>
+              Aktiv ({s.trusted_sources.length})
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "1rem" }}>
+              {s.trusted_sources.map(domain => (
+                <span key={domain} style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", background: "var(--sage-light)", border: "1px solid rgba(107,143,113,0.3)", borderRadius: 999, padding: "0.25rem 0.75rem", fontSize: "0.78rem", color: "var(--sage)", fontWeight: 600 }}>
+                  🏛️ {domain}
+                  <button onClick={() => setS(p => ({ ...p, trusted_sources: p.trusted_sources.filter(d => d !== domain) }))}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--sage)", fontSize: "0.9rem", padding: 0, lineHeight: 1 }}>×</button>
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Eigene Domain hinzufügen */}
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <input className="input" id="trusted-input" placeholder="z.B. medscape.com oder science.org" style={{ flex: 1, fontSize: "0.85rem" }}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                const val = (e.target as HTMLInputElement).value.trim().replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
+                if (val && !(s.trusted_sources || []).includes(val)) {
+                  setS(p => ({ ...p, trusted_sources: [...(p.trusted_sources || []), val] }));
+                  (e.target as HTMLInputElement).value = "";
+                }
+              }
+            }} />
+          <button className="btn btn-secondary" onClick={() => {
+            const input = document.getElementById("trusted-input") as HTMLInputElement;
+            const val = input?.value.trim().replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
+            if (val && !(s.trusted_sources || []).includes(val)) {
+              setS(p => ({ ...p, trusted_sources: [...(p.trusted_sources || []), val] }));
+              if (input) input.value = "";
+            }
+          }}>+ Hinzufügen</button>
         </div>
       </div>
 
