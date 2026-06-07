@@ -40,6 +40,12 @@ export default function ResearchPage() {
 
   useEffect(() => {
     setHistory(getLS<HistoryItem[]>("dh_research_history", []));
+    // Prefill aus Ideen-Pool
+    const prefill = getLS<string>("dh_research_prefill", "");
+    if (prefill) {
+      setLS("dh_research_prefill", "");
+      setQuery(prefill);
+    }
   }, []);
 
   const runSearch = async (q: string) => {

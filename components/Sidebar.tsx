@@ -3,12 +3,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { href: "/",          icon: "🏠", label: "Dashboard"  },
-  { href: "/research",  icon: "🔍", label: "Research"   },
-  { href: "/content",   icon: "💡", label: "Content"    },
-  { href: "/editor",    icon: "✍️",  label: "Editor"    },
-  { href: "/planner",   icon: "📅", label: "Planer"     },
-  { href: "/email",     icon: "📧", label: "E-Mail"     },
+  { href: "/",          icon: "🏠", label: "Dashboard"     },
+  { href: "/ideen",     icon: "🌱", label: "Ideen-Pool"   },
+  { href: "/research",  icon: "🔍", label: "Research"      },
+  { href: "/content",   icon: "💡", label: "Content"       },
+  { href: "/editor",    icon: "✍️",  label: "Editor"       },
+  { href: "/planner",   icon: "📅", label: "Planer"        },
+  { href: "/email",     icon: "📧", label: "E-Mail"        },
   { href: "/settings",  icon: "⚙️", label: "Einstellungen" },
 ];
 
