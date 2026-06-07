@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
 
 type Source = { title: string; url: string; snippet: string; credibility?: { level: string; label: string; color: string } };
-type FactCheck = { confidence: "hoch"|"mittel"|"niedrig"; confidence_reason: string; source_diversity: number; verified_claims: string[]; unverified_claims: string[]; red_flags: string[]; recommendation: string };
+type Claim = { claim: string; sources: string[]; source_type: "seriös"|"forum"|"gemischt" };
+type FactCheck = { confidence: "hoch"|"mittel"|"niedrig"; confidence_reason: string; source_diversity: number; verified_claims: Claim[]; unverified_claims: Claim[]; red_flags: string[]; recommendation: string };
 type HistoryItem = { query: string; date: string; summary: string };
 
 function getLS<T>(key: string, fallback: T): T {
@@ -38,11 +39,15 @@ export default function ResearchPage() {
   const [deepLoading, setDeepLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [groqKey, setGroqKey] = useState("");
+  const [trustedSources, setTrustedSources] = useState<Set<string>>(new Set());
+  const [verifyingClaim, setVerifyingClaim] = useState<string | null>(null);
 
   useEffect(() => {
     setHistory(getLS<HistoryItem[]>("dh_research_history", []));
     const key = getLS<{ groq_key?: string }>("dh_settings", {}).groq_key || "";
     setGroqKey(key);
+    const saved = getLS<string[]>("dh_trusted_sources", []);
+    setTrustedSources(new Set(saved));
     // Prefill aus Ideen-Pool
     const prefill = getLS<string>("dh_research_prefill", "");
     if (prefill) {
@@ -139,6 +144,22 @@ export default function ResearchPage() {
   };
 
   // Tiefere Research: mehr Quellen, wissenschaftliche Suche
+  const toggleTrust = (domain: string) => {
+    setTrustedSources(prev => {
+      const next = new Set(prev);
+      if (next.has(domain)) next.delete(domain); else next.add(domain);
+      setLS("dh_trusted_sources", [...next]);
+      return next;
+    });
+  };
+
+  const verifyClaim = async (claim: string) => {
+    setVerifyingClaim(claim);
+    const verifyQuery = `"${claim.slice(0, 60)}" ${query} wissenschaftlich belegt studie`;
+    await runSearch(verifyQuery);
+    setVerifyingClaim(null);
+  };
+
   const deepResearch = async () => {
     if (!groqKey) { router.push("/settings"); return; }
     setDeepLoading(true);
@@ -300,40 +321,71 @@ export default function ResearchPage() {
             {/* Faktencheck */}
             {factCheck && (
               <div className="card" style={{ borderLeft: `4px solid ${factCheck.confidence === "hoch" ? "var(--sage)" : factCheck.confidence === "mittel" ? "var(--gold)" : "var(--warm-red)"}` }}>
-                <div className="flex-between" style={{ marginBottom: "1rem" }}>
+                <div className="flex-between" style={{ marginBottom: "0.75rem" }}>
                   <div style={{ fontWeight: 700, fontSize: "1rem" }}>🔍 Faktencheck</div>
-                  <span style={{
-                    padding: "0.25rem 0.8rem", borderRadius: 999, fontSize: "0.78rem", fontWeight: 700,
-                    background: factCheck.confidence === "hoch" ? "var(--sage-light)" : factCheck.confidence === "mittel" ? "var(--gold-light)" : "var(--warm-red-light)",
-                    color: factCheck.confidence === "hoch" ? "var(--sage)" : factCheck.confidence === "mittel" ? "var(--gold)" : "var(--warm-red)",
-                  }}>
+                  <span style={{ padding: "0.25rem 0.8rem", borderRadius: 999, fontSize: "0.78rem", fontWeight: 700, background: factCheck.confidence === "hoch" ? "var(--sage-light)" : factCheck.confidence === "mittel" ? "var(--gold-light)" : "var(--warm-red-light)", color: factCheck.confidence === "hoch" ? "var(--sage)" : factCheck.confidence === "mittel" ? "var(--gold)" : "var(--warm-red)" }}>
                     {factCheck.confidence === "hoch" ? "✅ Gut belegt" : factCheck.confidence === "mittel" ? "⚠️ Teilweise belegt" : "🔴 Vorsicht geboten"}
                   </span>
                 </div>
-                <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "1rem" }}>{factCheck.confidence_reason}</p>
+                <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "1.25rem" }}>{factCheck.confidence_reason}</p>
 
-                <div className="grid-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
-                  {factCheck.verified_claims.length > 0 && (
-                    <div style={{ background: "var(--sage-light)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem" }}>
-                      <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "var(--sage)", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>✅ Mehrfach bestätigt</div>
-                      <ul style={{ paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
-                        {factCheck.verified_claims.map((c, i) => <li key={i} style={{ fontSize: "0.82rem", color: "var(--text)" }}>{c}</li>)}
-                      </ul>
+                {/* Claim-Listen mit Quellen */}
+                {[
+                  { claims: factCheck.verified_claims,   label: "✅ Mehrfach bestätigt",      bg: "var(--sage-light)",     color: "var(--sage)",     border: "rgba(107,143,113,0.2)" },
+                  { claims: factCheck.unverified_claims, label: "⚠️ Nur vereinzelt belegt",   bg: "var(--gold-light)",     color: "var(--gold)",     border: "rgba(184,148,80,0.2)"  },
+                ].map(({ claims, label, bg, color, border }) => claims.length > 0 && (
+                  <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: "var(--radius-sm)", padding: "1rem", marginBottom: "0.85rem" }}>
+                    <div style={{ fontWeight: 700, fontSize: "0.75rem", color, marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                      {claims.map((c, i) => {
+                        const claimObj = typeof c === "string" ? { claim: c, sources: [], source_type: "gemischt" as const } : c;
+                        const allTrusted = claimObj.sources.length > 0 && claimObj.sources.every(s => trustedSources.has(s));
+                        return (
+                          <div key={i} style={{ background: "rgba(255,255,255,0.6)", borderRadius: 8, padding: "0.75rem 0.85rem" }}>
+                            <p style={{ fontSize: "0.85rem", color: "var(--text)", marginBottom: "0.5rem", lineHeight: 1.5 }}>{claimObj.claim}</p>
+
+                            {/* Quellen-Badges */}
+                            {claimObj.sources.length > 0 && (
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.5rem" }}>
+                                <span style={{ fontSize: "0.68rem", color: "var(--muted)", alignSelf: "center" }}>Quelle:</span>
+                                {claimObj.sources.map(domain => {
+                                  const isTrusted = trustedSources.has(domain);
+                                  return (
+                                    <button key={domain} onClick={() => toggleTrust(domain)}
+                                      title={isTrusted ? "Als vertrauenswürdig markiert — klicken zum Entfernen" : "Klicken um als vertrauenswürdig zu markieren"}
+                                      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.15rem 0.55rem", borderRadius: 999, border: `1px solid ${isTrusted ? "var(--sage)" : "var(--border)"}`, background: isTrusted ? "var(--sage-light)" : "var(--surface)", color: isTrusted ? "var(--sage)" : "var(--muted)", fontSize: "0.72rem", fontWeight: isTrusted ? 700 : 400, cursor: "pointer", transition: "all 0.15s" }}>
+                                      {isTrusted ? "★" : "☆"} {domain}
+                                    </button>
+                                  );
+                                })}
+                                {claimObj.source_type && (
+                                  <span style={{ fontSize: "0.68rem", padding: "0.15rem 0.5rem", borderRadius: 999, background: claimObj.source_type === "seriös" ? "var(--sage-light)" : claimObj.source_type === "forum" ? "var(--surface2)" : "var(--gold-light)", color: claimObj.source_type === "seriös" ? "var(--sage)" : claimObj.source_type === "forum" ? "var(--muted)" : "var(--gold)", fontWeight: 600 }}>
+                                    {claimObj.source_type === "seriös" ? "🏛 Seriöse Quelle" : claimObj.source_type === "forum" ? "💬 Forum" : "🔀 Gemischt"}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Verifizieren Button */}
+                            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                              {allTrusted && (
+                                <span style={{ fontSize: "0.72rem", color: "var(--sage)", fontWeight: 600 }}>★ Vertrauenswürdige Quelle</span>
+                              )}
+                              <button onClick={() => verifyClaim(claimObj.claim)} disabled={verifyingClaim === claimObj.claim}
+                                style={{ fontSize: "0.72rem", padding: "0.2rem 0.65rem", borderRadius: 999, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--muted)", cursor: "pointer", transition: "all 0.15s", marginLeft: "auto" }}>
+                                {verifyingClaim === claimObj.claim ? "⏳ Suche…" : "🔬 Tiefer verifizieren"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                  {factCheck.unverified_claims.length > 0 && (
-                    <div style={{ background: "var(--gold-light)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem" }}>
-                      <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "var(--gold)", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>⚠️ Nur vereinzelt belegt</div>
-                      <ul style={{ paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
-                        {factCheck.unverified_claims.map((c, i) => <li key={i} style={{ fontSize: "0.82rem", color: "var(--text)" }}>{c}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ))}
 
                 {factCheck.red_flags.length > 0 && (
                   <div style={{ background: "var(--warm-red-light)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem", marginBottom: "0.85rem" }}>
-                    <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "var(--warm-red)", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>🚩 Red Flags</div>
+                    <div style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--warm-red)", marginBottom: "0.4rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>🚩 Red Flags</div>
                     <ul style={{ paddingLeft: "1.1rem" }}>
                       {factCheck.red_flags.map((f, i) => <li key={i} style={{ fontSize: "0.82rem", color: "var(--warm-red)" }}>{f}</li>)}
                     </ul>
@@ -341,7 +393,7 @@ export default function ResearchPage() {
                 )}
 
                 <div style={{ background: "var(--surface2)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem" }}>
-                  <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "var(--muted)", marginBottom: "0.3rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>💡 Empfehlung für Content</div>
+                  <div style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.3rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>💡 Empfehlung für Content</div>
                   <p style={{ fontSize: "0.85rem", color: "var(--text)" }}>{factCheck.recommendation}</p>
                 </div>
               </div>
