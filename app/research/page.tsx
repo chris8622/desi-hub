@@ -97,9 +97,23 @@ export default function ResearchPage() {
             const evt = JSON.parse(line.slice(6));
             if (evt.type === "status") setStatus(evt.data);
             if (evt.type === "result") {
-              setSummary(evt.data.summary);
-              setSources(evt.data.sources);
-              setFactCheck(evt.data.factCheck || null);
+              setSummary(evt.data.summary || "");
+              setSources(Array.isArray(evt.data.sources) ? evt.data.sources : []);
+              // Faktencheck robust normalisieren — KI liefert nicht immer alle Felder
+              const fc = evt.data.factCheck;
+              if (fc && typeof fc === "object") {
+                setFactCheck({
+                  confidence: fc.confidence || "mittel",
+                  confidence_reason: fc.confidence_reason || "",
+                  source_diversity: fc.source_diversity || 0,
+                  verified_claims: Array.isArray(fc.verified_claims) ? fc.verified_claims : [],
+                  unverified_claims: Array.isArray(fc.unverified_claims) ? fc.unverified_claims : [],
+                  red_flags: Array.isArray(fc.red_flags) ? fc.red_flags : [],
+                  recommendation: fc.recommendation || "",
+                });
+              } else {
+                setFactCheck(null);
+              }
 
               const newItem: HistoryItem = { query: q, date: new Date().toISOString(), summary: evt.data.summary };
               setHistory(prev => {
@@ -374,7 +388,9 @@ export default function ResearchPage() {
                     <div style={{ fontWeight: 700, fontSize: "0.75rem", color, marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
                       {claims.map((c, i) => {
-                        const claimObj = typeof c === "string" ? { claim: c, sources: [], source_type: "gemischt" as const } : c;
+                        const claimObj = typeof c === "string"
+                          ? { claim: c, sources: [] as string[], source_type: "gemischt" as const }
+                          : { claim: c.claim || "", sources: Array.isArray(c.sources) ? c.sources : [], source_type: c.source_type || "gemischt" as const };
                         const allTrusted = claimObj.sources.length > 0 && claimObj.sources.every(s => trustedSources.has(s));
                         return (
                           <div key={i} style={{ background: "rgba(255,255,255,0.6)", borderRadius: 8, padding: "0.75rem 0.85rem" }}>
