@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import LoginGate from "@/components/LoginGate";
-import { scheduleSyncUp } from "@/lib/sync";
+import { scheduleSyncUp, syncDown, syncUp } from "@/lib/sync";
 
 const DEFAULT_SETTINGS = {
   name: "Desi",
@@ -91,6 +91,8 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [newTopic, setNewTopic] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [syncState, setSyncState] = useState<"idle"|"checking"|"ok"|"error">("idle");
+  const [syncMsg, setSyncMsg] = useState("");
 
   useEffect(() => { setS(load()); setMounted(true); }, []);
 
@@ -349,6 +351,68 @@ export default function SettingsPage() {
         {s.groq_key && (
           <div className="alert alert-success" style={{ marginTop: "0.65rem", fontSize: "0.8rem" }}>
             ✓ API Key gesetzt — KI-Funktionen aktiv
+          </div>
+        )}
+      </div>
+
+      {/* Cross-Device Sync */}
+      <div className="card" id="sync" style={{ marginBottom: "1.25rem", scrollMarginTop: "2rem" }}>
+        <h3 style={{ marginBottom: "0.4rem" }}>☁️ Cross-Device Sync</h3>
+        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1.25rem" }}>
+          Synchronisiere deine Daten zwischen Mac und Handy. Daten werden sicher auf dem Server gespeichert.
+        </p>
+
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
+          <button className="btn btn-primary" disabled={syncState === "checking"}
+            onClick={async () => {
+              setSyncState("checking"); setSyncMsg("Teste Verbindung…");
+              const res = await fetch("/api/sync", { headers: { "x-app-token": localStorage.getItem("desi_auth_token") || "" } });
+              const data = await res.json() as { available: boolean };
+              if (data.available) {
+                setSyncState("ok"); setSyncMsg("✓ Cloud-Sync aktiv! Daten werden synchronisiert.");
+              } else {
+                setSyncState("error"); setSyncMsg("Noch nicht verbunden. Folge der Anleitung unten.");
+              }
+            }}>
+            {syncState === "checking" ? "⏳ Prüfe…" : "Sync-Status prüfen"}
+          </button>
+
+          {syncState === "ok" && (
+            <>
+              <button className="btn btn-secondary" onClick={async () => {
+                setSyncState("checking"); setSyncMsg("Lade vom Server…");
+                const { available } = await syncDown();
+                setSyncState(available ? "ok" : "error");
+                setSyncMsg(available ? "✓ Daten vom Server geladen!" : "Fehler beim Laden.");
+                if (available) setTimeout(() => window.location.reload(), 500);
+              }}>⬇️ Vom Server laden</button>
+              <button className="btn btn-secondary" onClick={async () => {
+                setSyncState("checking"); setSyncMsg("Speichere auf Server…");
+                const { success } = await syncUp();
+                setSyncState(success ? "ok" : "error");
+                setSyncMsg(success ? "✓ Auf Server gespeichert!" : "Fehler beim Speichern.");
+              }}>⬆️ Auf Server speichern</button>
+            </>
+          )}
+        </div>
+
+        {syncMsg && (
+          <div className={syncState === "ok" ? "alert alert-success" : syncState === "error" ? "alert alert-error" : "alert"}
+            style={{ marginTop: "0.75rem", fontSize: "0.82rem" }}>
+            {syncMsg}
+          </div>
+        )}
+
+        {syncState === "error" && (
+          <div style={{ marginTop: "1rem", background: "var(--surface2)", borderRadius: "var(--radius-sm)", padding: "1rem" }}>
+            <div style={{ fontWeight: 700, fontSize: "0.82rem", marginBottom: "0.5rem" }}>Einrichtung (einmalig):</div>
+            <ol style={{ paddingLeft: "1.2rem", fontSize: "0.82rem", color: "var(--muted)", lineHeight: 1.8 }}>
+              <li>Gehe zu <strong>vercel.com</strong> → Projekt <strong>desi-hub</strong> → <strong>Storage</strong></li>
+              <li>Klicke auf <strong>Upstash</strong> → <strong>Upstash for Redis</strong> → <strong>Create</strong></li>
+              <li>Klicke <strong>"Connect to Project"</strong> → desi-hub auswählen</li>
+              <li>Einmal <strong>Redeploy</strong> in Vercel auslösen</li>
+              <li>Zurück hier → <strong>Sync-Status prüfen</strong></li>
+            </ol>
           </div>
         )}
       </div>
