@@ -37,9 +37,12 @@ export default function ResearchPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [deepLoading, setDeepLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [groqKey, setGroqKey] = useState("");
 
   useEffect(() => {
     setHistory(getLS<HistoryItem[]>("dh_research_history", []));
+    const key = getLS<{ groq_key?: string }>("dh_settings", {}).groq_key || "";
+    setGroqKey(key);
     // Prefill aus Ideen-Pool
     const prefill = getLS<string>("dh_research_prefill", "");
     if (prefill) {
@@ -137,10 +140,13 @@ export default function ResearchPage() {
 
   // Tiefere Research: mehr Quellen, wissenschaftliche Suche
   const deepResearch = async () => {
+    if (!groqKey) { router.push("/settings"); return; }
     setDeepLoading(true);
-    setStatus("🔬 Tiefe Research läuft — suche Studien & wissenschaftliche Quellen…");
+    // Suchanfrage erweitern aber Original-Query behalten
+    const originalQuery = query;
     const extendedQuery = `${query} wissenschaftliche studie peer review ergebnisse`;
     await runSearch(extendedQuery);
+    setQuery(originalQuery); // Query zurücksetzen
     setDeepLoading(false);
   };
 
@@ -154,6 +160,23 @@ export default function ResearchPage() {
             Analysiere Foren & Diskussionen zu deinen Themen
           </p>
         </div>
+
+        {/* Groq Key Warnung */}
+        {!groqKey && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", background: "var(--gold-light)", border: "1px solid rgba(184,148,80,0.35)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1.1rem", marginBottom: "1.25rem" }}>
+            <span style={{ fontSize: "1.2rem" }}>⚠️</span>
+            <div style={{ flex: 1 }}>
+              <strong style={{ fontSize: "0.88rem", color: "var(--gold)" }}>Kein Groq API Key hinterlegt</strong>
+              <p style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "0.15rem" }}>
+                Die KI-Zusammenfassung und der Faktencheck funktionieren nicht. Quellen werden trotzdem gefunden.
+              </p>
+            </div>
+            <button onClick={() => router.push("/settings")}
+              style={{ background: "var(--gold)", color: "white", border: "none", borderRadius: "var(--radius-sm)", padding: "0.45rem 0.9rem", fontSize: "0.8rem", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+              ⚙️ Key eintragen
+            </button>
+          </div>
+        )}
 
         {/* Search bar */}
         <div className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem" }}>
