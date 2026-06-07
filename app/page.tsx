@@ -90,7 +90,7 @@ export default function DashboardPage() {
 
       {/* Onboarding banner — shown when no Groq key is set */}
       {missingGroqKey && (
-        <div style={{background:"var(--gold-light)", border:"1px solid rgba(184,148,80,0.35)", borderRadius:"var(--radius)", padding:"1rem 1.25rem", marginBottom:"1.5rem", display:"flex", alignItems:"center", gap:"1rem"}}>
+        <div style={{background:"var(--gold-light)", border:"1px solid rgba(184,148,80,0.35)", borderRadius:"var(--radius)", padding:"1rem 1.25rem", marginBottom:"1.5rem", display:"flex", alignItems:"center", gap:"1rem", flexWrap:"wrap"}}>
           <span style={{fontSize:"1.5rem"}}>⚙️</span>
           <div style={{flex:1}}>
             <strong style={{fontSize:"0.9rem", color:"var(--gold)"}}>Einrichtung erforderlich</strong>
@@ -103,7 +103,7 @@ export default function DashboardPage() {
       )}
 
       {/* Stats row */}
-      <div className="grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem", marginBottom: "2rem" }}>
+      <div className="grid-4" style={{ marginBottom: "2rem" }}>
         {[
           { label: "Diese Woche geplant", value: thisWeek, icon: "📅", color: "var(--accent)" },
           { label: "Drafts", value: drafts.length, icon: "✍️", color: "var(--sage)" },
@@ -123,7 +123,7 @@ export default function DashboardPage() {
       {/* Quick actions */}
       <div style={{ marginBottom: "2rem" }}>
         <div className="section-label">Schnellstart</div>
-        <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem" }}>
+        <div className="grid-2">
           {QUICK_ACTIONS.map(a => (
             <Link key={a.href} href={a.href} style={{ textDecoration: "none" }}>
               <div className="card" style={{

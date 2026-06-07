@@ -173,6 +173,7 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
           className="hamburger"
           onClick={() => setSidebarOpen(true)}
           aria-label="Menü öffnen"
+          style={{ position: 'fixed', top: '1rem', left: '1rem', zIndex: 60, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.7rem', boxShadow: 'var(--shadow)' }}
         >
           ☰
         </button>

@@ -187,7 +187,7 @@ export default function PlannerPage() {
         </div>
 
         {/* Week navigation */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.65rem" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
             <button className="btn btn-secondary btn-sm" onClick={prevWeek}>← Vorherige</button>
             <button className="btn btn-ghost btn-sm" onClick={goToday}>Heute</button>
@@ -198,20 +198,22 @@ export default function PlannerPage() {
             </button>
             {autoMsg && <span style={{ fontSize: "0.8rem", color: autoMsg.startsWith("⚠") ? "var(--warm-red)" : "var(--sage)", fontWeight: 600 }}>{autoMsg}</span>}
           </div>
-          <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{monthLabel}</div>
-          {/* Legend */}
-          <div style={{ display: "flex", gap: "0.75rem" }}>
-            {CHANNELS.map(ch => (
-              <div key={ch} style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.78rem", color: "var(--muted)" }}>
-                <div style={{ width: 10, height: 10, borderRadius: "50%", background: CHANNEL_COLOR[ch].text }} />
-                {ch}
-              </div>
-            ))}
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+            <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{monthLabel}</div>
+            {/* Legend */}
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+              {CHANNELS.map(ch => (
+                <div key={ch} style={{ display: "flex", alignItems: "center", gap: "0.3rem", fontSize: "0.78rem", color: "var(--muted)" }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: CHANNEL_COLOR[ch].text }} />
+                  {ch}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Calendar grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.5rem" }}>
+        <div className="planner-week-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.5rem" }}>
           {weekDays.map((day, i) => {
             const dateStr = formatDate(day);
             const dayItems = items.filter(it => it.date === dateStr);
@@ -240,11 +242,11 @@ export default function PlannerPage() {
                   <button
                     onClick={() => openAddModal(dateStr)}
                     style={{
-                      width: 22, height: 22, borderRadius: "50%",
+                      width: 32, height: 32, borderRadius: "50%",
                       border: "1px solid var(--border)", background: "none",
-                      cursor: "pointer", fontSize: "0.9rem", color: "var(--muted)",
+                      cursor: "pointer", fontSize: "1rem", color: "var(--muted)",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      lineHeight: 1,
+                      lineHeight: 1, flexShrink: 0,
                     }}
                     title="Post hinzufügen"
                   >

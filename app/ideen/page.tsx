@@ -249,7 +249,7 @@ export default function IdeenPage() {
             <p>{ideen.length === 0 ? "Noch keine Ideen — einfach oben eintippen!" : "Keine Ideen gefunden."}</p>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))", gap: "0.85rem" }}>
+          <div className="ideen-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(290px, 100%), 1fr))", gap: "0.85rem" }}>
             {filtered.map(idee => {
               const st = STATUS_CONFIG[idee.status];
               return (

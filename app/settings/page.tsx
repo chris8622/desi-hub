@@ -154,7 +154,7 @@ export default function SettingsPage() {
       <div className="card" style={{ marginBottom: "1.25rem" }}>
         <h3 style={{ marginBottom: "1.25rem" }}>🎙️ Brand Voice</h3>
         <label className="label">Ton & Stil</label>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.65rem" }}>
+        <div className="grid-2" style={{ gap: "0.65rem" }}>
           {[
             { val: "warm-inspirierend", label: "🌿 Warm & Inspirierend", desc: "Herzlich, motivierend, persönlich" },
             { val: "sachlich-kompetent", label: "📚 Sachlich & Kompetent", desc: "Faktenbasiert, professionell, klar" },
@@ -337,10 +337,10 @@ export default function SettingsPage() {
           Nur in deinem Browser gespeichert — wird für KI-Funktionen benötigt.
         </p>
         <label className="label">Groq API Key (kostenlos)</label>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <input className="input" type="password" value={s.groq_key}
             onChange={e => setS(p => ({ ...p, groq_key: e.target.value }))}
-            placeholder="gsk_..." style={{ flex: 1 }} />
+            placeholder="gsk_..." style={{ flex: 1, minWidth: 200 }} />
           <TestKeyButton groqKey={s.groq_key} />
         </div>
         <p style={{ fontSize: "0.73rem", color: "var(--muted)", marginTop: "0.35rem" }}>
