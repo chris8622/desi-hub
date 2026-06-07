@@ -17,6 +17,41 @@ const DEFAULT_SETTINGS = {
 
 type Settings = typeof DEFAULT_SETTINGS;
 
+// ─── Groq Key Tester ────────────────────────────────────
+function TestKeyButton({ groqKey }: { groqKey: string }) {
+  const [state, setState] = useState<"idle"|"loading"|"ok"|"error">("idle");
+  const [msg, setMsg] = useState("");
+
+  async function test() {
+    if (!groqKey) { setMsg("Bitte zuerst einen Key eintragen."); setState("error"); return; }
+    setState("loading");
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: "Antworte nur: OK" }], max_tokens: 5 }),
+      });
+      const d = await res.json();
+      if (res.ok) { setState("ok"); setMsg("✓ Key funktioniert!"); }
+      else { setState("error"); setMsg(d?.error?.message || `Fehler ${res.status}`); }
+    } catch (e) { setState("error"); setMsg((e as Error).message); }
+    setTimeout(() => { setState("idle"); setMsg(""); }, 5000);
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", flexShrink: 0 }}>
+      <button onClick={test} disabled={state === "loading"}
+        style={{ background: state==="ok" ? "var(--sage)" : state==="error" ? "var(--warm-red)" : "var(--surface2)",
+          border: "1px solid var(--border)", color: state==="ok"||state==="error" ? "white" : "var(--text)",
+          borderRadius: "var(--radius-sm)", padding: "0 1rem", height: 42, fontSize: "0.82rem",
+          fontWeight: 600, cursor: state==="loading" ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}>
+        {state === "loading" ? "⏳ Test…" : "Key testen"}
+      </button>
+      {msg && <span style={{ fontSize: "0.7rem", color: state==="ok" ? "var(--sage)" : "var(--warm-red)", maxWidth: 120 }}>{msg}</span>}
+    </div>
+  );
+}
+
 function load(): Settings {
   try {
     const s = localStorage.getItem("dh_settings");
@@ -191,9 +226,12 @@ export default function SettingsPage() {
           Nur in deinem Browser gespeichert — wird für KI-Funktionen benötigt.
         </p>
         <label className="label">Groq API Key (kostenlos)</label>
-        <input className="input" type="password" value={s.groq_key}
-          onChange={e => setS(p => ({ ...p, groq_key: e.target.value }))}
-          placeholder="gsk_..." />
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <input className="input" type="password" value={s.groq_key}
+            onChange={e => setS(p => ({ ...p, groq_key: e.target.value }))}
+            placeholder="gsk_..." style={{ flex: 1 }} />
+          <TestKeyButton groqKey={s.groq_key} />
+        </div>
         <p style={{ fontSize: "0.73rem", color: "var(--muted)", marginTop: "0.35rem" }}>
           Kostenlos holen unter{" "}
           <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>console.groq.com</a>

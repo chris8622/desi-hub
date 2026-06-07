@@ -163,11 +163,21 @@ Struktur:
 
         // Ergebnisse auswerten
         let summary = !groqKey
-          ? `<p style="color:var(--gold)">⚠️ <strong>Kein Groq API Key hinterlegt</strong> — die KI-Zusammenfassung ist nicht verfügbar. Bitte trage deinen kostenlosen Groq Key in den <a href="/settings" style="color:var(--accent)">Einstellungen</a> ein.</p>`
+          ? `<p style="color:var(--gold)">⚠️ <strong>Kein Groq API Key hinterlegt</strong> — bitte in den Einstellungen eintragen.</p>`
           : "<p>Zusammenfassung konnte nicht erstellt werden. Bitte versuche es erneut.</p>";
-        if (summaryRes.status === "fulfilled" && summaryRes.value.ok) {
-          const d = await summaryRes.value.json();
-          summary = d.choices?.[0]?.message?.content || summary;
+
+        if (summaryRes.status === "fulfilled") {
+          const res = summaryRes.value;
+          const d = await res.json();
+          if (res.ok) {
+            summary = d.choices?.[0]?.message?.content || summary;
+          } else {
+            // Groq-Fehler anzeigen (Statuscode + Meldung)
+            const errMsg = d?.error?.message || JSON.stringify(d);
+            summary = `<p style="color:var(--warm-red)">⚠️ <strong>Groq API Fehler (${res.status}):</strong> ${errMsg}</p>`;
+          }
+        } else {
+          summary = `<p style="color:var(--warm-red)">⚠️ Verbindungsfehler zu Groq: ${summaryRes.reason}</p>`;
         }
 
         let factCheck = null;
