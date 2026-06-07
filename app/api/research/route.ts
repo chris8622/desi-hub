@@ -275,9 +275,20 @@ Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als d
             summary = d.choices?.[0]?.message?.content || summary;
             summaryTokens = d.usage?.total_tokens || 0;
           } else {
-            // Groq-Fehler anzeigen (Statuscode + Meldung)
             const errMsg = d?.error?.message || JSON.stringify(d);
-            summary = `<p style="color:var(--warm-red)">⚠️ <strong>Groq API Fehler (${res.status}):</strong> ${errMsg}</p>`;
+            // Rate-Limit (429) → freundliche Meldung mit Hinweis auf manuellen Modus
+            if (res.status === 429) {
+              const waitMatch = errMsg.match(/try again in ([\dm.s]+)/i);
+              const waitStr = waitMatch ? waitMatch[1].replace(/\.\d+s/, "s") : "etwas";
+              const isDaily = /per day|TPD/i.test(errMsg);
+              summary = `<div style="background:var(--gold-light);border:1px solid rgba(184,148,80,0.35);border-radius:8px;padding:1rem 1.25rem">
+                <p style="color:var(--gold);font-weight:700;margin-bottom:0.5rem">⏳ Tageslimit erreicht</p>
+                <p style="color:var(--text);font-size:0.88rem;line-height:1.6">Du hast das ${isDaily ? "kostenlose Tageslimit (100.000 Tokens/Tag)" : "Minutenlimit"} von Groq erreicht. Das ist kein Fehler — es setzt sich automatisch zurück${waitStr ? ` (in ca. ${waitStr})` : ""}, spätestens morgen.</p>
+                <p style="color:var(--text);font-size:0.88rem;line-height:1.6;margin-top:0.5rem">💡 <strong>Tipp:</strong> Erstelle Content jetzt manuell — mach den Text in Claude und nutze im Content-Bereich „✍️ Selbst eingeben" für Carousels ganz ohne Tokens.</p>
+              </div>`;
+            } else {
+              summary = `<p style="color:var(--warm-red)">⚠️ <strong>Groq API Fehler (${res.status}):</strong> ${errMsg}</p>`;
+            }
           }
         } else {
           summary = `<p style="color:var(--warm-red)">⚠️ Verbindungsfehler zu Groq: ${summaryRes.reason}</p>`;
