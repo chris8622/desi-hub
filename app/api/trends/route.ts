@@ -132,8 +132,10 @@ Wichtig:
         });
 
         let result: unknown = { trends: [], early_signals: [], summary: "" };
+        let trendTokens = 0;
         if (res.ok) {
           const d = await res.json();
+          trendTokens = d.usage?.total_tokens || 0;
           try { result = JSON.parse(d.choices?.[0]?.message?.content || "{}"); } catch {}
         }
 
@@ -143,7 +145,7 @@ Wichtig:
           .slice(0, 20)
           .map(r => ({ title: r.title, url: r.link }));
 
-        send({ type: "result", data: { ...(result as object), sources } });
+        send({ type: "result", data: { ...(result as object), sources, tokens: trendTokens } });
       } catch (err) {
         send({ type: "error", data: (err as Error).message });
       } finally {

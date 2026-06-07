@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import LoginGate from "@/components/LoginGate";
+import { trackTokens } from "@/lib/tokens";
 
 type Subscriber = { id: string; name: string; email: string; addedAt: string };
 type Newsletter = { id: string; subject: string; preheader?: string; body: string; createdAt: string };
@@ -145,6 +146,7 @@ export default function EmailPage() {
         body: JSON.stringify({ type: "newsletter", topic: nlSubject, groqKey }),
       });
       const data = await res.json();
+      trackTokens(data._tokens || 0);
       if (data.error) { alert("Fehler: " + data.error); }
       else {
         if (data.body) setNlBody(data.body);

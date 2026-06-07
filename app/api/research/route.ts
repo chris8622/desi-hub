@@ -267,11 +267,13 @@ Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als d
           ? `<p style="color:var(--gold)">⚠️ <strong>Kein Groq API Key hinterlegt</strong> — bitte in den Einstellungen eintragen.</p>`
           : "<p>Zusammenfassung konnte nicht erstellt werden. Bitte versuche es erneut.</p>";
 
+        let summaryTokens = 0;
         if (summaryRes.status === "fulfilled") {
           const res = summaryRes.value;
           const d = await res.json();
           if (res.ok) {
             summary = d.choices?.[0]?.message?.content || summary;
+            summaryTokens = d.usage?.total_tokens || 0;
           } else {
             // Groq-Fehler anzeigen (Statuscode + Meldung)
             const errMsg = d?.error?.message || JSON.stringify(d);
@@ -297,7 +299,7 @@ Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als d
           hasContent: i < contents.length && contents[i].length > 200,
         }));
 
-        send({ type: "result", data: { sources: sourcesWithFlag, summary, factCheck } });
+        send({ type: "result", data: { sources: sourcesWithFlag, summary, factCheck, tokens: summaryTokens } });
 
       } catch (err) {
         send({ type: "error", data: err instanceof Error ? err.message : "Fehler" });

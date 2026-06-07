@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
 import { scheduleSyncUp } from "@/lib/sync";
+import { trackTokens } from "@/lib/tokens";
 
 type Trend = {
   name: string;
@@ -77,6 +78,7 @@ export default function TrendsPage() {
             if (evt.type === "status") setStatus(evt.data);
             if (evt.type === "error") { setError(evt.data); setLoading(false); }
             if (evt.type === "result") {
+              trackTokens(evt.data.tokens || 0);
               const r: Result = {
                 trends: Array.isArray(evt.data.trends) ? evt.data.trends : [],
                 early_signals: Array.isArray(evt.data.early_signals) ? evt.data.early_signals : [],

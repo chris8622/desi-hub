@@ -133,6 +133,7 @@ export async function POST(req: Request) {
 
   try {
     const result = JSON.parse(content);
+    result._tokens = data.usage?.total_tokens || 0;
     return Response.json(result);
   } catch {
     return Response.json({ error: "Antwort konnte nicht verarbeitet werden", raw: content }, { status: 500 });

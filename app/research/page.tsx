@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
+import { trackTokens } from "@/lib/tokens";
 
 type Source = { title: string; url: string; snippet: string; credibility?: { level: string; label: string; color: string } };
 type Claim = { claim: string; sources: string[]; source_type: "seriös"|"forum"|"gemischt" };
@@ -97,6 +98,7 @@ export default function ResearchPage() {
             const evt = JSON.parse(line.slice(6));
             if (evt.type === "status") setStatus(evt.data);
             if (evt.type === "result") {
+              trackTokens(evt.data.tokens || 0);
               setSummary(evt.data.summary || "");
               setSources(Array.isArray(evt.data.sources) ? evt.data.sources : []);
               // Faktencheck robust normalisieren — KI liefert nicht immer alle Felder

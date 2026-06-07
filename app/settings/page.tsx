@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import LoginGate from "@/components/LoginGate";
 import { scheduleSyncUp, syncDown, syncUp } from "@/lib/sync";
+import { getTokenUsage } from "@/lib/tokens";
 
 const DEFAULT_SETTINGS = {
   name: "Desi",
@@ -132,8 +133,9 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [syncState, setSyncState] = useState<"idle"|"checking"|"ok"|"error">("idle");
   const [syncMsg, setSyncMsg] = useState("");
+  const [tokenUsage, setTokenUsage] = useState({ date: "", tokens: 0, requests: 0 });
 
-  useEffect(() => { setS(load()); setMounted(true); }, []);
+  useEffect(() => { setS(load()); setMounted(true); setTokenUsage(getTokenUsage()); }, []);
 
   function save() {
     localStorage.setItem("dh_settings", JSON.stringify(s));
@@ -385,6 +387,31 @@ export default function SettingsPage() {
               if (input) input.value = "";
             }
           }}>+ Hinzufügen</button>
+        </div>
+      </div>
+
+      {/* Token-Verbrauch */}
+      <div className="card" style={{ marginBottom: "1.25rem" }}>
+        <h3 style={{ marginBottom: "0.4rem" }}>📊 Token-Verbrauch heute</h3>
+        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1rem" }}>
+          Groq Free-Tier: ca. 100.000 Tokens/Tag &amp; 12.000/Minute. Bei Erreichen einfach morgen weiter oder Content manuell erstellen.
+        </p>
+        <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: "2rem", color: "var(--accent)" }}>{tokenUsage.tokens.toLocaleString("de-AT")}</div>
+            <div style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tokens heute</div>
+          </div>
+          <div>
+            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: "2rem", color: "var(--sage)" }}>{tokenUsage.requests}</div>
+            <div style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>KI-Anfragen</div>
+          </div>
+        </div>
+        {/* Fortschrittsbalken */}
+        <div style={{ marginTop: "1rem", height: 8, background: "var(--surface2)", borderRadius: 999, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${Math.min(100, (tokenUsage.tokens / 100000) * 100)}%`, background: tokenUsage.tokens > 80000 ? "var(--warm-red)" : "var(--accent)", transition: "width 0.3s" }} />
+        </div>
+        <div style={{ fontSize: "0.7rem", color: "var(--muted)", marginTop: "0.4rem" }}>
+          {Math.round((tokenUsage.tokens / 100000) * 100)}% des Tageslimits (Schätzung)
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 // import { toPng } from "html-to-image"; ← nicht mehr hier
 import LoginGate from "@/components/LoginGate";
 import { scheduleSyncUp } from "@/lib/sync";
+import { trackTokens } from "@/lib/tokens";
 
 type Slide = { headline: string; points: string[]; cta?: string };
 type CarouselResult = { title: string; slides: Slide[]; caption: string; hashtags: string[] };
@@ -220,10 +221,17 @@ export default function ContentPage() {
   }, []);
 
   // Carousel state
+  const [carouselMode, setCarouselMode] = useState<"ai" | "manual">("ai");
   const [carouselTopic, setCarouselTopic] = useState("");
   const [carouselLoading, setCarouselLoading] = useState(false);
   const [carousel, setCarousel] = useState<CarouselResult | null>(null);
   const [carouselError, setCarouselError] = useState("");
+
+  // Manual carousel state
+  const [manualRaw, setManualRaw] = useState("");
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualCaption, setManualCaption] = useState("");
+  const [manualHashtags, setManualHashtags] = useState("");
 
   // Visual preview state
   const [slideStyle, setSlideStyle] = useState<SlideStyle>("natur");
@@ -278,6 +286,7 @@ export default function ContentPage() {
         body: JSON.stringify({ type: "carousel", topic, context: researchContext || undefined, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
       });
       const data = await res.json();
+      trackTokens(data._tokens || 0);
       if (data.error) throw new Error(data.error);
       setCarousel(data);
       // Initialize per-slide styles
@@ -288,6 +297,34 @@ export default function ContentPage() {
     } finally {
       setCarouselLoading(false);
     }
+  };
+
+  function parseManualCarousel(raw: string, title: string, caption: string, hashtagsStr: string): CarouselResult {
+    const blocks = raw.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+    const slides = blocks.map(block => {
+      const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
+      return { headline: lines[0] || "", points: lines.slice(1) };
+    });
+    return {
+      title: title || "Mein Karussell",
+      slides,
+      caption: caption || "",
+      hashtags: hashtagsStr.split(",").map(h => h.trim().replace(/^#/, "")).filter(Boolean),
+    };
+  }
+
+  const createManualCarousel = () => {
+    if (!manualRaw.trim()) return;
+    setCarouselError("");
+    const parsed = parseManualCarousel(manualRaw, manualTitle, manualCaption, manualHashtags);
+    if (parsed.slides.length === 0) {
+      setCarouselError("Bitte gib mindestens eine Slide ein.");
+      return;
+    }
+    setCarousel(parsed);
+    slideRefs.current = [];
+    // Per-slide Styles initialisieren (wie bei der KI-Generierung)
+    setSlideStyles(Array(parsed.slides.length).fill(slideStyle));
   };
 
   const generateIdeas = async () => {
@@ -301,6 +338,7 @@ export default function ContentPage() {
         body: JSON.stringify({ type: "ideas", topic: ideaTopic, context: researchContext || undefined, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
       });
       const data = await res.json();
+      trackTokens(data._tokens || 0);
       if (data.error) throw new Error(data.error);
       setIdeas(data.ideas || []);
     } catch (e) {
@@ -499,22 +537,110 @@ export default function ContentPage() {
         {/* Carousel tab */}
         {tab === "carousel" && (
           <div>
-            <div className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem" }}>
-              <div style={{ display: "flex", gap: "0.75rem" }}>
-                <input
-                  className="input"
-                  style={{ flex: 1 }}
-                  value={carouselTopic}
-                  onChange={e => setCarouselTopic(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && !carouselLoading && generateCarousel()}
-                  placeholder="Thema für das Karussell… z.B. Morgenroutine für mehr Energie"
-                  disabled={carouselLoading}
-                />
-                <button className="btn btn-primary" onClick={() => generateCarousel()} disabled={carouselLoading || !carouselTopic.trim()}>
-                  {carouselLoading ? "Generiere…" : "Generieren"}
+            {/* Modus-Umschalter: KI vs. Selbst eingeben */}
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+              {([
+                { key: "ai", label: "✨ Mit KI generieren" },
+                { key: "manual", label: "✍️ Selbst eingeben" },
+              ] as const).map(m => (
+                <button
+                  key={m.key}
+                  onClick={() => { setCarouselMode(m.key); setCarouselError(""); }}
+                  style={{
+                    padding: "0.55rem 1.1rem",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid",
+                    cursor: "pointer",
+                    fontSize: "0.85rem",
+                    fontFamily: "inherit",
+                    fontWeight: carouselMode === m.key ? 700 : 400,
+                    transition: "all 0.15s",
+                    background: carouselMode === m.key ? "var(--accent)" : "var(--surface2)",
+                    borderColor: carouselMode === m.key ? "var(--accent)" : "var(--border)",
+                    color: carouselMode === m.key ? "white" : "var(--muted)",
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            {/* KI-Modus */}
+            {carouselMode === "ai" && (
+              <div className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem" }}>
+                <div style={{ display: "flex", gap: "0.75rem" }}>
+                  <input
+                    className="input"
+                    style={{ flex: 1 }}
+                    value={carouselTopic}
+                    onChange={e => setCarouselTopic(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && !carouselLoading && generateCarousel()}
+                    placeholder="Thema für das Karussell… z.B. Morgenroutine für mehr Energie"
+                    disabled={carouselLoading}
+                  />
+                  <button className="btn btn-primary" onClick={() => generateCarousel()} disabled={carouselLoading || !carouselTopic.trim()}>
+                    {carouselLoading ? "Generiere…" : "Generieren"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Manueller Modus */}
+            {carouselMode === "manual" && (
+              <div className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <p style={{ fontSize: "0.82rem", color: "var(--muted)", lineHeight: 1.5, margin: 0 }}>
+                  Füge deinen Content ein (z.B. von Claude erstellt). Pro Slide: erste Zeile = Überschrift, weitere Zeilen = Punkte. Slides mit einer Leerzeile trennen.
+                </p>
+                <div>
+                  <label className="label">Slides</label>
+                  <textarea
+                    className="textarea"
+                    style={{ minHeight: 240, resize: "vertical", fontFamily: "'DM Mono', ui-monospace, monospace", fontSize: "0.85rem" }}
+                    value={manualRaw}
+                    onChange={e => setManualRaw(e.target.value)}
+                    placeholder={"Slide 1 Überschrift\nPunkt 1\nPunkt 2\n\nSlide 2 Überschrift\nPunkt A\nPunkt B"}
+                  />
+                </div>
+                <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem" }}>
+                  <div>
+                    <label className="label">Titel</label>
+                    <input
+                      className="input"
+                      value={manualTitle}
+                      onChange={e => setManualTitle(e.target.value)}
+                      placeholder="Titel des Karussells"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Hashtags (mit Komma getrennt)</label>
+                    <input
+                      className="input"
+                      value={manualHashtags}
+                      onChange={e => setManualHashtags(e.target.value)}
+                      placeholder="selbstliebe, mindset, wellness"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Caption</label>
+                  <textarea
+                    className="textarea"
+                    style={{ minHeight: 100, resize: "vertical" }}
+                    value={manualCaption}
+                    onChange={e => setManualCaption(e.target.value)}
+                    placeholder="Caption für den Post…"
+                  />
+                </div>
+                <button
+                  className="btn btn-primary"
+                  style={{ alignSelf: "flex-start" }}
+                  onClick={createManualCarousel}
+                  disabled={!manualRaw.trim()}
+                >
+                  Carousel erstellen
                 </button>
               </div>
-            </div>
+            )}
 
             {carouselError && <div className="alert alert-error" style={{ marginBottom: "1rem" }}>{carouselError}</div>}
 
