@@ -44,15 +44,76 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-async function fetchPageContent(url: string): Promise<string> {
+const BROWSER_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "de-AT,de;q=0.9,en;q=0.8",
+};
+
+// Reddit erlaubt .json — volle Thread-Inhalte gratis
+async function fetchReddit(url: string): Promise<string> {
   try {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(8000),
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; DesiHubBot/1.0)" },
+    const jsonUrl = url.replace(/\/$/, "") + ".json";
+    const res = await fetch(jsonUrl, { signal: AbortSignal.timeout(7000), headers: BROWSER_HEADERS });
+    if (!res.ok) return "";
+    const data = await res.json();
+    const parts: string[] = [];
+    // data[0] = Post, data[1] = Kommentare
+    const post = data?.[0]?.data?.children?.[0]?.data;
+    if (post) {
+      if (post.title) parts.push(post.title);
+      if (post.selftext) parts.push(post.selftext);
+    }
+    const comments = data?.[1]?.data?.children || [];
+    for (const c of comments.slice(0, 15)) {
+      if (c?.data?.body) parts.push(c.data.body);
+    }
+    return parts.join("\n").slice(0, 5000);
+  } catch { return ""; }
+}
+
+// Jina AI Reader — gratis, umgeht Bot-Schutz + rendert JavaScript
+async function fetchViaJina(url: string): Promise<string> {
+  try {
+    const res = await fetch(`https://r.jina.ai/${url}`, {
+      signal: AbortSignal.timeout(12000),
+      headers: { "Accept": "text/plain", "X-Return-Format": "text" },
     });
     if (!res.ok) return "";
-    return stripHtml(await res.text()).slice(0, 5000);
+    const text = await res.text();
+    return text.slice(0, 5000);
   } catch { return ""; }
+}
+
+// Direkter Fetch als letzter Fallback
+async function fetchDirect(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(7000), headers: BROWSER_HEADERS });
+    if (!res.ok) return "";
+    const html = await res.text();
+    // Bot-Schutz erkennen
+    if (/captcha|sgcaptcha|just a moment|cloudflare/i.test(html) && html.length < 3000) return "";
+    return stripHtml(html).slice(0, 5000);
+  } catch { return ""; }
+}
+
+async function fetchPageContent(url: string): Promise<string> {
+  // 1. Reddit → JSON API (zuverlässig, volle Threads)
+  if (/reddit\.com/i.test(url)) {
+    const r = await fetchReddit(url);
+    if (r.length > 100) return r;
+  }
+
+  // 2. Direkter Fetch (schnell, klappt bei ~50% der Seiten)
+  const direct = await fetchDirect(url);
+  if (direct.length > 400) return direct;
+
+  // 3. Jina Reader (umgeht Bot-Schutz, etwas langsamer)
+  const jina = await fetchViaJina(url);
+  if (jina.length > 200) return jina;
+
+  // 4. Was auch immer der direkte Fetch hatte
+  return direct;
 }
 
 export async function POST(req: Request) {
@@ -134,18 +195,23 @@ export async function POST(req: Request) {
           .slice(0, 14)
           .map(r => ({ title: r.title, url: r.link, snippet: r.snippet || "", credibility: scoreDomain(r.link) }));
 
-        send({ type: "status", data: `📋 ${sources.length} Quellen gefunden — Inhalte laden…` });
+        send({ type: "status", data: `📋 ${sources.length} Quellen gefunden — lade Inhalte (kann etwas dauern)…` });
 
-        // ── 2. Seiteninhalte laden ──────────────────────────
-        const contents = await Promise.all(sources.slice(0, 10).map(s => fetchPageContent(s.url)));
+        // ── 2. Seiteninhalte laden (max 8 parallel, mit Jina-Fallback) ──
+        const toFetch = sources.slice(0, 8);
+        const contents = await Promise.all(toFetch.map(s => fetchPageContent(s.url)));
+        const loadedCount = contents.filter(c => c.length > 200).length;
 
-        send({ type: "status", data: "🤖 KI analysiert & prüft Fakten…" });
+        send({ type: "status", data: `🤖 ${loadedCount}/${toFetch.length} Quellen gelesen — KI analysiert & prüft Fakten…` });
 
-        // ── 3. Kontext aufbauen ─────────────────────────────
-        const context = sources.slice(0, 10)
-          .map((s, i) => `### ${s.title}\nQuelle: ${s.url} [${s.credibility.label}]\n${contents[i] || s.snippet}`)
+        // ── 3. Kontext aufbauen (geladener Inhalt ODER Snippet als Fallback) ──
+        const context = toFetch
+          .map((s, i) => {
+            const body = (contents[i] && contents[i].length > 100) ? contents[i] : s.snippet;
+            return `### ${s.title}\nQuelle: ${s.url} [${s.credibility.label}]\n${body}`;
+          })
           .join("\n\n---\n\n")
-          .slice(0, 22000);
+          .slice(0, 24000);
 
         // ── 4. Groq: Zusammenfassung ────────────────────────
         const [summaryRes, factRes] = await Promise.allSettled([
@@ -232,7 +298,13 @@ Wichtig: Schreibe IMMER in der du-Form (nicht Sie). Nur echte inhaltliche Red Fl
           } catch { factCheck = null; }
         }
 
-        send({ type: "result", data: { sources, summary, factCheck } });
+        // hasContent-Flag pro Quelle ergänzen
+        const sourcesWithFlag = sources.map((s, i) => ({
+          ...s,
+          hasContent: i < contents.length && contents[i].length > 200,
+        }));
+
+        send({ type: "result", data: { sources: sourcesWithFlag, summary, factCheck } });
 
       } catch (err) {
         send({ type: "error", data: err instanceof Error ? err.message : "Fehler" });
