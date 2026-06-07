@@ -215,7 +215,7 @@ export async function POST(req: Request) {
             return `### ${s.title}\nQuelle: ${s.url} [${s.credibility.label}]\n${body}`;
           })
           .join("\n\n---\n\n")
-          .slice(0, 32000);
+          .slice(0, 19000); // ~4800 Tokens — passt mit 3500 Output unter Groq Free-Limit (12k TPM)
 
         // ── 4. Groq: Zusammenfassung ────────────────────────
         const [summaryRes, factRes] = await Promise.allSettled([
@@ -253,42 +253,13 @@ Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als d
                 { role: "user", content: `Research-Thema: "${query}"\n\nGefundene Inhalte (jede Quelle mit ihrer Domain — achte auf den Quellentyp in [Klammern]):\n\n${context}` },
               ],
               temperature: 0.35,
-              max_tokens: 3800,
+              max_tokens: 3500,
             }),
-            signal: AbortSignal.timeout(40000),
+            signal: AbortSignal.timeout(45000),
           }),
-
-          // ── 5. Groq: Faktencheck — nur wenn genug Kontext vorhanden ──
-          context.length > 500
-            ? fetch("https://api.groq.com/openai/v1/chat/completions", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  model: "llama-3.3-70b-versatile",
-                  messages: [
-                    { role: "system", content: `Du bist ein kritischer Faktenprüfer. Antworte NUR mit gültigem JSON (kein Markdown, kein Text davor/danach):
-{
-  "confidence": "hoch"|"mittel"|"niedrig",
-  "confidence_reason": "1 Satz Begründung auf Deutsch, du-Form",
-  "source_diversity": number,
-  "verified_claims": [
-    { "claim": "Aussage die durch mehrere Quellen belegt ist", "sources": ["domain1.com", "domain2.at"], "source_type": "seriös"|"forum"|"gemischt" }
-  ],
-  "unverified_claims": [
-    { "claim": "Aussage die nur auf einer Quelle basiert", "sources": ["domain1.com"], "source_type": "seriös"|"forum"|"gemischt" }
-  ],
-  "red_flags": ["Nur konkrete, inhaltliche Warnungen — KEIN 'Keine Quellenübersicht'"],
-  "recommendation": "1-2 Sätze Empfehlung, du-Form, für Content Creatorin"
-}
-Wichtig: Schreibe IMMER in der du-Form (nicht Sie). Nur echte inhaltliche Red Flags angeben — keine Hinweise auf fehlende Daten.` },
-                    { role: "user", content: `Thema: "${query}"\n\nQuellenübersicht:\n${sources.slice(0,8).map((s,i) => `${i+1}. ${new URL(s.url).hostname.replace("www.","")} [${s.credibility.label}]: ${s.title}`).join("\n")}\n\nInhalte:\n${context.slice(0, 14000)}` },
-                  ],
-                  temperature: 0.15,
-                  max_tokens: 1000,
-                }),
-                signal: AbortSignal.timeout(40000),
-              })
-            : Promise.resolve(new Response(JSON.stringify({ choices: [] }), { status: 200 })),
+          // Faktencheck ist in die Tiefen-Analyse integriert ("Was die Wissenschaft sagt")
+          // → kein separater Call nötig (spart Token-Budget für tiefere Analyse)
+          Promise.resolve(new Response(JSON.stringify({ choices: [] }), { status: 200 })),
         ]);
 
         // Ergebnisse auswerten
