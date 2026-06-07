@@ -232,6 +232,55 @@ export default function ContentPage() {
   const [manualTitle, setManualTitle] = useState("");
   const [manualCaption, setManualCaption] = useState("");
   const [manualHashtags, setManualHashtags] = useState("");
+  const [promptTopic, setPromptTopic] = useState("");
+  const [promptCopied, setPromptCopied] = useState(false);
+
+  // Prompt für externe KI (Claude etc.) — exaktes Format für Copy-Paste
+  const buildClaudePrompt = () => {
+    const settings = getLS<{ niche?: string; voice?: string; audience?: string }>("dh_settings", {});
+    const voiceMap: Record<string, string> = {
+      "warm-inspirierend": "warm, inspirierend und persönlich",
+      "sachlich-kompetent": "sachlich, kompetent und faktenbasiert",
+      "direkt-motivierend": "direkt, motivierend und energetisch",
+      "sanft-einfühlsam": "sanft, einfühlsam und nährend",
+    };
+    const tone = voiceMap[settings.voice || "warm-inspirierend"] || "warm und persönlich";
+    const topic = promptTopic.trim() || "[DEIN THEMA HIER EINFÜGEN]";
+    return `Erstelle ein Instagram-Karussell zum Thema: "${topic}"
+
+Kontext:
+- Nische: ${settings.niche || "Mind, Health, Ästhetik & Selbstoptimierung"}
+- Zielgruppe: ${settings.audience || "Frauen 25–40 die an sich arbeiten möchten"}
+- Tonalität: ${tone}, auf Deutsch, per "du"
+
+Erstelle 6–8 Slides. WICHTIG — halte dich EXAKT an dieses Ausgabeformat, damit ich es direkt weiterverwenden kann:
+- Pro Slide: die ERSTE Zeile ist die Überschrift, die weiteren Zeilen sind die Stichpunkte (jeweils eine Zeile, kurz & knackig)
+- Slides werden durch EINE Leerzeile getrennt
+- Slide 1 = starker Hook, letzte Slide = klarer Call-to-Action
+- KEINE Nummerierung, KEINE Bullets/Striche, KEINE Markdown-Zeichen, KEINE Erklärungen davor oder danach
+
+Beispiel-Format:
+Der Hook der neugierig macht
+Kurzer Untertitel
+
+Erster Kernpunkt
+Knackige Erklärung dazu
+
+Call to Action
+Folge für mehr
+
+Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, endet mit einer Frage) und 15 passende Hashtags.`;
+  };
+
+  const copyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(buildClaudePrompt());
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2500);
+    } catch {
+      setCarouselError("Konnte Prompt nicht kopieren — bitte manuell markieren.");
+    }
+  };
 
   // Visual preview state
   const [slideStyle, setSlideStyle] = useState<SlideStyle>("natur");
@@ -588,8 +637,31 @@ export default function ContentPage() {
             {/* Manueller Modus */}
             {carouselMode === "manual" && (
               <div className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+
+                {/* Schritt 1: Prompt für Claude */}
+                <div style={{ background: "var(--accent-light)", border: "1px solid rgba(196,112,74,0.3)", borderRadius: "var(--radius-sm)", padding: "1rem 1.1rem" }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--accent2)", marginBottom: "0.4rem" }}>
+                    1️⃣ Prompt für Claude (oder andere KI)
+                  </div>
+                  <p style={{ fontSize: "0.78rem", color: "var(--muted)", marginBottom: "0.65rem", lineHeight: 1.5 }}>
+                    Gib dein Thema ein, kopiere den Prompt und füge ihn in Claude ein. Das Ergebnis kommt im richtigen Format zurück — direkt hier unten einfügen.
+                  </p>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <input className="input" value={promptTopic} onChange={e => setPromptTopic(e.target.value)}
+                      placeholder="Thema, z.B. Morgenroutine für mehr Energie" style={{ flex: 1, minWidth: 200 }} />
+                    <button className="btn btn-primary" onClick={copyPrompt}>
+                      {promptCopied ? "✓ Kopiert!" : "📋 Prompt kopieren"}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: "1rem" }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--text)", marginBottom: "0.4rem" }}>
+                    2️⃣ Ergebnis von Claude einfügen
+                  </div>
+                </div>
                 <p style={{ fontSize: "0.82rem", color: "var(--muted)", lineHeight: 1.5, margin: 0 }}>
-                  Füge deinen Content ein (z.B. von Claude erstellt). Pro Slide: erste Zeile = Überschrift, weitere Zeilen = Punkte. Slides mit einer Leerzeile trennen.
+                  Pro Slide: erste Zeile = Überschrift, weitere Zeilen = Punkte. Slides mit einer Leerzeile trennen.
                 </p>
                 <div>
                   <label className="label">Slides</label>
