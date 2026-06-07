@@ -3,10 +3,19 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toPng } from "html-to-image";
 import LoginGate from "@/components/LoginGate";
+import { scheduleSyncUp } from "@/lib/sync";
 
 type Slide = { headline: string; points: string[]; cta?: string };
 type CarouselResult = { title: string; slides: Slide[]; caption: string; hashtags: string[] };
 type Idea = { title: string; type: "instagram" | "blog" | "newsletter"; hook: string; angle: string };
+
+type SavedCarousel = {
+  id: string;
+  title: string;
+  savedAt: string;
+  carousel: CarouselResult;
+  styles: string[];
+};
 
 function setLS(key: string, val: unknown) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
@@ -30,12 +39,27 @@ const TYPE_LABEL: Record<string, string> = {
   newsletter: "Newsletter",
 };
 
-type SlideStyle = "natur" | "warm" | "sage";
+type SlideStyle = string; // "natur" | "warm" | "sage" | "photo-p1" | ...
 
-const STYLE_OPTIONS: { key: SlideStyle; emoji: string; label: string; bg: string; text: string; accent: string }[] = [
+const STYLE_OPTIONS: { key: string; emoji: string; label: string; bg: string; text: string; accent: string }[] = [
   { key: "natur", emoji: "🌿", label: "Natur", bg: "#F7F3EE", text: "#2C2016", accent: "#C4704A" },
   { key: "warm", emoji: "🌸", label: "Warm", bg: "#C4704A", text: "#F7F3EE", accent: "#F7F3EE" },
   { key: "sage", emoji: "🌿", label: "Sage", bg: "#6B8F71", text: "#F7F3EE", accent: "#F7F3EE" },
+];
+
+const STOCK_PHOTOS = [
+  { id: "p1", url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=720&q=80&auto=format&fit=crop", label: "Berge" },
+  { id: "p2", url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=720&q=80&auto=format&fit=crop", label: "Yoga" },
+  { id: "p3", url: "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=720&q=80&auto=format&fit=crop", label: "Sonnenstrahlen" },
+  { id: "p4", url: "https://images.unsplash.com/photo-1487700160041-babef9c3cb55?w=720&q=80&auto=format&fit=crop", label: "Kaffee & Journal" },
+  { id: "p5", url: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=720&q=80&auto=format&fit=crop", label: "Blüten" },
+  { id: "p6", url: "https://images.unsplash.com/photo-1483354568375-35cc4f0f2f52?w=720&q=80&auto=format&fit=crop", label: "Strand" },
+  { id: "p7", url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=720&q=80&auto=format&fit=crop", label: "Portrait" },
+  { id: "p8", url: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=720&q=80&auto=format&fit=crop", label: "Hautpflege" },
+  { id: "p9", url: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=720&q=80&auto=format&fit=crop", label: "Pflanzen" },
+  { id: "p10", url: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=720&q=80&auto=format&fit=crop", label: "Morgenroutine" },
+  { id: "p11", url: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=720&q=80&auto=format&fit=crop", label: "Massage" },
+  { id: "p12", url: "https://images.unsplash.com/photo-1512438248247-f0f2a5a8b7f0?w=720&q=80&auto=format&fit=crop", label: "Wald" },
 ];
 
 function SlidePreview({
@@ -53,8 +77,21 @@ function SlidePreview({
   handle: string;
   slideRef: (el: HTMLDivElement | null) => void;
 }) {
-  const s = STYLE_OPTIONS.find(o => o.key === style)!;
+  const isPhoto = style.startsWith("photo-");
+  const photoEntry = isPhoto ? STOCK_PHOTOS.find(p => `photo-${p.id}` === style) : null;
+  const photoUrl = photoEntry?.url ?? null;
+
+  const solidStyle = STYLE_OPTIONS.find(o => o.key === style) ?? STYLE_OPTIONS[0];
   const isNatur = style === "natur";
+
+  // Colors for photo mode
+  const textColor = isPhoto ? "#FFFFFF" : solidStyle.text;
+  const accentColor = isPhoto ? "#FFFFFF" : solidStyle.accent;
+  const subColor = isPhoto ? "rgba(255,255,255,0.65)" : (isNatur ? "#8C7B6B" : "rgba(247,243,238,0.65)");
+
+  const bgStyle: React.CSSProperties = photoUrl
+    ? { backgroundImage: `url(${photoUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+    : { background: solidStyle.bg };
 
   return (
     <div
@@ -63,79 +100,95 @@ function SlidePreview({
         width: 360,
         height: 360,
         flexShrink: 0,
-        background: s.bg,
         borderRadius: 12,
-        padding: 28,
         boxSizing: "border-box",
-        display: "flex",
-        flexDirection: "column",
         position: "relative",
         overflow: "hidden",
         fontFamily: "'DM Sans', sans-serif",
+        ...bgStyle,
       }}
     >
-      {/* Top row: accent bar + slide number */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-        <div style={{ width: 40, height: 3, background: s.accent, borderRadius: 2 }} />
-        <div style={{ fontSize: 11, color: isNatur ? "#8C7B6B" : "rgba(247,243,238,0.65)", fontWeight: 500 }}>
-          {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
-        </div>
-      </div>
-
-      {/* Headline */}
-      <div
-        style={{
-          fontFamily: "'DM Serif Display', serif",
-          fontSize: 22,
-          lineHeight: 1.2,
-          color: s.text,
-          fontWeight: 400,
-          marginBottom: 14,
-        }}
-      >
-        {slide.headline}
-      </div>
-
-      {/* Points */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-        {slide.points.map((p, i) => (
-          <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
-            <span style={{ color: s.accent, fontSize: 9, marginTop: 4, flexShrink: 0 }}>●</span>
-            <span style={{ fontSize: 13, color: s.text, lineHeight: 1.55 }}>{p}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* CTA */}
-      {slide.cta && (
-        <div
-          style={{
-            marginTop: 14,
-            padding: "7px 12px",
-            background: isNatur ? "#C4704A" : "rgba(255,255,255,0.2)",
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            color: isNatur ? "#F7F3EE" : s.text,
-            alignSelf: "flex-start",
-          }}
-        >
-          {slide.cta}
-        </div>
+      {/* Photo overlay */}
+      {photoUrl && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(44,32,22,0.45)" }} />
       )}
 
-      {/* Watermark */}
+      {/* Content layer */}
       <div
         style={{
-          position: "absolute",
-          bottom: 14,
-          right: 18,
-          fontSize: 11,
-          color: isNatur ? "#8C7B6B" : "rgba(247,243,238,0.5)",
-          fontWeight: 400,
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          height: "100%",
+          padding: 28,
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        @{handle}
+        {/* Top row: accent bar + slide number */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+          <div style={{ width: 40, height: 3, background: accentColor, borderRadius: 2 }} />
+          <div style={{ fontSize: 11, color: subColor, fontWeight: 500 }}>
+            {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
+          </div>
+        </div>
+
+        {/* Headline */}
+        <div
+          style={{
+            fontFamily: "'DM Serif Display', serif",
+            fontSize: 22,
+            lineHeight: 1.2,
+            color: textColor,
+            fontWeight: 400,
+            marginBottom: 14,
+          }}
+        >
+          {slide.headline}
+        </div>
+
+        {/* Points */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+          {slide.points.map((p, i) => (
+            <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
+              <span style={{ color: accentColor, fontSize: 9, marginTop: 4, flexShrink: 0 }}>●</span>
+              <span style={{ fontSize: 13, color: textColor, lineHeight: 1.55 }}>{p}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        {slide.cta && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: "7px 12px",
+              background: isPhoto ? "rgba(255,255,255,0.2)" : (isNatur ? "#C4704A" : "rgba(255,255,255,0.2)"),
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              color: isPhoto ? "#FFFFFF" : (isNatur ? "#F7F3EE" : solidStyle.text),
+              alignSelf: "flex-start",
+            }}
+          >
+            {slide.cta}
+          </div>
+        )}
+
+        {/* Watermark */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 14,
+            right: 18,
+            fontSize: 11,
+            color: isPhoto ? "rgba(255,255,255,0.5)" : (isNatur ? "#8C7B6B" : "rgba(247,243,238,0.5)"),
+            fontWeight: 400,
+          }}
+        >
+          @{handle}
+        </div>
       </div>
     </div>
   );
@@ -180,15 +233,25 @@ export default function ContentPage() {
 
   // Visual preview state
   const [slideStyle, setSlideStyle] = useState<SlideStyle>("natur");
+  const [slideStyles, setSlideStyles] = useState<string[]>([]);
   const [igHandle, setIgHandle] = useState("desi");
   const [downloadError, setDownloadError] = useState("");
   const [downloadingAll, setDownloadingAll] = useState(false);
   const slideRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Load Instagram handle from localStorage
+  // Save state
+  const [savedCarousels, setSavedCarousels] = useState<SavedCarousel[]>([]);
+  const [savedMsg, setSavedMsg] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
+
+  // Per-slide photo picker state
+  const [openPhotoPicker, setOpenPhotoPicker] = useState<number | null>(null);
+
+  // Load Instagram handle and saved carousels from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("dh_instagram_handle");
     if (saved) setIgHandle(saved);
+    setSavedCarousels(getLS<SavedCarousel[]>("dh_carousels", []));
   }, []);
 
   const saveHandle = (val: string) => {
@@ -212,6 +275,7 @@ export default function ContentPage() {
     setCarouselLoading(true);
     setCarouselError("");
     setCarousel(null);
+    setSlideStyles([]);
     slideRefs.current = [];
     try {
       const res = await fetch("/api/generate", {
@@ -222,6 +286,9 @@ export default function ContentPage() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setCarousel(data);
+      // Initialize per-slide styles
+      const initialStyles = Array(data.slides?.length ?? 0).fill(slideStyle);
+      setSlideStyles(initialStyles);
     } catch (e) {
       setCarouselError(e instanceof Error ? e.message : "Fehler beim Generieren");
     } finally {
@@ -277,6 +344,55 @@ export default function ContentPage() {
     setDownloadingAll(false);
   };
 
+  const saveCarousel = () => {
+    if (!carousel) return;
+    const newEntry: SavedCarousel = {
+      id: Date.now().toString(),
+      title: carousel.title,
+      savedAt: new Date().toLocaleDateString("de-AT", { day: "2-digit", month: "2-digit", year: "numeric" }),
+      carousel,
+      styles: slideStyles.length > 0 ? slideStyles : Array(carousel.slides.length).fill(slideStyle),
+    };
+    const existing = getLS<SavedCarousel[]>("dh_carousels", []);
+    const updated = [newEntry, ...existing].slice(0, 20);
+    setLS("dh_carousels", updated);
+    setSavedCarousels(updated);
+    scheduleSyncUp(2000);
+    setSavedMsg(true);
+    setTimeout(() => setSavedMsg(false), 2000);
+  };
+
+  const loadSavedCarousel = (saved: SavedCarousel) => {
+    setCarousel(saved.carousel);
+    setSlideStyles(saved.styles);
+    if (saved.styles.length > 0) {
+      setSlideStyle(saved.styles[0] as SlideStyle);
+    }
+    setShowSaved(false);
+  };
+
+  const deleteSavedCarousel = (id: string) => {
+    const updated = savedCarousels.filter(c => c.id !== id);
+    setSavedCarousels(updated);
+    setLS("dh_carousels", updated);
+    scheduleSyncUp(2000);
+  };
+
+  const setAllSlideStyles = (style: string) => {
+    if (!carousel) return;
+    setSlideStyle(style);
+    setSlideStyles(Array(carousel.slides.length).fill(style));
+  };
+
+  const setOneSlideStyle = (index: number, style: string) => {
+    setSlideStyles(prev => {
+      const next = [...prev];
+      next[index] = style;
+      return next;
+    });
+    setOpenPhotoPicker(null);
+  };
+
   const exportCarouselMd = () => {
     if (!carousel) return;
     const lines = [
@@ -325,6 +441,13 @@ export default function ContentPage() {
     const channel = idea.type === "instagram" ? "Instagram" : idea.type === "blog" ? "Blog" : "Newsletter";
     setLS("dh_current_draft", { title: idea.title, content, channel });
     router.push("/editor");
+  };
+
+  // Helper: get style color preview for saved carousel cards
+  const getStylePreviewColor = (style: string): string => {
+    if (style.startsWith("photo-")) return "#4A3728";
+    const opt = STYLE_OPTIONS.find(o => o.key === style);
+    return opt?.bg ?? "#F7F3EE";
   };
 
   return (
@@ -425,13 +548,13 @@ export default function ContentPage() {
                 <div className="card" style={{ padding: "1.25rem" }}>
                   {/* Controls row */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem", marginBottom: "1.25rem" }}>
-                    {/* Style selector */}
+                    {/* Global style selector: "Alle Slides auf…" */}
                     <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                      <span style={{ fontSize: "0.8rem", color: "var(--muted)", fontWeight: 500, marginRight: "0.25rem" }}>Stil:</span>
+                      <span style={{ fontSize: "0.8rem", color: "var(--muted)", fontWeight: 500, marginRight: "0.25rem" }}>Alle auf:</span>
                       {STYLE_OPTIONS.map(opt => (
                         <button
                           key={opt.key}
-                          onClick={() => setSlideStyle(opt.key)}
+                          onClick={() => setAllSlideStyles(opt.key)}
                           style={{
                             display: "flex",
                             alignItems: "center",
@@ -478,26 +601,137 @@ export default function ContentPage() {
                       scrollSnapType: "x mandatory",
                     }}
                   >
-                    {carousel.slides.map((slide, i) => (
-                      <div key={i} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", scrollSnapAlign: "start" }}>
-                        <SlidePreview
-                          slide={slide}
-                          index={i}
-                          total={carousel.slides.length}
-                          style={slideStyle}
-                          handle={igHandle || "desi"}
-                          slideRef={el => { slideRefs.current[i] = el; }}
-                        />
-                        {/* Per-slide download */}
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          style={{ alignSelf: "center", fontSize: "0.78rem" }}
-                          onClick={() => downloadSlide(i)}
-                        >
-                          ⬇ PNG
-                        </button>
-                      </div>
-                    ))}
+                    {carousel.slides.map((slide, i) => {
+                      const currentStyle = slideStyles[i] ?? slideStyle;
+                      return (
+                        <div key={i} style={{ display: "flex", flexDirection: "column", gap: "0.5rem", scrollSnapAlign: "start" }}>
+                          <SlidePreview
+                            slide={slide}
+                            index={i}
+                            total={carousel.slides.length}
+                            style={currentStyle}
+                            handle={igHandle || "desi"}
+                            slideRef={el => { slideRefs.current[i] = el; }}
+                          />
+
+                          {/* Per-slide style row */}
+                          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.3rem", flexWrap: "wrap", position: "relative" }}>
+                            {STYLE_OPTIONS.map(opt => (
+                              <button
+                                key={opt.key}
+                                onClick={() => setOneSlideStyle(i, opt.key)}
+                                title={opt.label}
+                                style={{
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: "50%",
+                                  border: currentStyle === opt.key ? "2px solid var(--accent)" : "2px solid var(--border)",
+                                  background: opt.bg,
+                                  cursor: "pointer",
+                                  padding: 0,
+                                  boxShadow: currentStyle === opt.key ? "0 0 0 2px rgba(196,112,74,0.25)" : "none",
+                                  transition: "all 0.15s",
+                                  fontSize: "0.7rem",
+                                }}
+                                aria-label={opt.label}
+                              />
+                            ))}
+                            {/* Photo picker button */}
+                            <button
+                              onClick={() => setOpenPhotoPicker(openPhotoPicker === i ? null : i)}
+                              title="Foto-Hintergrund"
+                              style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: "50%",
+                                border: currentStyle.startsWith("photo-") ? "2px solid var(--accent)" : "2px solid var(--border)",
+                                background: currentStyle.startsWith("photo-") ? "#4A3728" : "var(--surface)",
+                                cursor: "pointer",
+                                padding: 0,
+                                fontSize: "0.75rem",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                boxShadow: currentStyle.startsWith("photo-") ? "0 0 0 2px rgba(196,112,74,0.25)" : "none",
+                                transition: "all 0.15s",
+                              }}
+                              aria-label="Foto-Hintergrund wählen"
+                            >
+                              📸
+                            </button>
+
+                            {/* Inline photo picker */}
+                            {openPhotoPicker === i && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "calc(100% + 6px)",
+                                  left: "50%",
+                                  transform: "translateX(-50%)",
+                                  zIndex: 100,
+                                  background: "var(--surface)",
+                                  border: "1px solid var(--border)",
+                                  borderRadius: 10,
+                                  padding: "0.6rem",
+                                  boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+                                  display: "grid",
+                                  gridTemplateColumns: "repeat(4, 60px)",
+                                  gap: "0.4rem",
+                                  width: "max-content",
+                                }}
+                              >
+                                {STOCK_PHOTOS.map(photo => (
+                                  <button
+                                    key={photo.id}
+                                    onClick={() => setOneSlideStyle(i, `photo-${photo.id}`)}
+                                    title={photo.label}
+                                    style={{
+                                      width: 60,
+                                      height: 60,
+                                      borderRadius: 6,
+                                      border: currentStyle === `photo-${photo.id}` ? "2px solid var(--accent)" : "2px solid transparent",
+                                      backgroundImage: `url(${photo.url})`,
+                                      backgroundSize: "cover",
+                                      backgroundPosition: "center",
+                                      cursor: "pointer",
+                                      padding: 0,
+                                      overflow: "hidden",
+                                      position: "relative",
+                                    }}
+                                    aria-label={photo.label}
+                                  >
+                                    <span
+                                      style={{
+                                        position: "absolute",
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                        background: "rgba(0,0,0,0.5)",
+                                        color: "#fff",
+                                        fontSize: "0.6rem",
+                                        textAlign: "center",
+                                        padding: "1px 2px",
+                                      }}
+                                    >
+                                      {photo.label}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Per-slide download */}
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ alignSelf: "center", fontSize: "0.78rem" }}
+                            onClick={() => downloadSlide(i)}
+                          >
+                            ⬇ PNG
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Slide dots */}
@@ -516,11 +750,18 @@ export default function ContentPage() {
                     ))}
                   </div>
 
-                  {/* Download all + error */}
+                  {/* Download all + save + error */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" }}>
                     {downloadError && (
                       <span style={{ fontSize: "0.8rem", color: "#C0392B" }}>{downloadError}</span>
                     )}
+                    <button
+                      className="btn btn-secondary"
+                      onClick={saveCarousel}
+                      style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+                    >
+                      {savedMsg ? "✓ Gespeichert" : "💾 Speichern"}
+                    </button>
                     <button
                       className="btn btn-primary"
                       onClick={downloadAllSlides}
@@ -530,6 +771,100 @@ export default function ContentPage() {
                       {downloadingAll ? "Lade herunter…" : "⬇ Alle herunterladen"}
                     </button>
                   </div>
+                </div>
+
+                {/* Gespeicherte Carousels */}
+                <div className="card" style={{ padding: "1.25rem" }}>
+                  <button
+                    onClick={() => setShowSaved(v => !v)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.5rem",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      fontSize: "0.9rem",
+                      color: "var(--text)",
+                      padding: 0,
+                      width: "100%",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span>💾 Gespeicherte Carousels ({savedCarousels.length})</span>
+                    <span style={{ fontSize: "0.8rem", color: "var(--muted)", fontWeight: 400 }}>{showSaved ? "▲ Einklappen" : "▼ Anzeigen"}</span>
+                  </button>
+
+                  {showSaved && (
+                    <div style={{ marginTop: "1rem" }}>
+                      {savedCarousels.length === 0 ? (
+                        <div style={{ fontSize: "0.85rem", color: "var(--muted)", textAlign: "center", padding: "1rem 0" }}>
+                          Noch keine Carousels gespeichert.
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                          {savedCarousels.map(saved => (
+                            <div
+                              key={saved.id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.75rem",
+                                padding: "0.65rem 0.85rem",
+                                background: "var(--surface)",
+                                borderRadius: "var(--radius-sm)",
+                                border: "1px solid var(--border)",
+                              }}
+                            >
+                              {/* Style color preview of slide 1 */}
+                              <div
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 6,
+                                  background: getStylePreviewColor(saved.styles[0] ?? "natur"),
+                                  flexShrink: 0,
+                                  border: "1px solid var(--border)",
+                                }}
+                              />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 600, fontSize: "0.88rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {saved.title}
+                                </div>
+                                <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+                                  {saved.savedAt} · {saved.carousel.slides.length} Slides
+                                </div>
+                              </div>
+                              <button
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => loadSavedCarousel(saved)}
+                                style={{ flexShrink: 0 }}
+                              >
+                                Laden
+                              </button>
+                              <button
+                                onClick={() => deleteSavedCarousel(saved.id)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  color: "var(--muted)",
+                                  fontSize: "1rem",
+                                  flexShrink: 0,
+                                  padding: "0 0.25rem",
+                                }}
+                                title="Löschen"
+                                aria-label="Carousel löschen"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Caption & Hashtags */}
@@ -550,9 +885,98 @@ export default function ContentPage() {
             )}
 
             {!carousel && !carouselLoading && !carouselError && (
-              <div className="empty-state">
-                <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🎠</div>
-                <div>Gib ein Thema ein und generiere dein Karussell</div>
+              <div>
+                <div className="empty-state">
+                  <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🎠</div>
+                  <div>Gib ein Thema ein und generiere dein Karussell</div>
+                </div>
+
+                {/* Gespeicherte Carousels auch ohne aktives Carousel zeigen */}
+                {savedCarousels.length > 0 && (
+                  <div className="card" style={{ padding: "1.25rem", marginTop: "1.5rem" }}>
+                    <button
+                      onClick={() => setShowSaved(v => !v)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        fontSize: "0.9rem",
+                        color: "var(--text)",
+                        padding: 0,
+                        width: "100%",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span>💾 Gespeicherte Carousels ({savedCarousels.length})</span>
+                      <span style={{ fontSize: "0.8rem", color: "var(--muted)", fontWeight: 400 }}>{showSaved ? "▲ Einklappen" : "▼ Anzeigen"}</span>
+                    </button>
+
+                    {showSaved && (
+                      <div style={{ marginTop: "1rem", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                        {savedCarousels.map(saved => (
+                          <div
+                            key={saved.id}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.75rem",
+                              padding: "0.65rem 0.85rem",
+                              background: "var(--surface)",
+                              borderRadius: "var(--radius-sm)",
+                              border: "1px solid var(--border)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 6,
+                                background: getStylePreviewColor(saved.styles[0] ?? "natur"),
+                                flexShrink: 0,
+                                border: "1px solid var(--border)",
+                              }}
+                            />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, fontSize: "0.88rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {saved.title}
+                              </div>
+                              <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+                                {saved.savedAt} · {saved.carousel.slides.length} Slides
+                              </div>
+                            </div>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => loadSavedCarousel(saved)}
+                              style={{ flexShrink: 0 }}
+                            >
+                              Laden
+                            </button>
+                            <button
+                              onClick={() => deleteSavedCarousel(saved.id)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                color: "var(--muted)",
+                                fontSize: "1rem",
+                                flexShrink: 0,
+                                padding: "0 0.25rem",
+                              }}
+                              title="Löschen"
+                              aria-label="Carousel löschen"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
