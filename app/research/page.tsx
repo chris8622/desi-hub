@@ -354,8 +354,8 @@ export default function ResearchPage() {
               </div>
             </div>
 
-            {/* Faktencheck */}
-            {factCheck && (
+            {/* Faktencheck — nur anzeigen wenn echte Claims vorhanden */}
+            {factCheck && (factCheck.verified_claims.length > 0 || factCheck.unverified_claims.length > 0 || factCheck.red_flags.filter(f => f !== "Keine Quellenübersicht vorhanden").length > 0) && (
               <div className="card" style={{ borderLeft: `4px solid ${factCheck.confidence === "hoch" ? "var(--sage)" : factCheck.confidence === "mittel" ? "var(--gold)" : "var(--warm-red)"}` }}>
                 <div className="flex-between" style={{ marginBottom: "0.75rem" }}>
                   <div style={{ fontWeight: 700, fontSize: "1rem" }}>🔍 Faktencheck</div>

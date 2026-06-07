@@ -170,36 +170,37 @@ Struktur:
             signal: AbortSignal.timeout(40000),
           }),
 
-          // ── 5. Groq: Faktencheck mit Quellen-Attribution (parallel) ──
-          fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "llama-3.3-70b-versatile",
-              messages: [
-                { role: "system", content: `Du bist ein kritischer Faktenprüfer. Antworte NUR mit gültigem JSON (kein Markdown, kein Text davor/danach):
+          // ── 5. Groq: Faktencheck — nur wenn genug Kontext vorhanden ──
+          context.length > 500
+            ? fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  model: "llama-3.3-70b-versatile",
+                  messages: [
+                    { role: "system", content: `Du bist ein kritischer Faktenprüfer. Antworte NUR mit gültigem JSON (kein Markdown, kein Text davor/danach):
 {
   "confidence": "hoch"|"mittel"|"niedrig",
-  "confidence_reason": "1 Satz Begründung",
+  "confidence_reason": "1 Satz Begründung auf Deutsch, du-Form",
   "source_diversity": number,
   "verified_claims": [
     { "claim": "Aussage die durch mehrere Quellen belegt ist", "sources": ["domain1.com", "domain2.at"], "source_type": "seriös"|"forum"|"gemischt" }
   ],
   "unverified_claims": [
-    { "claim": "Aussage die nur auf einer Quelle basiert oder nicht belegbar", "sources": ["domain1.com"], "source_type": "seriös"|"forum"|"gemischt" }
+    { "claim": "Aussage die nur auf einer Quelle basiert", "sources": ["domain1.com"], "source_type": "seriös"|"forum"|"gemischt" }
   ],
-  "red_flags": ["konkrete Warnung falls vorhanden"],
-  "recommendation": "1-2 Sätze Empfehlung für Content Creator"
+  "red_flags": ["Nur konkrete, inhaltliche Warnungen — KEIN 'Keine Quellenübersicht'"],
+  "recommendation": "1-2 Sätze Empfehlung, du-Form, für Content Creatorin"
 }
-
-Wichtig: Gib bei jedem Claim die genauen Domain-Namen der Quellen an die diese Aussage enthalten.` },
-                { role: "user", content: `Thema: "${query}"\n\nQuellenübersicht (mit Domains):\n${sources.map((s,i) => `${i+1}. Domain: ${new URL(s.url).hostname.replace("www.","")} [${s.credibility.label}]\n   Titel: ${s.title}\n   Inhalt: ${s.snippet}`).join("\n\n")}\n\nDetaillierte Inhalte:\n${context.slice(0, 14000)}` },
-              ],
-              temperature: 0.15,
-              max_tokens: 1000,
-            }),
-            signal: AbortSignal.timeout(40000),
-          }),
+Wichtig: Schreibe IMMER in der du-Form (nicht Sie). Nur echte inhaltliche Red Flags angeben — keine Hinweise auf fehlende Daten.` },
+                    { role: "user", content: `Thema: "${query}"\n\nQuellenübersicht:\n${sources.slice(0,8).map((s,i) => `${i+1}. ${new URL(s.url).hostname.replace("www.","")} [${s.credibility.label}]: ${s.title}`).join("\n")}\n\nInhalte:\n${context.slice(0, 14000)}` },
+                  ],
+                  temperature: 0.15,
+                  max_tokens: 1000,
+                }),
+                signal: AbortSignal.timeout(40000),
+              })
+            : Promise.resolve(new Response(JSON.stringify({ choices: [] }), { status: 200 })),
         ]);
 
         // Ergebnisse auswerten
