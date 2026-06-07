@@ -365,13 +365,28 @@ export default function SettingsPage() {
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "center" }}>
           <button className="btn btn-primary" disabled={syncState === "checking"}
             onClick={async () => {
+              const token = localStorage.getItem("desi_auth_token") || "";
+
+              // Token fehlt → neu einloggen nötig
+              if (!token) {
+                setSyncState("error");
+                setSyncMsg("relogin");
+                return;
+              }
+
               setSyncState("checking"); setSyncMsg("Teste Verbindung…");
-              const res = await fetch("/api/sync", { headers: { "x-app-token": localStorage.getItem("desi_auth_token") || "" } });
-              const data = await res.json() as { available: boolean };
-              if (data.available) {
-                setSyncState("ok"); setSyncMsg("✓ Cloud-Sync aktiv! Daten werden synchronisiert.");
-              } else {
-                setSyncState("error"); setSyncMsg("Noch nicht verbunden. Folge der Anleitung unten.");
+              try {
+                const res = await fetch("/api/sync", { headers: { "x-app-token": token } });
+                const data = await res.json() as { available: boolean; error?: string };
+                if (res.status === 401) {
+                  setSyncState("error"); setSyncMsg("relogin");
+                } else if (data.available) {
+                  setSyncState("ok"); setSyncMsg("✓ Cloud-Sync aktiv! Daten werden zwischen Mac & Handy synchronisiert.");
+                } else {
+                  setSyncState("error"); setSyncMsg(data.error || "Noch nicht verbunden. Folge der Anleitung unten.");
+                }
+              } catch {
+                setSyncState("error"); setSyncMsg("Verbindungsfehler — bitte Seite neu laden.");
               }
             }}>
             {syncState === "checking" ? "⏳ Prüfe…" : "Sync-Status prüfen"}
