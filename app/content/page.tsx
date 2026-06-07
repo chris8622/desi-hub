@@ -47,19 +47,21 @@ const STYLE_OPTIONS: { key: string; emoji: string; label: string; bg: string; te
   { key: "sage", emoji: "🌿", label: "Sage", bg: "#6B8F71", text: "#F7F3EE", accent: "#F7F3EE" },
 ];
 
+// Alle Fotos: Unsplash License (kostenlos verwendbar, Attribution empfohlen)
+// https://unsplash.com/license
 const STOCK_PHOTOS = [
-  { id: "p1", url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=720&q=80&auto=format&fit=crop", label: "Berge" },
-  { id: "p2", url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=720&q=80&auto=format&fit=crop", label: "Yoga" },
-  { id: "p3", url: "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=720&q=80&auto=format&fit=crop", label: "Sonnenstrahlen" },
-  { id: "p4", url: "https://images.unsplash.com/photo-1487700160041-babef9c3cb55?w=720&q=80&auto=format&fit=crop", label: "Kaffee & Journal" },
-  { id: "p5", url: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=720&q=80&auto=format&fit=crop", label: "Blüten" },
-  { id: "p6", url: "https://images.unsplash.com/photo-1483354568375-35cc4f0f2f52?w=720&q=80&auto=format&fit=crop", label: "Strand" },
-  { id: "p7", url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=720&q=80&auto=format&fit=crop", label: "Portrait" },
-  { id: "p8", url: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=720&q=80&auto=format&fit=crop", label: "Hautpflege" },
-  { id: "p9", url: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=720&q=80&auto=format&fit=crop", label: "Pflanzen" },
-  { id: "p10", url: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=720&q=80&auto=format&fit=crop", label: "Morgenroutine" },
-  { id: "p11", url: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=720&q=80&auto=format&fit=crop", label: "Massage" },
-  { id: "p12", url: "https://images.unsplash.com/photo-1512438248247-f0f2a5a8b7f0?w=720&q=80&auto=format&fit=crop", label: "Wald" },
+  { id: "p1",  url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=720&q=80&auto=format&fit=crop", label: "Berge",           photographer: "Samuel Ferrara",   unsplashUrl: "https://unsplash.com/photos/1SHkSqQ-p1Y" },
+  { id: "p2",  url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=720&q=80&auto=format&fit=crop", label: "Yoga",             photographer: "Conscious Design", unsplashUrl: "https://unsplash.com/photos/JLj8MvvI3-8" },
+  { id: "p3",  url: "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=720&q=80&auto=format&fit=crop", label: "Sonnenstrahlen",  photographer: "Jeremy Bishop",    unsplashUrl: "https://unsplash.com/photos/EwKXn5CapA4" },
+  { id: "p4",  url: "https://images.unsplash.com/photo-1487700160041-babef9c3cb55?w=720&q=80&auto=format&fit=crop", label: "Kaffee & Journal",photographer: "Estée Janssens",  unsplashUrl: "https://unsplash.com/photos/zni0zgb3bkQ" },
+  { id: "p5",  url: "https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=720&q=80&auto=format&fit=crop", label: "Blüten",           photographer: "Debby Hudson",     unsplashUrl: "https://unsplash.com/photos/AsahNlC0VhQ" },
+  { id: "p6",  url: "https://images.unsplash.com/photo-1483354568375-35cc4f0f2f52?w=720&q=80&auto=format&fit=crop", label: "Strand",           photographer: "Max Okhrimenko",   unsplashUrl: "https://unsplash.com/photos/UkzeEpB2lHo" },
+  { id: "p7",  url: "https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=720&q=80&auto=format&fit=crop", label: "Hautpflege",       photographer: "Charisse Kenion",  unsplashUrl: "https://unsplash.com/photos/tWe8ib-cnXY" },
+  { id: "p8",  url: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=720&q=80&auto=format&fit=crop", label: "Pflanzen",         photographer: "Brina Blum",       unsplashUrl: "https://unsplash.com/photos/Bb_X4JgSqIM" },
+  { id: "p9",  url: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=720&q=80&auto=format&fit=crop", label: "Morgenroutine",   photographer: "Battlecreek Coffee",unsplashUrl: "https://unsplash.com/photos/q2DmChKJhCk" },
+  { id: "p10", url: "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=720&q=80&auto=format&fit=crop", label: "Wellness",         photographer: "alan caishan",     unsplashUrl: "https://unsplash.com/photos/v4UGHe3DamI" },
+  { id: "p11", url: "https://images.unsplash.com/photo-1501854140801-50d01698950b?w=720&q=80&auto=format&fit=crop", label: "Natur & Ruhe",    photographer: "Sergei Akulich",   unsplashUrl: "https://unsplash.com/photos/l7fQ9CJJQCM" },
+  { id: "p12", url: "https://images.unsplash.com/photo-1527515545081-5db817172677?w=720&q=80&auto=format&fit=crop", label: "Meditation",      photographer: "Le Minh Phuong",   unsplashUrl: "https://unsplash.com/photos/OtW4pEkFxKg" },
 ];
 
 function SlidePreview({
@@ -176,18 +178,18 @@ function SlidePreview({
           </div>
         )}
 
-        {/* Watermark */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 14,
-            right: 18,
-            fontSize: 11,
-            color: isPhoto ? "rgba(255,255,255,0.5)" : (isNatur ? "#8C7B6B" : "rgba(247,243,238,0.5)"),
-            fontWeight: 400,
-          }}
-        >
-          @{handle}
+        {/* Watermark + Photo Attribution */}
+        <div style={{ position: "absolute", bottom: 14, left: 18, right: 18, display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+          {/* Foto-Attribution links — nur bei Foto-Hintergrund */}
+          {photoEntry ? (
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.55)", lineHeight: 1.3 }}>
+              📷 {photoEntry.photographer}{"\n"}via Unsplash
+            </div>
+          ) : <div />}
+          {/* Handle rechts */}
+          <div style={{ fontSize: 11, color: isPhoto ? "rgba(255,255,255,0.5)" : (isNatur ? "#8C7B6B" : "rgba(247,243,238,0.5)"), fontWeight: 400 }}>
+            @{handle}
+          </div>
         </div>
       </div>
     </div>
@@ -700,23 +702,30 @@ export default function ContentPage() {
                                     }}
                                     aria-label={photo.label}
                                   >
-                                    <span
-                                      style={{
-                                        position: "absolute",
-                                        bottom: 0,
-                                        left: 0,
-                                        right: 0,
-                                        background: "rgba(0,0,0,0.5)",
-                                        color: "#fff",
-                                        fontSize: "0.6rem",
-                                        textAlign: "center",
-                                        padding: "1px 2px",
-                                      }}
-                                    >
+                                    {/* Label + Fotograf */}
+                                    <span style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: "0.55rem", textAlign: "center", padding: "2px 2px", lineHeight: 1.2 }}>
                                       {photo.label}
                                     </span>
                                   </button>
                                 ))}
+                              </div>
+                              {/* Lizenz-Hinweis unter der Auswahl */}
+                              <div style={{ fontSize: "0.68rem", color: "var(--muted)", marginTop: "0.4rem", lineHeight: 1.4 }}>
+                                📷 Alle Fotos: <a href="https://unsplash.com/license" target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>Unsplash License</a> (kostenlos, Attribution empfohlen)
+                              </div>
+                              {/* Aktuell gewähltes Foto mit Attribution */}
+                              {(() => {
+                                const currentPhoto = STOCK_PHOTOS.find(p => `photo-${p.id}` === currentStyle);
+                                if (!currentPhoto) return null;
+                                return (
+                                  <div style={{ marginTop: "0.35rem", fontSize: "0.7rem", color: "var(--muted)" }}>
+                                    Aktuell: <strong>{currentPhoto.label}</strong> · Foto von{" "}
+                                    <a href={currentPhoto.unsplashUrl} target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>
+                                      {currentPhoto.photographer}
+                                    </a> auf Unsplash
+                                  </div>
+                                );
+                              })()}
                               </div>
                             )}
                           </div>
