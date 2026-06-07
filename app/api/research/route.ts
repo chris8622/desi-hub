@@ -155,11 +155,13 @@ export async function POST(req: Request) {
             searches.push({ q: `${query} (${siteFilter})`, gl: "at", hl: "de", num: 8 });
           }
         } else {
-          // ── Generelle Suche + bevorzugte Quellen extra ──
+          // ── Generelle Suche + Wissenschaft + bevorzugte Quellen ──
           searches.push(
             { q: `${query} forum diskussion erfahrungen`, gl: "at", hl: "de", num: 8 },
             { q: `${query} site:reddit.com`,              gl: "at", hl: "de", num: 5 },
-            { q: `${query} wissenschaft studie belegt`,   gl: "at", hl: "de", num: 4 },
+            { q: `${query} wissenschaft studie beleg wirkung`, gl: "at", hl: "de", num: 5 },
+            { q: `${query} study evidence research`,      gl: "us", hl: "en", num: 5 },
+            { q: `${query} site:pubmed.ncbi.nlm.nih.gov OR site:cochrane.org OR site:ncbi.nlm.nih.gov`, gl: "us", hl: "en", num: 4 },
           );
           if (trustedDomains.length > 0) {
             const chunks: string[][] = [];
@@ -188,30 +190,32 @@ export async function POST(req: Request) {
           }
         }));
 
-        // Deduplizieren
+        // Deduplizieren + nach Glaubwürdigkeit sortieren (seriöse zuerst)
         const seen = new Set<string>();
+        const credRank: Record<string, number> = { trusted: 0, medium: 1, forum: 2, unknown: 3, low: 4 };
         const sources = allResults
           .filter(r => { if (seen.has(r.link)) return false; seen.add(r.link); return true; })
-          .slice(0, 14)
-          .map(r => ({ title: r.title, url: r.link, snippet: r.snippet || "", credibility: scoreDomain(r.link) }));
+          .map(r => ({ title: r.title, url: r.link, snippet: r.snippet || "", credibility: scoreDomain(r.link) }))
+          .sort((a, b) => (credRank[a.credibility.level] ?? 3) - (credRank[b.credibility.level] ?? 3))
+          .slice(0, 20);
 
-        send({ type: "status", data: `📋 ${sources.length} Quellen gefunden — lade Inhalte (kann etwas dauern)…` });
+        send({ type: "status", data: `📋 ${sources.length} Quellen gefunden — lese Inhalte tiefgehend…` });
 
-        // ── 2. Seiteninhalte laden (max 8 parallel, mit Jina-Fallback) ──
-        const toFetch = sources.slice(0, 8);
+        // ── 2. Seiteninhalte laden (12 parallel, seriöse Quellen priorisiert) ──
+        const toFetch = sources.slice(0, 12);
         const contents = await Promise.all(toFetch.map(s => fetchPageContent(s.url)));
         const loadedCount = contents.filter(c => c.length > 200).length;
 
-        send({ type: "status", data: `🤖 ${loadedCount}/${toFetch.length} Quellen gelesen — KI analysiert & prüft Fakten…` });
+        send({ type: "status", data: `🤖 ${loadedCount}/${toFetch.length} Quellen gelesen — KI erstellt Tiefen-Analyse…` });
 
-        // ── 3. Kontext aufbauen (geladener Inhalt ODER Snippet als Fallback) ──
+        // ── 3. Kontext aufbauen (mehr Inhalt pro Quelle für Tiefe) ──
         const context = toFetch
           .map((s, i) => {
             const body = (contents[i] && contents[i].length > 100) ? contents[i] : s.snippet;
             return `### ${s.title}\nQuelle: ${s.url} [${s.credibility.label}]\n${body}`;
           })
           .join("\n\n---\n\n")
-          .slice(0, 24000);
+          .slice(0, 32000);
 
         // ── 4. Groq: Zusammenfassung ────────────────────────
         const [summaryRes, factRes] = await Promise.allSettled([
@@ -221,24 +225,35 @@ export async function POST(req: Request) {
             body: JSON.stringify({
               model: "llama-3.3-70b-versatile",
               messages: [
-                { role: "system", content: `Du bist ein Research-Assistent für eine deutschsprachige Content Creatorin (Themen: Mind, Health, Ästhetik, Selbstoptimierung). Analysiere NUR die bereitgestellten Inhalte und erstelle eine strukturierte Zusammenfassung auf Deutsch. Antworte nur mit HTML (h3, p, ul, li — kein anderes HTML).
+                { role: "system", content: `Du bist ein gründlicher Research-Analyst mit wissenschaftlichem Anspruch für eine deutschsprachige Content Creatorin (Themen: Mind, Health, Ästhetik, Selbstoptimierung). Du lieferst KEINE oberflächlichen Zusammenfassungen, sondern eine fundierte Tiefen-Analyse, die echten Mehrwert bietet und auf der die Creatorin verlässlich Content aufbauen kann. Analysiere NUR die bereitgestellten Inhalte. Antworte nur mit HTML (h3, p, ul, li, strong, em — kein anderes HTML).
 
-ABSOLUT WICHTIG — Quellen-Ehrlichkeit:
-- Erfinde NIEMALS Quellen wie "Eine Studie der WHO" oder "Ein Artikel eines Psychologen". Das ist verboten.
-- Zitiere nur Aussagen die WÖRTLICH in den bereitgestellten Inhalten stehen.
-- Gib bei jedem Zitat die ECHTE Quelle an: den Domain-Namen aus der jeweiligen Quelle (z.B. "reddit.com", "apotheken-umschau.de").
-- Wenn du keine wörtlichen Zitate findest, lass den Abschnitt "Interessante Aussagen" weg.
+ABSOLUT WICHTIG — Quellen-Ehrlichkeit & Evidenz-Einordnung:
+- Erfinde NIEMALS Quellen. Zitiere nur was wörtlich in den Inhalten steht, mit echter Domain.
+- Unterscheide IMMER klar zwischen:
+  • <strong>Wissenschaftlich belegt</strong> (Studien, Fachquellen wie PubMed, Cochrane, Unikliniken)
+  • <strong>Experten-Meinung</strong> (Ärzte, Fachredaktionen)
+  • <strong>Anekdotisch / Erfahrungsberichte</strong> (Foren, Reddit, Einzelmeinungen)
+- Wenn etwas umstritten ist oder Quellen sich widersprechen, sage das explizit.
 
-Struktur:
-1. <h3>Kurzzusammenfassung</h3> — 2-3 Sätze
-2. <h3>Häufige Themen & Fragen</h3> — ul/li
-3. <h3>Stimmungsbild</h3> — p
-4. <h3>Interessante Aussagen</h3> — ul/li, jedes Zitat im Format: "Zitat" — <em>Quelle: domain.com</em> (NUR echte Domains aus den Inhalten)
-5. <h3>Content-Potenzial</h3> — ul/li mit Ideen für Instagram, Blog, Newsletter` },
-                { role: "user", content: `Research-Thema: "${query}"\n\nGefundene Inhalte (jede Quelle mit ihrer Domain):\n\n${context}` },
+Struktur (gehe in die TIEFE, sei konkret, nenne Mechanismen und Details):
+
+1. <h3>Überblick</h3> — 3-4 Sätze: Worum geht es, warum ist es relevant?
+
+2. <h3>Was die Wissenschaft sagt</h3> — Detaillierte Bullet-Liste. Pro Punkt: die konkrete Erkenntnis + Evidenz-Grad (z.B. "<strong>Gut belegt:</strong> …" / "<strong>Erste Hinweise:</strong> …" / "<strong>Umstritten:</strong> …") + Quelle (domain.com). Wenn Mechanismen/Wirkweisen genannt werden, erkläre sie.
+
+3. <h3>Was Menschen in der Praxis berichten</h3> — Erfahrungen aus Foren/Communities. Was funktioniert für echte Menschen, was nicht? (mit Quelle)
+
+4. <h3>Häufige Fragen & Missverständnisse</h3> — ul/li, was die Leute wirklich wissen wollen + verbreitete Irrtümer
+
+5. <h3>Konkrete Aussagen</h3> — 3-5 wörtliche Zitate im Format: "Zitat" — <em>domain.com</em>. Nur echte Zitate. Sonst weglassen.
+
+6. <h3>Content-Potenzial mit Substanz</h3> — ul/li: konkrete, fundierte Content-Ideen (Instagram/Blog/Newsletter) — KEINE Floskeln, sondern Ideen die auf den Erkenntnissen aufbauen und einen klaren Mehrwert/Hook haben.
+
+Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als drei oberflächliche.` },
+                { role: "user", content: `Research-Thema: "${query}"\n\nGefundene Inhalte (jede Quelle mit ihrer Domain — achte auf den Quellentyp in [Klammern]):\n\n${context}` },
               ],
-              temperature: 0.4,
-              max_tokens: 1800,
+              temperature: 0.35,
+              max_tokens: 3800,
             }),
             signal: AbortSignal.timeout(40000),
           }),
