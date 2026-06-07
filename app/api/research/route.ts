@@ -221,14 +221,21 @@ export async function POST(req: Request) {
             body: JSON.stringify({
               model: "llama-3.3-70b-versatile",
               messages: [
-                { role: "system", content: `Du bist ein Research-Assistent für eine deutschsprachige Content Creatorin (Themen: Mind, Health, Ästhetik, Selbstoptimierung). Analysiere die Inhalte und erstelle eine strukturierte Zusammenfassung auf Deutsch. Antworte nur mit HTML (h3, p, ul, li — kein anderes HTML).
+                { role: "system", content: `Du bist ein Research-Assistent für eine deutschsprachige Content Creatorin (Themen: Mind, Health, Ästhetik, Selbstoptimierung). Analysiere NUR die bereitgestellten Inhalte und erstelle eine strukturierte Zusammenfassung auf Deutsch. Antworte nur mit HTML (h3, p, ul, li — kein anderes HTML).
+
+ABSOLUT WICHTIG — Quellen-Ehrlichkeit:
+- Erfinde NIEMALS Quellen wie "Eine Studie der WHO" oder "Ein Artikel eines Psychologen". Das ist verboten.
+- Zitiere nur Aussagen die WÖRTLICH in den bereitgestellten Inhalten stehen.
+- Gib bei jedem Zitat die ECHTE Quelle an: den Domain-Namen aus der jeweiligen Quelle (z.B. "reddit.com", "apotheken-umschau.de").
+- Wenn du keine wörtlichen Zitate findest, lass den Abschnitt "Interessante Aussagen" weg.
+
 Struktur:
 1. <h3>Kurzzusammenfassung</h3> — 2-3 Sätze
 2. <h3>Häufige Themen & Fragen</h3> — ul/li
 3. <h3>Stimmungsbild</h3> — p
-4. <h3>Interessante Aussagen</h3> — ul/li mit konkreten Zitaten
+4. <h3>Interessante Aussagen</h3> — ul/li, jedes Zitat im Format: "Zitat" — <em>Quelle: domain.com</em> (NUR echte Domains aus den Inhalten)
 5. <h3>Content-Potenzial</h3> — ul/li mit Ideen für Instagram, Blog, Newsletter` },
-                { role: "user", content: `Research-Thema: "${query}"\n\nGefundene Inhalte:\n\n${context}` },
+                { role: "user", content: `Research-Thema: "${query}"\n\nGefundene Inhalte (jede Quelle mit ihrer Domain):\n\n${context}` },
               ],
               temperature: 0.4,
               max_tokens: 1800,

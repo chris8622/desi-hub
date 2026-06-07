@@ -24,23 +24,62 @@ const DEFAULT_SETTINGS = {
   ],
 };
 
-const SUGGESTED_TRUSTED = [
-  { domain: "pubmed.ncbi.nlm.nih.gov",  label: "PubMed",          desc: "Wissenschaftliche Studien" },
-  { domain: "who.int",                   label: "WHO",             desc: "Weltgesundheitsorganisation" },
-  { domain: "cochrane.org",              label: "Cochrane",        desc: "Systematische Reviews" },
-  { domain: "gesundheit.gv.at",          label: "Gesundheit.gv.at",desc: "Österreich offiz. Gesundheitsportal" },
-  { domain: "sozialministerium.at",      label: "Sozialministerium",desc: "Österreich Ministerium" },
-  { domain: "rki.de",                    label: "RKI",             desc: "Robert Koch-Institut" },
-  { domain: "springer.com",             label: "Springer",         desc: "Wissenschaftsverlag" },
-  { domain: "nature.com",               label: "Nature",           desc: "Top Wissenschaftsjournal" },
-  { domain: "orf.at",                   label: "ORF",              desc: "Österreichischer Rundfunk" },
-  { domain: "derstandard.at",           label: "Der Standard",     desc: "Österr. Qualitätszeitung" },
-  { domain: "spiegel.de",              label: "Spiegel",           desc: "Deutsche Qualitätspresse" },
-  { domain: "zeit.de",                 label: "Die Zeit",          desc: "Deutsche Qualitätspresse" },
-  { domain: "apotheken-umschau.de",    label: "Apotheken Umschau", desc: "Medizin für Laien" },
-  { domain: "mayoclinic.org",          label: "Mayo Clinic",       desc: "Renommierte US-Klinik" },
-  { domain: "healthline.com",          label: "Healthline",        desc: "Medizinisch geprüfte Gesundheitsinfos" },
+// Verlässliche Quellen, nach Kategorie gruppiert
+const SOURCE_CATEGORIES = [
+  {
+    category: "🔬 Wissenschaft & Studien",
+    desc: "Höchste Verlässlichkeit — peer-reviewed Forschung",
+    sources: [
+      { domain: "pubmed.ncbi.nlm.nih.gov", label: "PubMed",     desc: "Medizinische Studien-Datenbank (NIH)" },
+      { domain: "cochrane.org",            label: "Cochrane",   desc: "Systematische Reviews, Goldstandard" },
+      { domain: "nature.com",              label: "Nature",     desc: "Top-Wissenschaftsjournal" },
+      { domain: "science.org",             label: "Science",    desc: "Führendes Forschungsmagazin" },
+      { domain: "springer.com",            label: "Springer",   desc: "Wissenschaftsverlag" },
+      { domain: "sciencedirect.com",       label: "ScienceDirect", desc: "Elsevier Forschungsdatenbank" },
+      { domain: "scholar.google.com",      label: "Google Scholar", desc: "Wissenschaftliche Suchmaschine" },
+    ],
+  },
+  {
+    category: "🏛️ Behörden & Gesundheitsorganisationen",
+    desc: "Offizielle, geprüfte Gesundheitsinformationen",
+    sources: [
+      { domain: "who.int",            label: "WHO",              desc: "Weltgesundheitsorganisation" },
+      { domain: "gesundheit.gv.at",   label: "Gesundheit.gv.at", desc: "Österreichs offiz. Gesundheitsportal" },
+      { domain: "sozialministerium.at",label: "Sozialministerium",desc: "Österreich, Gesundheit & Soziales" },
+      { domain: "ages.at",            label: "AGES",             desc: "Österr. Agentur f. Gesundheit" },
+      { domain: "rki.de",             label: "RKI",              desc: "Robert Koch-Institut (DE)" },
+      { domain: "bzga.de",            label: "BZgA",             desc: "Bundeszentrale f. gesundheitl. Aufklärung" },
+      { domain: "cdc.gov",            label: "CDC",              desc: "US-Gesundheitsbehörde" },
+    ],
+  },
+  {
+    category: "⚕️ Medizin für Laien (geprüft)",
+    desc: "Verständlich aufbereitet, redaktionell geprüft",
+    sources: [
+      { domain: "apotheken-umschau.de", label: "Apotheken Umschau", desc: "Bekannteste Gesundheits-Plattform DE" },
+      { domain: "netdoktor.at",         label: "NetDoktor",         desc: "Medizinredaktion, ärztlich geprüft" },
+      { domain: "gesund.at",            label: "Gesund.at",         desc: "Österr. Gesundheitsmagazin" },
+      { domain: "mayoclinic.org",       label: "Mayo Clinic",       desc: "Renommierte US-Klinik" },
+      { domain: "healthline.com",       label: "Healthline",        desc: "Medizinisch geprüft (EN)" },
+      { domain: "medizin-transparent.at",label: "Medizin Transparent", desc: "Cochrane Österreich, Faktencheck" },
+    ],
+  },
+  {
+    category: "📰 Qualitätsmedien",
+    desc: "Seriöser Journalismus mit Faktenprüfung",
+    sources: [
+      { domain: "orf.at",         label: "ORF",          desc: "Österreichischer Rundfunk" },
+      { domain: "derstandard.at", label: "Der Standard", desc: "Österr. Qualitätszeitung" },
+      { domain: "diepresse.com",  label: "Die Presse",   desc: "Österr. Qualitätszeitung" },
+      { domain: "spiegel.de",     label: "Spiegel",      desc: "Deutsches Nachrichtenmagazin" },
+      { domain: "zeit.de",        label: "Die Zeit",     desc: "Deutsche Wochenzeitung" },
+      { domain: "sueddeutsche.de",label: "SZ",           desc: "Süddeutsche Zeitung" },
+    ],
+  },
 ];
+
+// Flache Liste für die Logik
+const SUGGESTED_TRUSTED = SOURCE_CATEGORIES.flatMap(c => c.sources);
 
 type Settings = typeof DEFAULT_SETTINGS & { trusted_sources: string[] };
 
@@ -257,37 +296,56 @@ export default function SettingsPage() {
           Aktive Quellen werden immer zusätzlich durchsucht.
         </p>
 
-        {/* Schnellauswahl */}
-        <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "0.65rem" }}>
-          Vorschläge
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1.25rem" }}>
-          {SUGGESTED_TRUSTED.map(src => {
-            const active = (s.trusted_sources || []).includes(src.domain);
-            return (
-              <button key={src.domain}
-                onClick={() => setS(p => ({
-                  ...p,
-                  trusted_sources: active
-                    ? (p.trusted_sources || []).filter(d => d !== src.domain)
-                    : [...(p.trusted_sources || []), src.domain]
-                }))}
-                title={src.desc}
-                style={{
-                  display: "inline-flex", flexDirection: "column", alignItems: "flex-start",
-                  padding: "0.5rem 0.85rem", borderRadius: "var(--radius-sm)", cursor: "pointer",
-                  border: `1px solid ${active ? "var(--sage)" : "var(--border)"}`,
-                  background: active ? "var(--sage-light)" : "var(--surface2)",
-                  transition: "all 0.15s", textAlign: "left",
-                }}>
-                <span style={{ fontSize: "0.8rem", fontWeight: 700, color: active ? "var(--sage)" : "var(--text)" }}>
-                  {active ? "✓ " : ""}{src.label}
-                </span>
-                <span style={{ fontSize: "0.68rem", color: "var(--muted)", marginTop: "0.1rem" }}>{src.desc}</span>
+        {/* Quellen nach Kategorie */}
+        {SOURCE_CATEGORIES.map(cat => (
+          <div key={cat.category} style={{ marginBottom: "1.25rem" }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.6rem" }}>
+              <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text)" }}>{cat.category}</span>
+              <button
+                onClick={() => {
+                  const catDomains = cat.sources.map(x => x.domain);
+                  const allActive = catDomains.every(d => (s.trusted_sources || []).includes(d));
+                  setS(p => ({
+                    ...p,
+                    trusted_sources: allActive
+                      ? (p.trusted_sources || []).filter(d => !catDomains.includes(d))
+                      : [...new Set([...(p.trusted_sources || []), ...catDomains])],
+                  }));
+                }}
+                style={{ fontSize: "0.7rem", color: "var(--accent)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, textDecoration: "underline" }}>
+                {cat.sources.every(x => (s.trusted_sources || []).includes(x.domain)) ? "Alle abwählen" : "Alle wählen"}
               </button>
-            );
-          })}
-        </div>
+            </div>
+            <p style={{ fontSize: "0.72rem", color: "var(--muted)", marginBottom: "0.65rem" }}>{cat.desc}</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+              {cat.sources.map(src => {
+                const active = (s.trusted_sources || []).includes(src.domain);
+                return (
+                  <button key={src.domain}
+                    onClick={() => setS(p => ({
+                      ...p,
+                      trusted_sources: active
+                        ? (p.trusted_sources || []).filter(d => d !== src.domain)
+                        : [...(p.trusted_sources || []), src.domain]
+                    }))}
+                    title={src.desc}
+                    style={{
+                      display: "inline-flex", flexDirection: "column", alignItems: "flex-start",
+                      padding: "0.5rem 0.85rem", borderRadius: "var(--radius-sm)", cursor: "pointer",
+                      border: `1px solid ${active ? "var(--sage)" : "var(--border)"}`,
+                      background: active ? "var(--sage-light)" : "var(--surface2)",
+                      transition: "all 0.15s", textAlign: "left", minWidth: 140,
+                    }}>
+                    <span style={{ fontSize: "0.8rem", fontWeight: 700, color: active ? "var(--sage)" : "var(--text)" }}>
+                      {active ? "✓ " : ""}{src.label}
+                    </span>
+                    <span style={{ fontSize: "0.68rem", color: "var(--muted)", marginTop: "0.1rem" }}>{src.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
 
         {/* Aktive Quellen */}
         {(s.trusted_sources || []).length > 0 && (
