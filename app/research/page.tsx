@@ -435,53 +435,67 @@ export default function ResearchPage() {
               </div>
             )}
 
-            {/* Sources grid */}
-            {sources.length > 0 && (
-              <div>
-                <div className="section-label">Quellen ({sources.length})</div>
-                <div className="grid-auto" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "0.75rem" }}>
+            {/* Sources grid — immer angezeigt */}
+            <div>
+              <div className="flex-between" style={{ marginBottom: "0.65rem" }}>
+                <div className="section-label" style={{ marginBottom: 0 }}>
+                  📚 Quellen {sources.length > 0 ? `(${sources.length})` : ""}
+                </div>
+                {sources.length > 0 && (
+                  <span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>
+                    Klick auf eine Quelle zum Öffnen
+                  </span>
+                )}
+              </div>
+
+              {sources.length === 0 ? (
+                <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "1rem 1.25rem", color: "var(--muted)", fontSize: "0.85rem" }}>
+                  ⚠️ Keine Quellen gefunden — alle Seiten waren durch Bot-Schutz gesperrt. Versuche eine andere Suchanfrage oder wechsle zu "Überall suchen".
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "0.75rem" }}>
                   {sources.map((s, i) => (
                     <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
-                      <div className="card-sm" style={{ padding: "0.85rem 1rem", cursor: "pointer", transition: "box-shadow 0.15s" }}
-                        onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)"}
-                        onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = ""}>
-                        {(() => {
-                          try {
-                            const domain = new URL(s.url).hostname.replace("www.", "");
-                            const isPreferred = preferredDomains.some(d => domain === d || domain.endsWith("." + d));
-                            return (
-                              <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", marginBottom: "0.35rem" }}>
-                                {isPreferred && (
-                                  <span style={{ fontSize: "0.68rem", fontWeight: 700, background: "var(--sage-light)", color: "var(--sage)", border: "1px solid rgba(107,143,113,0.3)", borderRadius: 999, padding: "0.1rem 0.5rem" }}>
-                                    ⭐ Bevorzugte Quelle
-                                  </span>
-                                )}
-                                {s.credibility && (
-                                  <span style={{ fontSize: "0.68rem", fontWeight: 700, color: s.credibility.color, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                                    {s.credibility.level === "trusted" ? "✅" : s.credibility.level === "medium" ? "📰" : s.credibility.level === "forum" ? "💬" : s.credibility.level === "low" ? "⚠️" : "❓"} {s.credibility.label}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          } catch { return null; }
-                        })()}
-                        <div style={{ fontWeight: 500, fontSize: "0.85rem", marginBottom: "0.3rem", color: "var(--text)", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                      <div className="card-sm" style={{ padding: "0.85rem 1rem", cursor: "pointer", transition: "all 0.15s", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", background: "var(--surface)" }}
+                        onMouseOver={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = "var(--shadow-md)"; el.style.borderColor = "var(--accent)"; }}
+                        onMouseOut={e => { const el = e.currentTarget as HTMLElement; el.style.boxShadow = ""; el.style.borderColor = "var(--border)"; }}>
+
+                        {/* Domain + Badges */}
+                        <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", alignItems: "center", marginBottom: "0.5rem" }}>
+                          {(() => {
+                            try {
+                              const domain = new URL(s.url).hostname.replace("www.", "");
+                              const isPreferred = preferredDomains.some(d => domain === d || domain.endsWith("." + d));
+                              return <>
+                                <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--accent)" }}>{domain}</span>
+                                {isPreferred && <span style={{ fontSize: "0.65rem", fontWeight: 700, background: "var(--sage-light)", color: "var(--sage)", borderRadius: 999, padding: "0.1rem 0.45rem" }}>⭐ Bevorzugt</span>}
+                                {s.credibility && <span style={{ fontSize: "0.65rem", fontWeight: 600, color: s.credibility.color }}>{s.credibility.level === "trusted" ? "✅" : s.credibility.level === "medium" ? "📰" : s.credibility.level === "forum" ? "💬" : s.credibility.level === "low" ? "⚠️" : "❓"} {s.credibility.label}</span>}
+                              </>;
+                            } catch { return null; }
+                          })()}
+                        </div>
+
+                        {/* Titel */}
+                        <div style={{ fontWeight: 600, fontSize: "0.88rem", color: "var(--text)", marginBottom: "0.35rem", lineHeight: 1.4 }}>
                           {s.title}
                         </div>
-                        {s.snippet && (
-                          <div style={{ fontSize: "0.78rem", color: "var(--muted)", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-                            {s.snippet}
-                          </div>
-                        )}
-                        <div style={{ fontSize: "0.72rem", color: "var(--accent)", marginTop: "0.4rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {new URL(s.url).hostname}
+
+                        {/* Snippet — immer vollständig anzeigen */}
+                        <div style={{ fontSize: "0.78rem", color: "var(--muted)", lineHeight: 1.55 }}>
+                          {s.snippet || "Kein Vorschautext verfügbar — Artikel direkt öffnen"}
+                        </div>
+
+                        {/* URL immer sichtbar */}
+                        <div style={{ fontSize: "0.68rem", color: "var(--accent)", marginTop: "0.6rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                          <span>🔗</span>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.url}</span>
                         </div>
                       </div>
                     </a>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 
