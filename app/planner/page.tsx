@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { scheduleSyncUp } from "@/lib/sync";
 import Link from "next/link";
 import LoginGate from "@/components/LoginGate";
 
@@ -115,6 +116,7 @@ export default function PlannerPage() {
   const save = (updated: PlannerItem[]) => {
     setItems(updated);
     setLS("dh_planner", updated);
+    scheduleSyncUp(3000);
   };
 
   const prevWeek = () => {

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import LoginGate from "@/components/LoginGate";
+import { scheduleSyncUp } from "@/lib/sync";
 
 const DEFAULT_SETTINGS = {
   name: "Desi",
@@ -97,6 +98,7 @@ export default function SettingsPage() {
     localStorage.setItem("dh_settings", JSON.stringify(s));
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
+    scheduleSyncUp(2000); // nach 2s auf Server synchronisieren
   }
 
   function addTopic() {

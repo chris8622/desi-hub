@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { scheduleSyncUp } from "@/lib/sync";
 import LoginGate from "@/components/LoginGate";
 
 // ─── Types ───────────────────────────────────────────────
@@ -68,6 +69,7 @@ export default function IdeenPage() {
   const save = (updated: Idee[]) => {
     setIdeen(updated);
     setLS("dh_ideenpool", updated);
+    scheduleSyncUp(3000);
   };
 
   // ── Quick Add ────────────────────────────────────────

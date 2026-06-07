@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { scheduleSyncUp } from "@/lib/sync";
 import { useSearchParams } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
 
@@ -216,6 +217,7 @@ function EditorInner() {
     setLS("dh_editor_autosave", null);
     lastSavedContentRef.current = content;
     setIsDirty(false);
+    scheduleSyncUp(2000);
 
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

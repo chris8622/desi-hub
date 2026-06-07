@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
+import { syncDown, syncUp } from "@/lib/sync";
 
 export default function LoginGate({ children }: { children: React.ReactNode }) {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -8,11 +9,23 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<"idle"|"syncing"|"synced"|"local">("idle");
+  const [kvAvailable, setKvAvailable] = useState(false);
 
   useEffect(() => {
     try {
       const val = typeof window !== "undefined" ? localStorage.getItem("desi_auth") : null;
-      setAuthed(val === "1");
+      if (val === "1") {
+        setAuthed(true);
+        // Beim App-Start: Daten vom Server laden
+        setSyncStatus("syncing");
+        syncDown().then(({ available }) => {
+          setKvAvailable(available);
+          setSyncStatus(available ? "synced" : "local");
+        });
+      } else {
+        setAuthed(false);
+      }
     } catch {
       setAuthed(false);
     }
@@ -31,8 +44,13 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         try {
           localStorage.setItem("desi_auth", "1");
-          localStorage.setItem("desi_auth_token", password); // store password as token for API auth
+          localStorage.setItem("desi_auth_token", password);
         } catch {}
+        // Daten vom Server laden nach Login
+        setSyncStatus("syncing");
+        const { available } = await syncDown();
+        setKvAvailable(available);
+        setSyncStatus(available ? "synced" : "local");
         setAuthed(true);
       } else {
         setError("Falsches Passwort. Bitte nochmal versuchen.");
@@ -42,6 +60,15 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Manueller Sync
+  const handleManualSync = async () => {
+    setSyncStatus("syncing");
+    await syncUp();
+    const { available } = await syncDown();
+    setKvAvailable(available);
+    setSyncStatus(available ? "synced" : "local");
   };
 
   const handleLogout = () => {
@@ -150,7 +177,34 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
           ☰
         </button>
         {children}
-        <footer style={{ marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid var(--border)", textAlign: "center" }}>
+        <footer style={{ marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+          {/* Sync-Status */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            {syncStatus === "syncing" && (
+              <span style={{ fontSize: "0.72rem", color: "var(--muted)", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--gold)", animation: "pulse 1.2s infinite", display: "inline-block" }} />
+                Synchronisiere…
+              </span>
+            )}
+            {syncStatus === "synced" && (
+              <button onClick={handleManualSync} title="Jetzt synchronisieren"
+                style={{ fontSize: "0.72rem", color: "var(--sage)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem", padding: 0 }}>
+                ☁️ Cloud-Sync aktiv
+              </button>
+            )}
+            {syncStatus === "local" && (
+              <button onClick={handleManualSync} title="KV nicht verfügbar — lokal gespeichert"
+                style={{ fontSize: "0.72rem", color: "var(--muted)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem", padding: 0 }}>
+                💾 Nur lokal gespeichert
+              </button>
+            )}
+            {/* KV nicht konfiguriert — Hinweis */}
+            {syncStatus === "local" && !kvAvailable && (
+              <a href="/settings#sync" style={{ fontSize: "0.68rem", color: "var(--accent)", textDecoration: "underline" }}>
+                Cross-Device Sync einrichten →
+              </a>
+            )}
+          </div>
           <p style={{ fontSize: "0.72rem", color: "var(--muted)" }}>
             made with ❤️ by{" "}
             <a href="https://toelsner.at" target="_blank" rel="noopener"
