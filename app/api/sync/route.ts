@@ -24,14 +24,22 @@ async function kvGet(cfg: { url: string; token: string }, key: string): Promise<
   if (!res.ok) throw new Error(`KV GET failed: ${res.status}`);
   const json = await res.json() as { result: string | null };
   if (!json.result) return null;
-  return JSON.parse(json.result);
+  // result ist der gespeicherte String. Einmal parsen → Objekt.
+  // Falls noch doppelt-codiert (alte Daten): nochmal parsen.
+  let parsed: unknown = JSON.parse(json.result);
+  if (typeof parsed === "string") {
+    try { parsed = JSON.parse(parsed); } catch { /* war doch ein String */ }
+  }
+  return parsed;
 }
 
 async function kvSet(cfg: { url: string; token: string }, key: string, value: unknown): Promise<void> {
+  // Upstash REST SET: der Request-Body wird als Wert gespeichert.
+  // Wir speichern das Objekt als EINFACHEN JSON-String.
   const res = await fetch(`${cfg.url}/set/${encodeURIComponent(key)}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${cfg.token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(JSON.stringify(value)), // Upstash SET erwartet String als Body
+    headers: { Authorization: `Bearer ${cfg.token}`, "Content-Type": "text/plain" },
+    body: JSON.stringify(value),
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error(`KV SET failed: ${res.status}`);

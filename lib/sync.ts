@@ -41,9 +41,14 @@ export async function syncDown(): Promise<{ success: boolean; available: boolean
       headers: { "x-app-token": getAuthToken() },
       signal: AbortSignal.timeout(8000),
     });
-    const result = await res.json() as { available: boolean; data?: Record<string, unknown> };
+    const result = await res.json() as { available: boolean; data?: unknown };
     if (!result.available) return { success: false, available: false };
-    if (result.data) writeAllLocal(result.data);
+    // data kann (durch alte Daten) noch ein String sein → robust parsen
+    let data = result.data;
+    if (typeof data === "string") {
+      try { data = JSON.parse(data); } catch { data = null; }
+    }
+    if (data && typeof data === "object") writeAllLocal(data as Record<string, unknown>);
     return { success: true, available: true };
   } catch {
     return { success: false, available: false };
