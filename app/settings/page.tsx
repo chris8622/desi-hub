@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import LoginGate from "@/components/LoginGate";
 
 const DEFAULT_SETTINGS = {
   name: "Desi",
@@ -51,6 +52,7 @@ export default function SettingsPage() {
   if (!mounted) return null;
 
   return (
+    <LoginGate>
     <div style={{ maxWidth: 720 }}>
       <div className="flex-between" style={{ marginBottom: "2rem" }}>
         <div>
@@ -208,5 +210,6 @@ export default function SettingsPage() {
         {saved ? "✓ Gespeichert!" : "Einstellungen speichern"}
       </button>
     </div>
+    </LoginGate>
   );
 }
