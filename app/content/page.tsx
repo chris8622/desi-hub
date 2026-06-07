@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { toPng } from "html-to-image";
+// html-to-image wird dynamisch geladen (braucht Browser-DOM, kein SSR)
+// import { toPng } from "html-to-image"; ← nicht mehr hier
 import LoginGate from "@/components/LoginGate";
 import { scheduleSyncUp } from "@/lib/sync";
 
@@ -314,6 +315,7 @@ export default function ContentPage() {
     if (!el) return;
     setDownloadError("");
     try {
+      const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(el, { width: 360, height: 360, pixelRatio: 3 });
       const link = document.createElement("a");
       link.download = `desi-slide-${String(index + 1).padStart(2, "0")}.png`;
