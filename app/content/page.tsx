@@ -664,24 +664,9 @@ export default function ContentPage() {
 
                             {/* Inline photo picker */}
                             {openPhotoPicker === i && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  top: "calc(100% + 6px)",
-                                  left: "50%",
-                                  transform: "translateX(-50%)",
-                                  zIndex: 100,
-                                  background: "var(--surface)",
-                                  border: "1px solid var(--border)",
-                                  borderRadius: 10,
-                                  padding: "0.6rem",
-                                  boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-                                  display: "grid",
-                                  gridTemplateColumns: "repeat(4, 60px)",
-                                  gap: "0.4rem",
-                                  width: "max-content",
-                                }}
-                              >
+                              <div style={{ position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", zIndex: 100, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "0.6rem", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", width: "max-content", maxWidth: 280 }}>
+                                {/* Foto-Grid */}
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 60px)", gap: "0.4rem" }}>
                                 {STOCK_PHOTOS.map(photo => (
                                   <button
                                     key={photo.id}
@@ -708,8 +693,8 @@ export default function ContentPage() {
                                     </span>
                                   </button>
                                 ))}
-                              </div>
-                              {/* Lizenz-Hinweis unter der Auswahl */}
+                                </div>
+                                {/* Lizenz-Hinweis unter der Auswahl */}
                               <div style={{ fontSize: "0.68rem", color: "var(--muted)", marginTop: "0.4rem", lineHeight: 1.4 }}>
                                 📷 Alle Fotos: <a href="https://unsplash.com/license" target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>Unsplash License</a> (kostenlos, Attribution empfohlen)
                               </div>
@@ -728,6 +713,7 @@ export default function ContentPage() {
                               })()}
                               </div>
                             )}
+
                           </div>
 
                           {/* Per-slide download */}
