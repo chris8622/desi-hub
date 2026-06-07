@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
 
@@ -68,7 +68,7 @@ function renderMarkdown(md: string): string {
 
 const CHANNELS = ["Instagram", "Blog", "Newsletter"];
 
-export default function EditorPage() {
+function EditorInner() {
   const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -393,5 +393,13 @@ export default function EditorPage() {
         </div>
       </div>
     </LoginGate>
+  );
+}
+
+export default function EditorPage() {
+  return (
+    <Suspense fallback={null}>
+      <EditorInner />
+    </Suspense>
   );
 }
