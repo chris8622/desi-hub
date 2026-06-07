@@ -7,6 +7,7 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -128,8 +129,19 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-layout">
-      <Sidebar onLogout={handleLogout} />
+      <div
+        className={sidebarOpen ? "sidebar-overlay visible" : "sidebar-overlay"}
+        onClick={() => setSidebarOpen(false)}
+      />
+      <Sidebar onLogout={handleLogout} open={sidebarOpen} />
       <main className="main-content">
+        <button
+          className="hamburger"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Menü öffnen"
+        >
+          ☰
+        </button>
         {children}
       </main>
     </div>

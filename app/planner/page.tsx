@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import LoginGate from "@/components/LoginGate";
 
-type PlannerItem = { id: string; date: string; channel: string; title: string; status: string };
+type PlannerItem = { id: string; date: string; channel: string; title: string; status: string; draftId?: string };
 type ModalData = { date: string; item?: PlannerItem };
+type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
 
 function getLS<T>(key: string, fallback: T): T {
   try {
@@ -28,16 +30,18 @@ const CHANNEL_COLOR: Record<string, { bg: string; text: string }> = {
 };
 
 function startOfWeek(d: Date): Date {
-  const dt = new Date(d);
-  const day = dt.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
+  const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate()); // strip time
+  const day = dt.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+  const diff = day === 0 ? -6 : 1 - day; // distance to Monday
   dt.setDate(dt.getDate() + diff);
-  dt.setHours(0, 0, 0, 0);
   return dt;
 }
 
 function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export default function PlannerPage() {
@@ -49,10 +53,13 @@ export default function PlannerPage() {
   const [formStatus, setFormStatus] = useState("Geplant");
   const [autoLoading, setAutoLoading] = useState(false);
   const [autoMsg, setAutoMsg] = useState("");
+  const [formDraftId, setFormDraftId] = useState<string>("");
+  const [availableDrafts, setAvailableDrafts] = useState<Draft[]>([]);
 
   useEffect(() => {
     const loadedItems = getLS<PlannerItem[]>("dh_planner", []);
     setItems(loadedItems);
+    setAvailableDrafts(getLS<Draft[]>("dh_drafts", []));
 
     // Auto-fill week if auto_plan is enabled and this week is empty
     const settings = getLS<{ auto_plan?: boolean; groq_key?: string }>("dh_settings", {});
@@ -129,23 +136,24 @@ export default function PlannerPage() {
   });
 
   const openAddModal = (date: string) => {
-    setFormTitle(""); setFormChannel("Instagram"); setFormStatus("Geplant");
+    setFormTitle(""); setFormChannel("Instagram"); setFormStatus("Geplant"); setFormDraftId("");
     setModal({ date });
   };
 
   const openEditModal = (item: PlannerItem) => {
-    setFormTitle(item.title); setFormChannel(item.channel); setFormStatus(item.status);
+    setFormTitle(item.title); setFormChannel(item.channel); setFormStatus(item.status); setFormDraftId(item.draftId || "");
     setModal({ date: item.date, item });
   };
 
   const submitModal = () => {
     if (!formTitle.trim() || !modal) return;
+    const draftId = formDraftId || undefined;
     if (modal.item) {
       save(items.map(i => i.id === modal.item!.id
-        ? { ...i, title: formTitle, channel: formChannel, status: formStatus }
+        ? { ...i, title: formTitle, channel: formChannel, status: formStatus, draftId }
         : i));
     } else {
-      save([...items, { id: crypto.randomUUID(), date: modal.date, title: formTitle, channel: formChannel, status: formStatus }]);
+      save([...items, { id: crypto.randomUUID(), date: modal.date, title: formTitle, channel: formChannel, status: formStatus, draftId }]);
     }
     setModal(null);
   };
@@ -156,7 +164,16 @@ export default function PlannerPage() {
   };
 
   const today = formatDate(new Date());
-  const monthLabel = weekStart.toLocaleDateString("de-AT", { month: "long", year: "numeric" });
+  const weekEnd = weekDays[6];
+  const monthLabel = (() => {
+    if (weekStart.getMonth() !== weekEnd.getMonth()) {
+      const startMon = weekStart.toLocaleDateString("de-AT", { month: "short" });
+      const endMon = weekEnd.toLocaleDateString("de-AT", { month: "short" });
+      const year = weekEnd.getFullYear();
+      return `${startMon} – ${endMon} ${year}`;
+    }
+    return weekStart.toLocaleDateString("de-AT", { month: "long", year: "numeric" });
+  })();
 
   return (
     <LoginGate>
@@ -200,7 +217,7 @@ export default function PlannerPage() {
 
             return (
               <div key={dateStr} style={{
-                background: "var(--surface)",
+                background: isToday ? "var(--accent-light)" : "var(--surface)",
                 border: `1px solid ${isToday ? "var(--accent)" : "var(--border)"}`,
                 borderRadius: "var(--radius)",
                 padding: "0.75rem",
@@ -248,10 +265,21 @@ export default function PlannerPage() {
                         cursor: "pointer",
                         overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                         transition: "opacity 0.15s",
+                        display: "flex", alignItems: "center", gap: "0.25rem",
                       }}
                       title={item.title}
                     >
-                      {item.title}
+                      <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</span>
+                      {item.draftId && (
+                        <Link
+                          href={`/editor?draft=${item.draftId}`}
+                          onClick={e => e.stopPropagation()}
+                          style={{ color: colors.text, flexShrink: 0, lineHeight: 1 }}
+                          title="Draft im Editor öffnen"
+                        >
+                          ✏️
+                        </Link>
+                      )}
                     </div>
                   );
                 })}
@@ -291,6 +319,15 @@ export default function PlannerPage() {
                   <label className="label">Status</label>
                   <select className="select" style={{ width: "100%" }} value={formStatus} onChange={e => setFormStatus(e.target.value)}>
                     {STATUSES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Draft verknüpfen (optional)</label>
+                  <select className="select" style={{ width: "100%" }} value={formDraftId} onChange={e => setFormDraftId(e.target.value)}>
+                    <option value="">— Kein Draft —</option>
+                    {availableDrafts.map(d => (
+                      <option key={d.id} value={d.id}>{d.title || "Ohne Titel"} ({d.channel})</option>
+                    ))}
                   </select>
                 </div>
               </div>

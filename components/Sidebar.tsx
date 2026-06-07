@@ -13,10 +13,10 @@ const NAV = [
   { href: "/settings",  icon: "⚙️", label: "Einstellungen" },
 ];
 
-export default function Sidebar({ onLogout }: { onLogout: () => void }) {
+export default function Sidebar({ onLogout, open }: { onLogout: () => void; open?: boolean }) {
   const path = usePathname();
   return (
-    <aside style={{
+    <aside className={open ? "open" : undefined} style={{
       position: "fixed", top: 0, left: 0, bottom: 0,
       width: "var(--sidebar-w)", background: "var(--surface)",
       borderRight: "1px solid var(--border)", display: "flex",

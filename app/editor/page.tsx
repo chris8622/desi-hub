@@ -1,8 +1,10 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
 
 type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
+type PlannerItem = { id: string; date: string; channel: string; title: string; status: string; draftId?: string };
 
 function getLS<T>(key: string, fallback: T): T {
   try {
@@ -16,23 +18,58 @@ function setLS(key: string, val: unknown) {
 }
 
 function renderMarkdown(md: string): string {
-  return md
+  let html = md
+    // Escape HTML entities first
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    // Headers
     .replace(/^### (.+)$/gm, "<h3>$1</h3>")
     .replace(/^## (.+)$/gm, "<h2>$1</h2>")
     .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+    // Bold and italic
+    .replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>")
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
-    .replace(/^> (.+)$/gm, "<blockquote>$1</blockquote>")
-    .replace(/^- (.+)$/gm, "<li>$1</li>")
-    .replace(/(<li>[\s\S]*?<\/li>)/g, "<ul>$1</ul>")
-    .replace(/<\/ul>\s*<ul>/g, "")
-    .replace(/\n\n/g, "<br /><br />")
-    .replace(/\n/g, "<br />");
+    // Blockquote
+    .replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>")
+    // Horizontal rule
+    .replace(/^---$/gm, "<hr>")
+    ;
+
+  // Handle unordered lists (consecutive lines starting with - or *)
+  html = html.replace(/((?:^[-*] .+\n?)+)/gm, (match) => {
+    const items = match.trim().split("\n")
+      .map(line => line.replace(/^[-*] /, "").trim())
+      .filter(Boolean)
+      .map(item => `<li>${item}</li>`)
+      .join("");
+    return `<ul>${items}</ul>`;
+  });
+
+  // Handle ordered lists
+  html = html.replace(/((?:^\d+\. .+\n?)+)/gm, (match) => {
+    const items = match.trim().split("\n")
+      .map(line => line.replace(/^\d+\. /, "").trim())
+      .filter(Boolean)
+      .map(item => `<li>${item}</li>`)
+      .join("");
+    return `<ol>${items}</ol>`;
+  });
+
+  // Paragraphs: wrap non-tag lines in <p>
+  html = html.split("\n").map(line => {
+    line = line.trim();
+    if (!line) return "";
+    if (/^<(h[1-6]|ul|ol|li|blockquote|hr|p)/.test(line)) return line;
+    return `<p>${line}</p>`;
+  }).join("\n");
+
+  return html;
 }
 
 const CHANNELS = ["Instagram", "Blog", "Newsletter"];
 
 export default function EditorPage() {
+  const searchParams = useSearchParams();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [channel, setChannel] = useState("Blog");
@@ -47,6 +84,22 @@ export default function EditorPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    // Load draft from URL param (?draft=ID)
+    const urlDraftId = searchParams.get("draft");
+    if (urlDraftId) {
+      const allDrafts = getLS<Draft[]>("dh_drafts", []);
+      const urlDraft = allDrafts.find(d => d.id === urlDraftId);
+      if (urlDraft) {
+        setTitle(urlDraft.title);
+        setContent(urlDraft.content);
+        setChannel(urlDraft.channel);
+        setActiveDraftId(urlDraft.id);
+        lastSavedContentRef.current = urlDraft.content;
+        setDrafts(allDrafts);
+        return;
+      }
+    }
+
     // Research-Kontext von Research-Seite übernehmen
     const ctx = getLS<{ query: string; summary: string; sources: {title:string;url:string}[]; mode?: string } | null>("dh_research_context", null);
     if (ctx) {
@@ -232,18 +285,42 @@ export default function EditorPage() {
                   transition: "background 0.15s",
                 }}
               >
-                <div style={{ fontWeight: 500, fontSize: "0.82rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: "1.2rem" }}>
+                <div style={{ fontWeight: 500, fontSize: "0.82rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: "3rem" }}>
                   {d.title || "Ohne Titel"}
                 </div>
                 <div style={{ fontSize: "0.7rem", color: "var(--muted)", marginTop: "0.15rem" }}>
                   {d.channel} · {new Date(d.savedAt).toLocaleDateString("de-AT")}
                 </div>
-                <button
-                  onClick={e => { e.stopPropagation(); deleteDraft(d.id); }}
-                  style={{ position: "absolute", top: "0.4rem", right: "0.4rem", background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "0.8rem", lineHeight: 1, padding: "0.1rem 0.25rem" }}
-                >
-                  ×
-                </button>
+                <div style={{ position: "absolute", top: "0.4rem", right: "0.4rem", display: "flex", gap: "0.1rem" }}>
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      const date = prompt("Datum (JJJJ-MM-TT):", new Date().toISOString().split("T")[0]);
+                      if (!date) return;
+                      const planItems = getLS<PlannerItem[]>("dh_planner", []);
+                      const newItem: PlannerItem = {
+                        id: Date.now().toString(36),
+                        date,
+                        channel: d.channel || "Blog",
+                        title: d.title || "Ohne Titel",
+                        status: "Geplant",
+                        draftId: d.id,
+                      };
+                      setLS("dh_planner", [...planItems, newItem]);
+                      alert(`"${d.title || "Ohne Titel"}" wurde für ${date} eingeplant!`);
+                    }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "0.8rem", lineHeight: 1, padding: "0.1rem 0.2rem" }}
+                    title="Im Planer einplanen"
+                  >
+                    📅
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); deleteDraft(d.id); }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "0.8rem", lineHeight: 1, padding: "0.1rem 0.25rem" }}
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             ))}
           </div>
