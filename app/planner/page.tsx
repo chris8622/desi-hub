@@ -47,10 +47,47 @@ export default function PlannerPage() {
   const [formTitle, setFormTitle] = useState("");
   const [formChannel, setFormChannel] = useState("Instagram");
   const [formStatus, setFormStatus] = useState("Geplant");
+  const [autoLoading, setAutoLoading] = useState(false);
+  const [autoMsg, setAutoMsg] = useState("");
 
   useEffect(() => {
     setItems(getLS<PlannerItem[]>("dh_planner", []));
   }, []);
+
+  async function autoFillWeek() {
+    const settings = getLS("dh_settings", {
+      topics: ["Mindset", "Hormongesundheit", "Hautpflege", "Morgenroutine"],
+      voice: "warm-inspirierend", niche: "Mind, Health & Ästhetik",
+      freq_instagram: 4, freq_blog: 1, freq_newsletter: 1,
+    });
+    const groqKey = (settings as { groq_key?: string }).groq_key || "";
+    setAutoLoading(true); setAutoMsg("KI erstellt deinen Wochenplan…");
+    try {
+      const res = await fetch("/api/autoplan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings, weekStart: formatDate(weekStart), groqKey }),
+      });
+      const data = await res.json() as { plan?: PlannerItem[]; error?: string };
+      if (data.error) { setAutoMsg("⚠️ " + data.error); return; }
+      // Nur neue Slots hinzufügen (bestehende behalten)
+      const weekDates = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(weekStart); d.setDate(d.getDate() + i);
+        return formatDate(d);
+      });
+      const existing = items.filter(it => weekDates.includes(it.date));
+      const existingDates = existing.map(it => `${it.date}-${it.channel}`);
+      const newItems = (data.plan ?? []).filter(p => !existingDates.includes(`${p.date}-${p.channel}`));
+      const updated = [...items.filter(it => !weekDates.includes(it.date)), ...existing, ...newItems];
+      save(updated);
+      setAutoMsg(`✓ ${newItems.length} neue Posts eingeplant!`);
+    } catch (e) {
+      setAutoMsg("⚠️ " + (e as Error).message);
+    } finally {
+      setAutoLoading(false);
+      setTimeout(() => setAutoMsg(""), 4000);
+    }
+  }
 
   const save = (updated: PlannerItem[]) => {
     setItems(updated);
@@ -116,10 +153,15 @@ export default function PlannerPage() {
 
         {/* Week navigation */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
             <button className="btn btn-secondary btn-sm" onClick={prevWeek}>← Vorherige</button>
             <button className="btn btn-ghost btn-sm" onClick={goToday}>Heute</button>
             <button className="btn btn-secondary btn-sm" onClick={nextWeek}>Nächste →</button>
+            <button className="btn btn-primary btn-sm" onClick={autoFillWeek} disabled={autoLoading}
+              style={{ marginLeft: "0.5rem" }}>
+              {autoLoading ? "⏳ Erstelle…" : "✨ Auto-Wochenplan"}
+            </button>
+            {autoMsg && <span style={{ fontSize: "0.8rem", color: autoMsg.startsWith("⚠") ? "var(--warm-red)" : "var(--sage)", fontWeight: 600 }}>{autoMsg}</span>}
           </div>
           <div style={{ fontWeight: 600, fontSize: "0.95rem" }}>{monthLabel}</div>
           {/* Legend */}
