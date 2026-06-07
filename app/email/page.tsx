@@ -132,17 +132,27 @@ export default function EmailPage() {
 
   const generateNewsletter = async () => {
     if (!nlSubject.trim()) return;
+    const groqKey = getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "";
+    if (!groqKey) {
+      alert("Bitte zuerst den Groq API Key in den Einstellungen eintragen.");
+      return;
+    }
     setNlLoading(true);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ type: "newsletter", topic: nlSubject, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
+        body: JSON.stringify({ type: "newsletter", topic: nlSubject, groqKey }),
       });
       const data = await res.json();
-      if (data.body) setNlBody(data.body);
-      if (data.subject) setNlSubject(data.subject);
-    } catch {}
+      if (data.error) { alert("Fehler: " + data.error); }
+      else {
+        if (data.body) setNlBody(data.body);
+        if (data.subject) setNlSubject(data.subject);
+      }
+    } catch (e) {
+      alert("Verbindungsfehler: " + (e as Error).message);
+    }
     setNlLoading(false);
   };
 

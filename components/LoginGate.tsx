@@ -122,6 +122,13 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
           <p style={{ color: "var(--muted)", fontSize: "0.75rem", marginTop: "2rem" }}>
             🌿 Dein persönlicher Workspace
           </p>
+          <p style={{ color: "var(--border)", fontSize: "0.7rem", marginTop: "1rem" }}>
+            made with ❤️ by{" "}
+            <a href="https://toelsner.at" target="_blank" rel="noopener"
+              style={{ color: "var(--muted)", textDecoration: "none" }}>
+              Toelsner Digital
+            </a>
+          </p>
         </div>
       </div>
     );
@@ -143,6 +150,15 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
           ☰
         </button>
         {children}
+        <footer style={{ marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid var(--border)", textAlign: "center" }}>
+          <p style={{ fontSize: "0.72rem", color: "var(--muted)" }}>
+            made with ❤️ by{" "}
+            <a href="https://toelsner.at" target="_blank" rel="noopener"
+              style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>
+              Toelsner Digital
+            </a>
+          </p>
+        </footer>
       </main>
     </div>
   );
