@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import LoginGate from "@/components/LoginGate";
 
-type Source = { title: string; url: string; snippet: string };
+type Source = { title: string; url: string; snippet: string; credibility?: { level: string; label: string; color: string } };
+type FactCheck = { confidence: "hoch"|"mittel"|"niedrig"; confidence_reason: string; source_diversity: number; verified_claims: string[]; unverified_claims: string[]; red_flags: string[]; recommendation: string };
 type HistoryItem = { query: string; date: string; summary: string };
 
 function getLS<T>(key: string, fallback: T): T {
@@ -29,6 +30,7 @@ export default function ResearchPage() {
   const [status, setStatus] = useState("");
   const [summary, setSummary] = useState("");
   const [sources, setSources] = useState<Source[]>([]);
+  const [factCheck, setFactCheck] = useState<FactCheck | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -47,7 +49,7 @@ export default function ResearchPage() {
       const res = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ query: q, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
       });
 
       if (!res.body) throw new Error("Kein Stream");
@@ -71,6 +73,7 @@ export default function ResearchPage() {
             if (evt.type === "result") {
               setSummary(evt.data.summary);
               setSources(evt.data.sources);
+              setFactCheck(evt.data.factCheck || null);
 
               const newItem: HistoryItem = { query: q, date: new Date().toISOString(), summary: evt.data.summary };
               setHistory(prev => {
@@ -177,27 +180,71 @@ export default function ResearchPage() {
               />
             </div>
 
+            {/* Faktencheck */}
+            {factCheck && (
+              <div className="card" style={{ borderLeft: `4px solid ${factCheck.confidence === "hoch" ? "var(--sage)" : factCheck.confidence === "mittel" ? "var(--gold)" : "var(--warm-red)"}` }}>
+                <div className="flex-between" style={{ marginBottom: "1rem" }}>
+                  <div style={{ fontWeight: 700, fontSize: "1rem" }}>🔍 Faktencheck</div>
+                  <span style={{
+                    padding: "0.25rem 0.8rem", borderRadius: 999, fontSize: "0.78rem", fontWeight: 700,
+                    background: factCheck.confidence === "hoch" ? "var(--sage-light)" : factCheck.confidence === "mittel" ? "var(--gold-light)" : "var(--warm-red-light)",
+                    color: factCheck.confidence === "hoch" ? "var(--sage)" : factCheck.confidence === "mittel" ? "var(--gold)" : "var(--warm-red)",
+                  }}>
+                    {factCheck.confidence === "hoch" ? "✅ Gut belegt" : factCheck.confidence === "mittel" ? "⚠️ Teilweise belegt" : "🔴 Vorsicht geboten"}
+                  </span>
+                </div>
+                <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "1rem" }}>{factCheck.confidence_reason}</p>
+
+                <div className="grid-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
+                  {factCheck.verified_claims.length > 0 && (
+                    <div style={{ background: "var(--sage-light)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem" }}>
+                      <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "var(--sage)", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>✅ Mehrfach bestätigt</div>
+                      <ul style={{ paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                        {factCheck.verified_claims.map((c, i) => <li key={i} style={{ fontSize: "0.82rem", color: "var(--text)" }}>{c}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {factCheck.unverified_claims.length > 0 && (
+                    <div style={{ background: "var(--gold-light)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem" }}>
+                      <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "var(--gold)", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>⚠️ Nur vereinzelt belegt</div>
+                      <ul style={{ paddingLeft: "1.1rem", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                        {factCheck.unverified_claims.map((c, i) => <li key={i} style={{ fontSize: "0.82rem", color: "var(--text)" }}>{c}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {factCheck.red_flags.length > 0 && (
+                  <div style={{ background: "var(--warm-red-light)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem", marginBottom: "0.85rem" }}>
+                    <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "var(--warm-red)", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>🚩 Red Flags</div>
+                    <ul style={{ paddingLeft: "1.1rem" }}>
+                      {factCheck.red_flags.map((f, i) => <li key={i} style={{ fontSize: "0.82rem", color: "var(--warm-red)" }}>{f}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                <div style={{ background: "var(--surface2)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem" }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.78rem", color: "var(--muted)", marginBottom: "0.3rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>💡 Empfehlung für Content</div>
+                  <p style={{ fontSize: "0.85rem", color: "var(--text)" }}>{factCheck.recommendation}</p>
+                </div>
+              </div>
+            )}
+
             {/* Sources grid */}
             {sources.length > 0 && (
               <div>
                 <div className="section-label">Quellen ({sources.length})</div>
                 <div className="grid-auto" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "0.75rem" }}>
                   {sources.map((s, i) => (
-                    <a
-                      key={i}
-                      href={s.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ textDecoration: "none" }}
-                    >
-                      <div className="card-sm" style={{
-                        padding: "0.85rem 1rem",
-                        cursor: "pointer",
-                        transition: "box-shadow 0.15s",
-                      }}
-                      onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)"}
-                      onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = ""}
-                      >
+                    <a key={i} href={s.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+                      <div className="card-sm" style={{ padding: "0.85rem 1rem", cursor: "pointer", transition: "box-shadow 0.15s" }}
+                        onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)"}
+                        onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = ""}>
+                        {s.credibility && (
+                          <div style={{ fontSize: "0.68rem", fontWeight: 700, color: s.credibility.color, marginBottom: "0.3rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            {s.credibility.level === "trusted" ? "✅" : s.credibility.level === "medium" ? "📰" : s.credibility.level === "forum" ? "💬" : s.credibility.level === "low" ? "⚠️" : "❓"} {s.credibility.label}
+                          </div>
+                        )}
                         <div style={{ fontWeight: 500, fontSize: "0.85rem", marginBottom: "0.3rem", color: "var(--text)", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
                           {s.title}
                         </div>
