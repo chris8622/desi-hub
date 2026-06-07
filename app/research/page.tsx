@@ -41,6 +41,7 @@ export default function ResearchPage() {
   const [groqKey, setGroqKey] = useState("");
   const [trustedSources, setTrustedSources] = useState<Set<string>>(new Set());
   const [preferredDomains, setPreferredDomains] = useState<string[]>([]);
+  const [searchMode, setSearchMode] = useState<"all" | "trusted_only">("all");
   const [verifyingClaim, setVerifyingClaim] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function ResearchPage() {
           query: q,
           groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "",
           trustedDomains: getLS<{trusted_sources?:string[]}>("dh_settings",{}).trusted_sources || [],
+          searchMode,
         }),
       });
 
@@ -238,18 +240,34 @@ export default function ResearchPage() {
             ))}
           </div>
 
-          {/* Bevorzugte Quellen Hinweis */}
+          {/* Suchmodus Toggle */}
           {preferredDomains.length > 0 && (
-            <div style={{ marginTop: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.75rem", color: "var(--sage)" }}>
-              <span>⭐</span>
-              <span>
-                Gezielt durchsucht: {preferredDomains.slice(0, 4).join(", ")}
-                {preferredDomains.length > 4 ? ` +${preferredDomains.length - 4} weitere` : ""}
-              </span>
-              <button onClick={() => router.push("/settings")}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--sage)", fontSize: "0.72rem", textDecoration: "underline", padding: 0 }}>
-                verwalten
-              </button>
+            <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border)", paddingTop: "0.85rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                {/* Modus: Überall */}
+                <button onClick={() => setSearchMode("all")}
+                  style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.9rem", borderRadius: "var(--radius-sm)", border: "1px solid", cursor: "pointer", fontSize: "0.82rem", fontWeight: searchMode === "all" ? 700 : 400, fontFamily: "inherit", transition: "all 0.15s",
+                    background: searchMode === "all" ? "var(--text)" : "var(--surface2)",
+                    borderColor: searchMode === "all" ? "var(--text)" : "var(--border)",
+                    color: searchMode === "all" ? "var(--bg)" : "var(--muted)" }}>
+                  🌐 Überall suchen
+                </button>
+                {/* Modus: Nur bevorzugte */}
+                <button onClick={() => setSearchMode("trusted_only")}
+                  style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.9rem", borderRadius: "var(--radius-sm)", border: "1px solid", cursor: "pointer", fontSize: "0.82rem", fontWeight: searchMode === "trusted_only" ? 700 : 400, fontFamily: "inherit", transition: "all 0.15s",
+                    background: searchMode === "trusted_only" ? "var(--sage)" : "var(--surface2)",
+                    borderColor: searchMode === "trusted_only" ? "var(--sage)" : "var(--border)",
+                    color: searchMode === "trusted_only" ? "white" : "var(--muted)" }}>
+                  ⭐ Nur bevorzugte Quellen
+                </button>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.73rem", color: "var(--muted)" }}>
+                <span>{preferredDomains.length} Quellen aktiv</span>
+                <button onClick={() => router.push("/settings")}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", fontSize: "0.72rem", textDecoration: "underline", padding: 0 }}>
+                  verwalten
+                </button>
+              </div>
             </div>
           )}
         </div>
