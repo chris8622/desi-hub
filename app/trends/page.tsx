@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
+import { scheduleSyncUp } from "@/lib/sync";
 
 type Trend = {
   name: string;
@@ -39,6 +40,17 @@ export default function TrendsPage() {
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
   const [niche, setNiche] = useState("");
+  const [lastScan, setLastScan] = useState<string>("");
+
+  // Letzten Scan beim Öffnen laden
+  useEffect(() => {
+    const saved = getLS<{ result: Result; date: string; niche: string } | null>("dh_trends_latest", null);
+    if (saved && saved.result) {
+      setResult(saved.result);
+      setLastScan(saved.date);
+      if (saved.niche) setNiche(saved.niche);
+    }
+  }, []);
 
   const runTrends = async () => {
     setLoading(true); setError(""); setResult(null);
@@ -65,12 +77,18 @@ export default function TrendsPage() {
             if (evt.type === "status") setStatus(evt.data);
             if (evt.type === "error") { setError(evt.data); setLoading(false); }
             if (evt.type === "result") {
-              setResult({
+              const r: Result = {
                 trends: Array.isArray(evt.data.trends) ? evt.data.trends : [],
                 early_signals: Array.isArray(evt.data.early_signals) ? evt.data.early_signals : [],
                 summary: evt.data.summary || "",
                 sources: Array.isArray(evt.data.sources) ? evt.data.sources : [],
-              });
+              };
+              setResult(r);
+              const dateStr = new Date().toLocaleDateString("de-AT", { day: "2-digit", month: "long", year: "numeric" });
+              setLastScan(dateStr);
+              // Speichern für Dashboard + Wiederanzeige
+              setLS("dh_trends_latest", { result: r, date: dateStr, niche: useNiche });
+              scheduleSyncUp(2000);
               setLoading(false); setStatus("");
             }
           } catch {}
@@ -125,9 +143,14 @@ export default function TrendsPage() {
               placeholder="Nische (leer = aus Einstellungen, z.B. Hautpflege, Mindset)"
               style={{ flex: 1, minWidth: 200 }} disabled={loading} />
             <button className="btn btn-primary" onClick={runTrends} disabled={loading}>
-              {loading ? "Scanne…" : "📡 Trends scannen"}
+              {loading ? "Scanne…" : result ? "🔄 Neu scannen" : "📡 Trends scannen"}
             </button>
           </div>
+          {lastScan && !loading && (
+            <div style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.65rem" }}>
+              📅 Zuletzt gescannt: {lastScan}
+            </div>
+          )}
         </div>
 
         {/* Status */}

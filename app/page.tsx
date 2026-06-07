@@ -6,6 +6,8 @@ import LoginGate from "@/components/LoginGate";
 type PlannerItem = { id: string; date: string; channel: string; title: string; status: string };
 type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
 type Subscriber = { id: string; name: string; email: string; addedAt: string };
+type Trend = { name: string; europe_status: string; origin: string; opportunity: string };
+type TrendsLatest = { result: { trends: Trend[] }; date: string };
 
 function getLS<T>(key: string, fallback: T): T {
   try {
@@ -32,6 +34,8 @@ export default function DashboardPage() {
   const [today, setToday] = useState("");
   const [greeting, setGreeting] = useState("Guten Tag");
   const [missingGroqKey, setMissingGroqKey] = useState(false);
+  const [earlyTrends, setEarlyTrends] = useState<Trend[]>([]);
+  const [trendsDate, setTrendsDate] = useState("");
 
   useEffect(() => {
     setPlanner(getLS<PlannerItem[]>("dh_planner", []));
@@ -52,6 +56,14 @@ export default function DashboardPage() {
     // Check if Groq key is set
     const groqKey = getLS<{ groq_key?: string }>("dh_settings", {}).groq_key;
     setMissingGroqKey(!groqKey);
+
+    // Letzte Trends laden — "früh dran" hervorheben
+    const trends = getLS<TrendsLatest | null>("dh_trends_latest", null);
+    if (trends?.result?.trends) {
+      const early = trends.result.trends.filter(t => t.europe_status === "frueh_dran").slice(0, 3);
+      setEarlyTrends(early.length > 0 ? early : trends.result.trends.slice(0, 3));
+      setTrendsDate(trends.date || "");
+    }
   }, []);
 
   // Datums-String "YYYY-MM-DD" für lokalen Vergleich (kein Timezone-Shift)
@@ -162,6 +174,34 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* Trend-Highlight */}
+      {earlyTrends.length > 0 && (
+        <div style={{ marginBottom: "2rem" }}>
+          <div className="flex-between" style={{ marginBottom: "0.75rem" }}>
+            <div className="section-label" style={{ marginBottom: 0 }}>🚀 Trends zum Aufspringen{trendsDate ? ` · ${trendsDate}` : ""}</div>
+            <Link href="/trends" style={{ fontSize: "0.82rem", color: "var(--accent)", textDecoration: "none" }}>
+              Zum Trend-Radar →
+            </Link>
+          </div>
+          <div className="grid-3">
+            {earlyTrends.map((t, i) => (
+              <Link key={i} href="/trends" style={{ textDecoration: "none" }}>
+                <div className="card" style={{ padding: "1rem 1.1rem", height: "100%", borderLeft: "3px solid var(--accent)", transition: "box-shadow 0.15s" }}
+                  onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)"}
+                  onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow)"}>
+                  <div style={{ fontSize: "0.7rem", fontWeight: 700, color: t.europe_status === "frueh_dran" ? "var(--accent2)" : "var(--gold)", marginBottom: "0.3rem" }}>
+                    {t.europe_status === "frueh_dran" ? "🚀 Früh dran" : t.europe_status === "kommt_bald" ? "⏳ Kommt bald" : "✅ Aktuell"}
+                    {t.origin ? ` · ${t.origin}` : ""}
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--text)", marginBottom: "0.25rem" }}>{t.name}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--muted)", lineHeight: 1.45 }}>{t.opportunity}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Upcoming posts */}
       <div>

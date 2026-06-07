@@ -9,6 +9,8 @@ export const SYNC_KEYS = [
   "dh_newsletters",
   "dh_research_history",
   "dh_trusted_sources",
+  "dh_trends_latest",
+  "dh_carousels",
 ];
 
 function getAuthToken(): string {
