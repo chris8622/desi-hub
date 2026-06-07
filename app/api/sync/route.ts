@@ -1,13 +1,5 @@
 export const maxDuration = 30;
 
-// Graceful import — wenn KV nicht konfiguriert ist, wird es undefined
-let kv: { get: (k: string) => Promise<unknown>; set: (k: string, v: unknown) => Promise<void> } | null = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const kvModule = require("@vercel/kv");
-  kv = kvModule.kv;
-} catch {}
-
 const DATA_KEY = "desi_hub_data_v1";
 
 function authCheck(req: Request): boolean {
@@ -16,13 +8,44 @@ function authCheck(req: Request): boolean {
   return req.headers.get("x-app-token") === appPassword;
 }
 
+// Upstash REST API direkt — kein Package nötig
+function getUpstashConfig(): { url: string; token: string } | null {
+  const url   = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
+  if (!url || !token) return null;
+  return { url, token };
+}
+
+async function kvGet(cfg: { url: string; token: string }, key: string): Promise<unknown> {
+  const res = await fetch(`${cfg.url}/get/${encodeURIComponent(key)}`, {
+    headers: { Authorization: `Bearer ${cfg.token}` },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`KV GET failed: ${res.status}`);
+  const json = await res.json() as { result: string | null };
+  if (!json.result) return null;
+  return JSON.parse(json.result);
+}
+
+async function kvSet(cfg: { url: string; token: string }, key: string, value: unknown): Promise<void> {
+  const res = await fetch(`${cfg.url}/set/${encodeURIComponent(key)}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${cfg.token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(JSON.stringify(value)), // Upstash SET erwartet String als Body
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`KV SET failed: ${res.status}`);
+}
+
 // ── GET: Daten vom Server laden ──────────────────────────
 export async function GET(req: Request) {
   if (!authCheck(req)) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if (!kv) return Response.json({ available: false }, { status: 200 });
+
+  const cfg = getUpstashConfig();
+  if (!cfg) return Response.json({ available: false, reason: "KV not configured" });
 
   try {
-    const data = await kv.get(DATA_KEY);
+    const data = await kvGet(cfg, DATA_KEY);
     return Response.json({ available: true, data: data || {} });
   } catch (e) {
     return Response.json({ available: false, error: (e as Error).message });
@@ -32,13 +55,15 @@ export async function GET(req: Request) {
 // ── POST: Daten auf Server speichern ─────────────────────
 export async function POST(req: Request) {
   if (!authCheck(req)) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if (!kv) return Response.json({ available: false, saved: false });
+
+  const cfg = getUpstashConfig();
+  if (!cfg) return Response.json({ available: false, saved: false, reason: "KV not configured" });
 
   try {
     const data = await req.json();
-    await kv.set(DATA_KEY, data);
+    await kvSet(cfg, DATA_KEY, data);
     return Response.json({ available: true, saved: true });
   } catch (e) {
-    return Response.json({ available: false, error: (e as Error).message });
+    return Response.json({ available: false, saved: false, error: (e as Error).message });
   }
 }
