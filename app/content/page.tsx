@@ -178,18 +178,9 @@ function SlidePreview({
           </div>
         )}
 
-        {/* Watermark + Photo Attribution */}
-        <div style={{ position: "absolute", bottom: 14, left: 18, right: 18, display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-          {/* Foto-Attribution links — nur bei Foto-Hintergrund */}
-          {photoEntry ? (
-            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.55)", lineHeight: 1.3 }}>
-              📷 {photoEntry.photographer}{"\n"}via Unsplash
-            </div>
-          ) : <div />}
-          {/* Handle rechts */}
-          <div style={{ fontSize: 11, color: isPhoto ? "rgba(255,255,255,0.5)" : (isNatur ? "#8C7B6B" : "rgba(247,243,238,0.5)"), fontWeight: 400 }}>
-            @{handle}
-          </div>
+        {/* Watermark */}
+        <div style={{ position: "absolute", bottom: 14, right: 18, fontSize: 11, color: isPhoto ? "rgba(255,255,255,0.5)" : (isNatur ? "#8C7B6B" : "rgba(247,243,238,0.5)"), fontWeight: 400 }}>
+          @{handle}
         </div>
       </div>
     </div>

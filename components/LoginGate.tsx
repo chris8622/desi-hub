@@ -16,12 +16,14 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
     try {
       const val = typeof window !== "undefined" ? localStorage.getItem("desi_auth") : null;
       if (val === "1") {
-        setAuthed(true);
-        // Beim App-Start: Daten vom Server laden
+        // Erst sync, dann App anzeigen — so hat jede Seite die neuesten Settings
         setSyncStatus("syncing");
         syncDown().then(({ available }) => {
           setKvAvailable(available);
           setSyncStatus(available ? "synced" : "local");
+          setAuthed(true); // App erst nach Sync rendern
+        }).catch(() => {
+          setAuthed(true); // Bei Fehler trotzdem zeigen
         });
       } else {
         setAuthed(false);
