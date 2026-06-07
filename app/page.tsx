@@ -54,20 +54,25 @@ export default function DashboardPage() {
     setMissingGroqKey(!groqKey);
   }, []);
 
+  // Datums-String "YYYY-MM-DD" für lokalen Vergleich (kein Timezone-Shift)
+  const toDateStr = (d: Date) => {
+    const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
   const thisWeek = (() => {
     const now = new Date();
-    const start = new Date(now);
-    start.setDate(now.getDate() - now.getDay() + 1);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    return planner.filter(p => {
-      const d = new Date(p.date);
-      return d >= start && d <= end;
-    }).length;
+    const day = now.getDay(); // 0=So, 1=Mo … 6=Sa
+    const diffToMonday = day === 0 ? -6 : 1 - day; // Sonntag → 6 Tage zurück
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday);
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+    const startStr = toDateStr(start), endStr = toDateStr(end);
+    return planner.filter(p => p.date >= startStr && p.date <= endStr).length;
   })();
 
+  const todayStr = toDateStr(new Date());
   const upcoming = planner
-    .filter(p => new Date(p.date) >= new Date(new Date().toDateString()))
+    .filter(p => p.date >= todayStr)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 5);
 
