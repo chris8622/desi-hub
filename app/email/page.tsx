@@ -116,7 +116,7 @@ export default function EmailPage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "newsletter", topic: nlSubject }),
+        body: JSON.stringify({ type: "newsletter", topic: nlSubject, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
       });
       const data = await res.json();
       if (data.body) setNlBody(data.body);

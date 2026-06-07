@@ -66,7 +66,7 @@ export default function ContentPage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "carousel", topic: carouselTopic }),
+        body: JSON.stringify({ type: "carousel", topic: carouselTopic, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
@@ -86,7 +86,7 @@ export default function ContentPage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "ideas", topic: ideaTopic }),
+        body: JSON.stringify({ type: "ideas", topic: ideaTopic, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);

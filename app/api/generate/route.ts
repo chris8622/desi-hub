@@ -64,8 +64,12 @@ Antworte mit JSON:
 };
 
 export async function POST(req: Request) {
-  const { type, topic, context } = await req.json();
-  const groqKey = process.env.GROQ_API_KEY;
+  const { type, topic, context, groqKey: clientKey } = await req.json();
+  const groqKey = clientKey || process.env.GROQ_API_KEY || "";
+
+  if (!groqKey) {
+    return Response.json({ error: "Kein Groq API Key — bitte in den Einstellungen eintragen." }, { status: 400 });
+  }
 
   const promptFn = PROMPTS[type];
   if (!promptFn) {
