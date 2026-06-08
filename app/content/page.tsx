@@ -189,9 +189,112 @@ function SlidePreview({
   );
 }
 
+function PinPreview({
+  headline,
+  subtitle,
+  style,
+  handle,
+  pinRef,
+}: {
+  headline: string;
+  subtitle?: string;
+  style: SlideStyle;
+  handle: string;
+  pinRef: (el: HTMLDivElement | null) => void;
+}) {
+  const isPhoto = style.startsWith("photo-");
+  const photoEntry = isPhoto ? STOCK_PHOTOS.find(p => `photo-${p.id}` === style) : null;
+  const photoUrl = photoEntry?.url ?? null;
+
+  const solidStyle = STYLE_OPTIONS.find(o => o.key === style) ?? STYLE_OPTIONS[0];
+  const isNatur = style === "natur";
+
+  const textColor = isPhoto ? "#FFFFFF" : solidStyle.text;
+  const accentColor = isPhoto ? "#FFFFFF" : solidStyle.accent;
+  const subColor = isPhoto ? "rgba(255,255,255,0.75)" : (isNatur ? "#8C7B6B" : "rgba(247,243,238,0.7)");
+
+  const bgStyle: React.CSSProperties = photoUrl
+    ? { backgroundImage: `url(${photoUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+    : { background: solidStyle.bg };
+
+  return (
+    <div
+      ref={pinRef}
+      style={{
+        width: 360,
+        height: 540,
+        flexShrink: 0,
+        borderRadius: 12,
+        boxSizing: "border-box",
+        position: "relative",
+        overflow: "hidden",
+        fontFamily: "'DM Sans', sans-serif",
+        ...bgStyle,
+      }}
+    >
+      {/* Photo overlay */}
+      {photoUrl && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(44,32,22,0.5)" }} />
+      )}
+
+      {/* Content layer */}
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          height: "100%",
+          padding: 36,
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* Top: accent bar */}
+        <div style={{ width: 48, height: 4, background: accentColor, borderRadius: 2, flexShrink: 0 }} />
+
+        {/* Center: headline (vertically centered) */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            textAlign: "center",
+            gap: 16,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "'DM Serif Display', serif",
+              fontSize: 32,
+              lineHeight: 1.18,
+              color: textColor,
+              fontWeight: 400,
+            }}
+          >
+            {headline || "Dein Text-Hook"}
+          </div>
+          {subtitle && (
+            <div style={{ fontSize: 14, color: subColor, lineHeight: 1.5, maxWidth: 260 }}>
+              {subtitle}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom: watermark */}
+        <div style={{ flexShrink: 0, textAlign: "center", fontSize: 13, color: subColor, fontWeight: 500 }}>
+          @{handle}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ContentPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<"carousel" | "ideen">("carousel");
+  const [tab, setTab] = useState<"carousel" | "ideen" | "pinterest">("carousel");
   const [researchBanner, setResearchBanner] = useState<string | null>(null);
   const [researchContext, setResearchContext] = useState<string>("");
 
@@ -207,6 +310,14 @@ export default function ContentPage() {
           const plain = ctx.summary.replace(/<[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 2000);
           const sourceList = ctx.sources?.slice(0, 5).map(s => `- ${s.title} (${s.url})`).join("\n") || "";
           setResearchContext(`Research-Erkenntnisse zum Thema "${ctx.query}":\n${plain}${sourceList ? `\n\nQuellen:\n${sourceList}` : ""}`);
+        }
+      } else if (ctx.mode === "pinterest") {
+        setPinTopic(ctx.query);
+        setResearchBanner(ctx.query);
+        setTab("pinterest");
+        if (ctx.summary) {
+          const plain = ctx.summary.replace(/<[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 2000);
+          setResearchContext(plain);
         }
       } else {
         setIdeaTopic(ctx.query);
@@ -316,6 +427,19 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [ideasError, setIdeasError] = useState("");
 
+  // Pinterest state
+  const [pinTopic, setPinTopic] = useState("");
+  const [pinHeadline, setPinHeadline] = useState("");      // Text auf dem Pin
+  const [pinTitle, setPinTitle] = useState("");            // SEO-Titel (max 100)
+  const [pinDescription, setPinDescription] = useState(""); // SEO-Beschreibung (max 500)
+  const [pinHashtags, setPinHashtags] = useState<string[]>([]);
+  const [pinStyle, setPinStyle] = useState<string>("natur");
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState("");
+  const [pinCopied, setPinCopied] = useState(false);
+  const [pinPhotoPickerOpen, setPinPhotoPickerOpen] = useState(false);
+  const pinRef = useRef<HTMLDivElement | null>(null);
+
   const generateCarousel = async (topicOverride?: string) => {
     const topic = topicOverride ?? carouselTopic;
     if (!topic.trim()) return;
@@ -394,6 +518,62 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
       setIdeasError(e instanceof Error ? e.message : "Fehler beim Generieren");
     } finally {
       setIdeasLoading(false);
+    }
+  };
+
+  const generatePin = async () => {
+    if (!pinTopic.trim()) return;
+    const groqKey = getLS<{ groq_key?: string }>("dh_settings", {}).groq_key || "";
+    if (!groqKey) {
+      alert("Bitte trage zuerst deinen Groq API Key in den Einstellungen ein.");
+      return;
+    }
+    setPinLoading(true);
+    setPinError("");
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
+        body: JSON.stringify({ type: "pinterest", topic: pinTopic, context: researchContext || undefined, groqKey }),
+      });
+      const data = await res.json();
+      trackTokens(data._tokens || 0);
+      if (data.error) throw new Error(data.error);
+      setPinHeadline(data.headline || "");
+      setPinTitle(data.title || "");
+      setPinDescription(data.description || "");
+      setPinHashtags(Array.isArray(data.hashtags) ? data.hashtags : []);
+    } catch (e) {
+      setPinError(e instanceof Error ? e.message : "Fehler beim Generieren");
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const downloadPin = async () => {
+    if (!pinRef.current) return;
+    setPinError("");
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(pinRef.current, { width: 360, height: 540, pixelRatio: 2.78 }); // → ~1000×1500
+      const link = document.createElement("a");
+      link.download = `pinterest-${(pinHeadline || "pin").replace(/\s+/g, "-").toLowerCase().slice(0, 30)}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (e) {
+      setPinError("Download fehlgeschlagen: " + (e as Error).message);
+    }
+  };
+
+  const copyPinText = async () => {
+    const tags = pinHashtags.map(h => `#${h.replace(/^#/, "")}`).join(" ");
+    const text = [pinTitle, "", pinDescription, tags ? `\n${tags}` : ""].filter(Boolean).join("\n").trim();
+    try {
+      await navigator.clipboard.writeText(text);
+      setPinCopied(true);
+      setTimeout(() => setPinCopied(false), 2500);
+    } catch {
+      setPinError("Konnte Text nicht kopieren — bitte manuell markieren.");
     }
   };
 
@@ -543,7 +723,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
 
         {/* Tabs */}
         <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", borderBottom: "1px solid var(--border)", paddingBottom: "0" }}>
-          {(["carousel", "ideen"] as const).map(t => (
+          {(["carousel", "ideen", "pinterest"] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -560,7 +740,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
                 transition: "color 0.15s",
               }}
             >
-              {t === "carousel" ? "🎠 Karussell" : "💡 Ideen"}
+              {t === "carousel" ? "🎠 Karussell" : t === "ideen" ? "💡 Ideen" : "📌 Pinterest"}
             </button>
           ))}
         </div>
@@ -1242,6 +1422,228 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
               <div className="empty-state">
                 <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>💡</div>
                 <div>Gib ein Thema ein und lass dir Ideen generieren</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Pinterest tab */}
+        {tab === "pinterest" && (
+          <div>
+            {/* SEO-Hinweis */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem", background: "var(--accent-light)", border: "1px solid rgba(196,112,74,0.3)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem", marginBottom: "1rem" }}>
+              <span style={{ fontSize: "1.1rem", flexShrink: 0 }}>🔎</span>
+              <div style={{ fontSize: "0.82rem", color: "var(--accent2)", lineHeight: 1.5 }}>
+                Pinterest = visuelle Suchmaschine. <strong>Titel &amp; Beschreibung mit Keywords sind entscheidend fürs Ranking.</strong>
+              </div>
+            </div>
+
+            {/* KI-Eingabe */}
+            <div className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem" }}>
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                <input
+                  className="input"
+                  style={{ flex: 1, minWidth: 200 }}
+                  value={pinTopic}
+                  onChange={e => setPinTopic(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && !pinLoading && generatePin()}
+                  placeholder="Thema für den Pin… z.B. Abendroutine zum Entspannen"
+                  disabled={pinLoading}
+                />
+                <button className="btn btn-primary" onClick={generatePin} disabled={pinLoading || !pinTopic.trim()}>
+                  {pinLoading ? "Generiere…" : "✨ Pin generieren"}
+                </button>
+              </div>
+              <p style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "0.65rem", marginBottom: 0, lineHeight: 1.5 }}>
+                Oder gib Text, Titel und Beschreibung weiter unten einfach selbst ein.
+              </p>
+            </div>
+
+            {pinError && <div className="alert alert-error" style={{ marginBottom: "1rem" }}>{pinError}</div>}
+
+            {pinLoading && (
+              <div className="empty-state">
+                <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⏳</div>
+                <div>Pin wird erstellt…</div>
+              </div>
+            )}
+
+            {!pinLoading && (
+              <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", alignItems: "flex-start" }}>
+                {/* Linke Spalte: Pin-Vorschau */}
+                <div className="card" style={{ padding: "1.25rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+                  <PinPreview
+                    headline={pinHeadline}
+                    style={pinStyle}
+                    handle={igHandle || "desi"}
+                    pinRef={el => { pinRef.current = el; }}
+                  />
+
+                  {/* Stil-Auswahl */}
+                  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.4rem", flexWrap: "wrap", position: "relative" }}>
+                    {STYLE_OPTIONS.map(opt => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setPinStyle(opt.key)}
+                        title={opt.label}
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: "50%",
+                          border: pinStyle === opt.key ? "2px solid var(--accent)" : "2px solid var(--border)",
+                          background: opt.bg,
+                          cursor: "pointer",
+                          padding: 0,
+                          boxShadow: pinStyle === opt.key ? "0 0 0 2px rgba(196,112,74,0.25)" : "none",
+                          transition: "all 0.15s",
+                        }}
+                        aria-label={opt.label}
+                      />
+                    ))}
+                    {/* Foto-Picker-Button */}
+                    <button
+                      onClick={() => setPinPhotoPickerOpen(v => !v)}
+                      title="Foto-Hintergrund"
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: "50%",
+                        border: pinStyle.startsWith("photo-") ? "2px solid var(--accent)" : "2px solid var(--border)",
+                        background: pinStyle.startsWith("photo-") ? "#4A3728" : "var(--surface)",
+                        cursor: "pointer",
+                        padding: 0,
+                        fontSize: "0.8rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        boxShadow: pinStyle.startsWith("photo-") ? "0 0 0 2px rgba(196,112,74,0.25)" : "none",
+                        transition: "all 0.15s",
+                      }}
+                      aria-label="Foto-Hintergrund wählen"
+                    >
+                      📸
+                    </button>
+
+                    {/* Inline-Foto-Picker */}
+                    {pinPhotoPickerOpen && (
+                      <div style={{ position: "absolute", top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)", zIndex: 100, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "0.6rem", boxShadow: "0 4px 20px rgba(0,0,0,0.15)", width: "max-content", maxWidth: 280 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 60px)", gap: "0.4rem" }}>
+                          {STOCK_PHOTOS.map(photo => (
+                            <button
+                              key={photo.id}
+                              onClick={() => { setPinStyle(`photo-${photo.id}`); setPinPhotoPickerOpen(false); }}
+                              title={photo.label}
+                              style={{
+                                width: 60,
+                                height: 60,
+                                borderRadius: 6,
+                                border: pinStyle === `photo-${photo.id}` ? "2px solid var(--accent)" : "2px solid transparent",
+                                backgroundImage: `url(${photo.url})`,
+                                backgroundSize: "cover",
+                                backgroundPosition: "center",
+                                cursor: "pointer",
+                                padding: 0,
+                                overflow: "hidden",
+                                position: "relative",
+                              }}
+                              aria-label={photo.label}
+                            >
+                              <span style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.6)", color: "#fff", fontSize: "0.55rem", textAlign: "center", padding: "2px 2px", lineHeight: 1.2 }}>
+                                {photo.label}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                        <div style={{ fontSize: "0.68rem", color: "var(--muted)", marginTop: "0.4rem", lineHeight: 1.4 }}>
+                          📷 Alle Fotos: <a href="https://unsplash.com/license" target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>Unsplash License</a> (kostenlos, Attribution empfohlen)
+                        </div>
+                        {(() => {
+                          const currentPhoto = STOCK_PHOTOS.find(p => `photo-${p.id}` === pinStyle);
+                          if (!currentPhoto) return null;
+                          return (
+                            <div style={{ marginTop: "0.35rem", fontSize: "0.7rem", color: "var(--muted)" }}>
+                              Aktuell: <strong>{currentPhoto.label}</strong> · Foto von{" "}
+                              <a href={currentPhoto.unsplashUrl} target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>
+                                {currentPhoto.photographer}
+                              </a> auf Unsplash
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Instagram-Handle */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                    <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>@</span>
+                    <input
+                      className="input"
+                      value={igHandle}
+                      onChange={e => saveHandle(e.target.value.replace(/^@/, ""))}
+                      placeholder="dein-name"
+                      style={{ width: 120, fontSize: "0.8rem", padding: "0.3rem 0.6rem" }}
+                    />
+                    <span style={{ fontSize: "0.75rem", color: "var(--muted)" }}>Wasserzeichen</span>
+                  </div>
+
+                  <button className="btn btn-primary" onClick={downloadPin} style={{ width: "100%" }}>
+                    ⬇ Pin herunterladen (1000×1500)
+                  </button>
+                </div>
+
+                {/* Rechte Spalte: bearbeitbare Felder */}
+                <div className="card" style={{ padding: "1.25rem", flex: 1, minWidth: 280, display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  <div>
+                    <label className="label">Text auf dem Pin</label>
+                    <input
+                      className="input"
+                      value={pinHeadline}
+                      onChange={e => setPinHeadline(e.target.value)}
+                      placeholder="Kurzer, starker Text-Hook"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label" style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>Pin-Titel (SEO)</span>
+                      <span style={{ fontWeight: 400, color: pinTitle.length > 100 ? "#C0392B" : "var(--muted)" }}>{pinTitle.length}/100</span>
+                    </label>
+                    <input
+                      className="input"
+                      value={pinTitle}
+                      onChange={e => setPinTitle(e.target.value)}
+                      placeholder="SEO-Titel mit Keywords"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label" style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span>Pin-Beschreibung (SEO)</span>
+                      <span style={{ fontWeight: 400, color: pinDescription.length > 500 ? "#C0392B" : "var(--muted)" }}>{pinDescription.length}/500</span>
+                    </label>
+                    <textarea
+                      className="textarea"
+                      style={{ minHeight: 140, resize: "vertical" }}
+                      value={pinDescription}
+                      onChange={e => setPinDescription(e.target.value)}
+                      placeholder="Keyword-reiche Beschreibung mit Call-to-Action am Ende…"
+                    />
+                  </div>
+
+                  {pinHashtags.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                      {pinHashtags.map((h, i) => (
+                        <span key={i} className="badge badge-terra" style={{ fontSize: "0.75rem" }}>
+                          #{h.replace(/^#/, "")}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <button className="btn btn-secondary" onClick={copyPinText} style={{ alignSelf: "flex-start" }}>
+                    {pinCopied ? "✓ Kopiert!" : "📋 Titel + Beschreibung kopieren"}
+                  </button>
+                </div>
               </div>
             )}
           </div>

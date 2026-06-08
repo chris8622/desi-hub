@@ -25,6 +25,17 @@ Antworte mit JSON:
 }
 Erstelle 5-7 Slides. Erste Slide = Hook. Letzte Slide = CTA.`,
 
+  pinterest: (topic, ctx) => `Erstelle einen Pinterest-Pin zum Thema: "${topic}"${ctx ? `\nKontext: ${ctx}` : ""}
+Pinterest ist eine visuelle Suchmaschine — der Titel und die Beschreibung müssen SEO-optimiert mit Keywords sein.
+Antworte mit JSON:
+{
+  "headline": "Kurzer, starker Text-Hook fürs Bild (max 6 Wörter, neugierig machend)",
+  "title": "SEO-Pin-Titel mit Keywords (max 100 Zeichen)",
+  "description": "SEO-Beschreibung mit relevanten Keywords, natürlich formuliert, Call-to-Action am Ende (max 500 Zeichen)",
+  "hashtags": ["tag1", "tag2", "tag3"]
+}
+Auf Deutsch, du-Form, warm und inspirierend.`,
+
   caption: (topic, ctx) => `Erstelle eine Instagram-Caption für: "${topic}"${ctx ? `\nKontext: ${ctx}` : ""}
 Antworte mit JSON:
 {
