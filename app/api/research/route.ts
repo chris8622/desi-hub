@@ -128,9 +128,12 @@ export async function POST(req: Request) {
   const query          = body.query as string;
   const groqKey        = (body.groqKey as string | undefined) || process.env.GROQ_API_KEY || "";
   const serperKey      = process.env.SERPER_API_KEY || "";
+  const perplexityKey  = (body.perplexityKey as string | undefined) || process.env.PERPLEXITY_API_KEY || "";
+  const engine         = (body.engine as string | undefined) || "standard";
   const trustedDomains = (body.trustedDomains as string[] | undefined) || [];
   const searchMode     = (body.searchMode as string | undefined) || "all";
   const trustedOnly    = searchMode === "trusted_only" && trustedDomains.length > 0;
+  const usePerplexity  = engine === "perplexity" && perplexityKey;
 
   const encoder = new TextEncoder();
   const stream  = new ReadableStream({
@@ -139,6 +142,59 @@ export async function POST(req: Request) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
 
       try {
+        // ═══ PERPLEXITY-ENGINE (Premium) ═══
+        if (usePerplexity) {
+          send({ type: "status", data: "🔮 Perplexity recherchiert live im Web…" });
+          try {
+            const pplxPrompt = `Recherchiere gründlich zum Thema "${query}" für eine deutschsprachige Content Creatorin (Mind, Health, Ästhetik, Selbstoptimierung).
+
+Erstelle eine fundierte Tiefen-Analyse auf Deutsch. Antworte nur mit HTML (h3, p, ul, li, strong, em). Unterscheide klar zwischen wissenschaftlich belegt, Experten-Meinung und anekdotisch. Struktur:
+<h3>Überblick</h3><h3>Was die Wissenschaft sagt</h3> (mit Evidenz-Grad)<h3>Was Menschen in der Praxis berichten</h3><h3>Häufige Fragen & Missverständnisse</h3><h3>Content-Potenzial mit Substanz</h3> (konkrete Ideen für Instagram, Blog, Newsletter)`;
+
+            const pplxRes = await fetch("https://api.perplexity.ai/chat/completions", {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${perplexityKey}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: "sonar-pro",
+                messages: [{ role: "user", content: pplxPrompt }],
+                temperature: 0.3,
+              }),
+              signal: AbortSignal.timeout(50000),
+            });
+
+            const pplxData = await pplxRes.json();
+            if (!pplxRes.ok) {
+              send({ type: "result", data: {
+                summary: `<p style="color:var(--warm-red)">⚠️ Perplexity Fehler: ${pplxData?.error?.message || pplxRes.status}. Prüfe deinen Perplexity API Key in den Einstellungen.</p>`,
+                sources: [], factCheck: null, tokens: 0,
+              }});
+              controller.close();
+              return;
+            }
+
+            const summary = pplxData.choices?.[0]?.message?.content || "<p>Keine Antwort von Perplexity.</p>";
+            // Perplexity liefert echte Citations als URL-Array
+            const citations: string[] = pplxData.citations || pplxData.search_results?.map((r: { url: string }) => r.url) || [];
+            const sources = citations.map((url: string) => {
+              let host = url; try { host = new URL(url).hostname.replace("www.", ""); } catch {}
+              return { title: host, url, snippet: "", credibility: scoreDomain(url), hasContent: true };
+            });
+            const tokens = pplxData.usage?.total_tokens || 0;
+
+            send({ type: "result", data: { summary, sources, factCheck: null, tokens } });
+            controller.close();
+            return;
+          } catch (e) {
+            send({ type: "result", data: {
+              summary: `<p style="color:var(--warm-red)">⚠️ Perplexity nicht erreichbar: ${(e as Error).message}</p>`,
+              sources: [], factCheck: null, tokens: 0,
+            }});
+            controller.close();
+            return;
+          }
+        }
+
+        // ═══ STANDARD-ENGINE (Groq + Serper, gratis) ═══
         // ── 1. Serper: Forum + Reddit + Fact-Check Suche ─────
         send({ type: "status", data: "🔍 Suche in Foren & Quellen…" });
 

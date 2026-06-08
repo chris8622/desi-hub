@@ -43,13 +43,16 @@ export default function ResearchPage() {
   const [trustedSources, setTrustedSources] = useState<Set<string>>(new Set());
   const [preferredDomains, setPreferredDomains] = useState<string[]>([]);
   const [searchMode, setSearchMode] = useState<"all" | "trusted_only">("all");
+  const [engine, setEngine] = useState<"standard" | "perplexity">("standard");
+  const [hasPerplexity, setHasPerplexity] = useState(false);
   const [verifyingClaim, setVerifyingClaim] = useState<string | null>(null);
 
   useEffect(() => {
     setHistory(getLS<HistoryItem[]>("dh_research_history", []));
-    const settings = getLS<{ groq_key?: string; trusted_sources?: string[] }>("dh_settings", {});
+    const settings = getLS<{ groq_key?: string; trusted_sources?: string[]; perplexity_key?: string }>("dh_settings", {});
     setGroqKey(settings.groq_key || "");
     setPreferredDomains(settings.trusted_sources || []);
+    setHasPerplexity(!!settings.perplexity_key);
     const saved = getLS<string[]>("dh_trusted_sources", []);
     setTrustedSources(new Set(saved));
     // Prefill aus Ideen-Pool
@@ -74,6 +77,8 @@ export default function ResearchPage() {
         body: JSON.stringify({
           query: q,
           groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "",
+          perplexityKey: getLS<{perplexity_key?:string}>("dh_settings",{}).perplexity_key || "",
+          engine,
           trustedDomains: getLS<{trusted_sources?:string[]}>("dh_settings",{}).trusted_sources || [],
           searchMode,
         }),
@@ -243,6 +248,24 @@ export default function ResearchPage() {
               {loading ? "Suche läuft…" : "Recherchieren"}
             </button>
           </div>
+
+          {/* Engine-Auswahl — nur wenn Perplexity Key vorhanden */}
+          {hasPerplexity && (
+            <div style={{ marginTop: "0.85rem", display: "flex", gap: "0.4rem", flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: "0.72rem", color: "var(--muted)", marginRight: "0.2rem" }}>Engine:</span>
+              <button onClick={() => setEngine("standard")}
+                style={{ padding: "0.35rem 0.85rem", borderRadius: "var(--radius-sm)", border: "1px solid", cursor: "pointer", fontSize: "0.78rem", fontFamily: "inherit", fontWeight: engine === "standard" ? 700 : 400,
+                  background: engine === "standard" ? "var(--text)" : "var(--surface2)", borderColor: engine === "standard" ? "var(--text)" : "var(--border)", color: engine === "standard" ? "var(--bg)" : "var(--muted)" }}>
+                🆓 Standard
+              </button>
+              <button onClick={() => setEngine("perplexity")}
+                style={{ padding: "0.35rem 0.85rem", borderRadius: "var(--radius-sm)", border: "1px solid", cursor: "pointer", fontSize: "0.78rem", fontFamily: "inherit", fontWeight: engine === "perplexity" ? 700 : 400,
+                  background: engine === "perplexity" ? "var(--accent)" : "var(--surface2)", borderColor: engine === "perplexity" ? "var(--accent)" : "var(--border)", color: engine === "perplexity" ? "white" : "var(--muted)" }}>
+                🔮 Perplexity (Premium)
+              </button>
+              {engine === "perplexity" && <span style={{ fontSize: "0.7rem", color: "var(--accent)" }}>Echtzeit-Web &amp; echte Quellen · kostenpflichtig</span>}
+            </div>
+          )}
 
           {/* Suggested topics */}
           <div style={{ marginTop: "0.85rem", display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>

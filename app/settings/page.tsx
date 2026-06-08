@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS = {
   freq_newsletter: 1,
   auto_plan: true,
   groq_key: "",
+  perplexity_key: "",
   trusted_sources: [
     "pubmed.ncbi.nlm.nih.gov",
     "who.int",
@@ -436,6 +437,22 @@ export default function SettingsPage() {
         {s.groq_key && (
           <div className="alert alert-success" style={{ marginTop: "0.65rem", fontSize: "0.8rem" }}>
             ✓ API Key gesetzt — KI-Funktionen aktiv
+          </div>
+        )}
+
+        {/* Perplexity (optional, Premium-Research) */}
+        <label className="label" style={{ marginTop: "1.25rem" }}>Perplexity API Key (optional, Premium-Research)</label>
+        <input className="input" type="password" value={s.perplexity_key || ""}
+          onChange={e => setS(p => ({ ...p, perplexity_key: e.target.value }))}
+          placeholder="pplx-..." />
+        <p style={{ fontSize: "0.73rem", color: "var(--muted)", marginTop: "0.35rem" }}>
+          Für noch bessere Research mit Echtzeit-Web &amp; echten Quellen (kostenpflichtig, ~0,5–1 Cent/Anfrage). Holen unter{" "}
+          <a href="https://www.perplexity.ai/settings/api" target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>perplexity.ai/settings/api</a>.
+          In der Research dann „🔮 Perplexity" wählen.
+        </p>
+        {s.perplexity_key && (
+          <div className="alert alert-success" style={{ marginTop: "0.65rem", fontSize: "0.8rem" }}>
+            ✓ Perplexity verfügbar — wähle es in der Research als Engine
           </div>
         )}
       </div>
