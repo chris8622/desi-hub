@@ -261,9 +261,9 @@ function EditorInner() {
 
   return (
     <LoginGate>
-      <div style={{ display: "flex", gap: "1.25rem", height: "calc(100vh - 8rem)", maxWidth: "100%", minHeight: 500 }}>
+      <div className="editor-layout" style={{ display: "flex", gap: "1.25rem", height: "calc(100vh - 8rem)", maxWidth: "100%", minHeight: 500 }}>
         {/* Left: drafts sidebar */}
-        <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        <div className="editor-drafts" style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.75rem" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div className="section-label" style={{ marginBottom: 0 }}>Drafts</div>
             <button className="btn btn-ghost btn-sm" onClick={newDraft}>+ Neu</button>
@@ -319,6 +319,8 @@ function EditorInner() {
                   <button
                     onClick={e => { e.stopPropagation(); deleteDraft(d.id); }}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "0.8rem", lineHeight: 1, padding: "0.1rem 0.25rem" }}
+                    title="Draft löschen"
+                    aria-label="Draft löschen"
                   >
                     ×
                   </button>
@@ -331,7 +333,7 @@ function EditorInner() {
         {/* Center: editor */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.75rem", minWidth: 0 }}>
           {/* Title + controls */}
-          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
             <input
               className="input"
               style={{ flex: 1, fontSize: "1rem", fontWeight: 600 }}
@@ -353,7 +355,7 @@ function EditorInner() {
           </div>
 
           {/* Toolbar */}
-          <div style={{ display: "flex", gap: "0.35rem" }}>
+          <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
             {TOOLBAR.map(t => (
               <button key={t.label} className="btn btn-ghost btn-sm" onClick={t.action}
                 style={{ fontFamily: "monospace", fontSize: "0.82rem" }}>
@@ -363,7 +365,7 @@ function EditorInner() {
           </div>
 
           {/* Editor panels */}
-          <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", minHeight: 0 }}>
+          <div className="editor-panes" style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", minHeight: 0 }}>
             {/* Textarea */}
             <div style={{ display: "flex", flexDirection: "column" }}>
               <div className="section-label" style={{ marginBottom: "0.4rem" }}>Markdown</div>

@@ -722,7 +722,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", borderBottom: "1px solid var(--border)", paddingBottom: "0" }}>
+        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", borderBottom: "1px solid var(--border)", paddingBottom: "0", flexWrap: "wrap" }}>
           {(["carousel", "ideen", "pinterest"] as const).map(t => (
             <button
               key={t}
@@ -759,7 +759,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
                 </div>
               )}
             </div>
-            <button onClick={() => { setResearchBanner(null); setResearchContext(""); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "1.1rem", flexShrink: 0 }}>×</button>
+            <button onClick={() => { setResearchBanner(null); setResearchContext(""); }} aria-label="Banner schließen" title="Schließen" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "1.1rem", flexShrink: 0 }}>×</button>
           </div>
         )}
 
@@ -767,7 +767,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
         {tab === "carousel" && (
           <div>
             {/* Modus-Umschalter: KI vs. Selbst eingeben */}
-            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
               {([
                 { key: "ai", label: "✨ Mit KI generieren" },
                 { key: "manual", label: "✍️ Selbst eingeben" },
@@ -797,10 +797,10 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
             {/* KI-Modus */}
             {carouselMode === "ai" && (
               <div className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem" }}>
-                <div style={{ display: "flex", gap: "0.75rem" }}>
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                   <input
                     className="input"
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: 180 }}
                     value={carouselTopic}
                     onChange={e => setCarouselTopic(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && !carouselLoading && generateCarousel()}
@@ -853,7 +853,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
                     placeholder={"Slide 1 Überschrift\nPunkt 1\nPunkt 2\n\nSlide 2 Überschrift\nPunkt A\nPunkt B"}
                   />
                 </div>
-                <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem" }}>
+                <div className="grid-2">
                   <div>
                     <label className="label">Titel</label>
                     <input
@@ -922,7 +922,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
                   {/* Controls row */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem", marginBottom: "1.25rem" }}>
                     {/* Global style selector: "Alle Slides auf…" */}
-                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
                       <span style={{ fontSize: "0.8rem", color: "var(--muted)", fontWeight: 500, marginRight: "0.25rem" }}>Alle auf:</span>
                       {STYLE_OPTIONS.map(opt => (
                         <button
@@ -1352,10 +1352,10 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
         {tab === "ideen" && (
           <div>
             <div className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem" }}>
-              <div style={{ display: "flex", gap: "0.75rem" }}>
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                 <input
                   className="input"
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, minWidth: 180 }}
                   value={ideaTopic}
                   onChange={e => setIdeaTopic(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && !ideasLoading && generateIdeas()}
@@ -1378,7 +1378,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
             )}
 
             {ideas.length > 0 && !ideasLoading && (
-              <div className="grid-2" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "1rem" }}>
+              <div className="grid-2">
                 {ideas.map((idea, i) => (
                   <div key={i} className="card" style={{ padding: "1.25rem", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.5rem" }}>
@@ -1469,15 +1469,17 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
             )}
 
             {!pinLoading && (
-              <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", alignItems: "flex-start" }}>
+              <div className="pin-split" style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", alignItems: "flex-start" }}>
                 {/* Linke Spalte: Pin-Vorschau */}
                 <div className="card" style={{ padding: "1.25rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-                  <PinPreview
-                    headline={pinHeadline}
-                    style={pinStyle}
-                    handle={igHandle || "desi"}
-                    pinRef={el => { pinRef.current = el; }}
-                  />
+                  <div className="pin-preview-wrap">
+                    <PinPreview
+                      headline={pinHeadline}
+                      style={pinStyle}
+                      handle={igHandle || "desi"}
+                      pinRef={el => { pinRef.current = el; }}
+                    />
+                  </div>
 
                   {/* Stil-Auswahl */}
                   <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "0.4rem", flexWrap: "wrap", position: "relative" }}>

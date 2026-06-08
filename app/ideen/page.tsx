@@ -149,8 +149,8 @@ export default function IdeenPage() {
 
         {/* ── Quick-Add ── */}
         <div className="card" style={{ marginBottom: "1.5rem" }}>
-          <div style={{ display: "flex", gap: "0.65rem", alignItems: "flex-start" }}>
-            <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", gap: "0.65rem", alignItems: "flex-start", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 180 }}>
               <input
                 ref={inputRef}
                 className="input"
@@ -298,8 +298,8 @@ export default function IdeenPage() {
                       style={{ background: "var(--accent-light)", border: "1px solid rgba(196,112,74,0.3)", color: "var(--accent2)", flex: 1, justifyContent: "center" }}>
                       💡 Content
                     </button>
-                    <button onClick={() => setEditing({ ...idee })} className="btn btn-ghost btn-sm" title="Bearbeiten">✏️</button>
-                    <button onClick={() => deleteIdee(idee.id)} className="btn btn-ghost btn-sm" title="Löschen"
+                    <button onClick={() => setEditing({ ...idee })} className="btn btn-ghost btn-sm" title="Bearbeiten" aria-label="Idee bearbeiten">✏️</button>
+                    <button onClick={() => deleteIdee(idee.id)} className="btn btn-ghost btn-sm" title="Löschen" aria-label="Idee löschen"
                       style={{ color: "var(--warm-red)" }}>🗑️</button>
                   </div>
                 </div>
@@ -315,7 +315,7 @@ export default function IdeenPage() {
             <div className="card" style={{ width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto" }}>
               <div className="flex-between" style={{ marginBottom: "1.25rem" }}>
                 <h3>Idee bearbeiten</h3>
-                <button onClick={() => setEditing(null)} className="btn btn-ghost" style={{ fontSize: "1.2rem" }}>×</button>
+                <button onClick={() => setEditing(null)} className="btn btn-ghost" aria-label="Schließen" title="Schließen" style={{ fontSize: "1.2rem" }}>×</button>
               </div>
 
               <label className="label">Titel</label>

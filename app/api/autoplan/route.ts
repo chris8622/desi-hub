@@ -1,10 +1,13 @@
 export const maxDuration = 60;
 
+type Channel = "Instagram" | "Pinterest" | "Blog" | "Newsletter";
+
 interface Settings {
   topics: string[];
   voice: string;
   niche: string;
   freq_instagram: number;
+  freq_pinterest: number;
   freq_blog: number;
   freq_newsletter: number;
 }
@@ -12,7 +15,7 @@ interface Settings {
 interface PlanEntry {
   id: string;
   date: string;
-  channel: "Instagram" | "Blog" | "Newsletter";
+  channel: Channel;
   title: string;
   status: "Geplant";
   generated: boolean;
@@ -43,9 +46,9 @@ export async function POST(req: Request) {
   });
 
   // Posting-Slots verteilen
-  const slots: { date: string; channel: "Instagram" | "Blog" | "Newsletter" }[] = [];
+  const slots: { date: string; channel: Channel }[] = [];
 
-  const distribute = (count: number, channel: "Instagram" | "Blog" | "Newsletter", preferredDays: number[]) => {
+  const distribute = (count: number, channel: Channel, preferredDays: number[]) => {
     let placed = 0;
     for (const dayIdx of preferredDays) {
       if (placed >= count) break;
@@ -58,6 +61,8 @@ export async function POST(req: Request) {
 
   // Instagram: Mo, Mi, Fr, Sa (bevorzugt)
   distribute(settings.freq_instagram, "Instagram", [0, 2, 4, 5, 1, 3, 6]);
+  // Pinterest: über die Woche verteilt
+  distribute(settings.freq_pinterest, "Pinterest", [1, 3, 5, 0, 2, 4, 6]);
   // Blog: Di oder Do
   distribute(settings.freq_blog, "Blog", [1, 3, 0, 2, 4]);
   // Newsletter: Do oder Mo
@@ -82,6 +87,7 @@ Regeln:
 - Auf Deutsch
 - Konkret und ansprechend, kein "Post über X"
 - Instagram: kurz & emotional (max 8 Wörter)
+- Pinterest: SEO-freundlich mit relevanten Keywords, da Pinterest eine visuelle Suchmaschine ist (max 10 Wörter)
 - Blog: informativ mit Mehrwert (max 10 Wörter)
 - Newsletter: persönlich & neugierig machend (max 10 Wörter)
 - Variiere die Themen über die Woche`;

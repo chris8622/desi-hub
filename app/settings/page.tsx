@@ -11,6 +11,7 @@ const DEFAULT_SETTINGS = {
   voice: "warm-inspirierend",
   audience: "Frauen 25–40 die an sich arbeiten möchten",
   freq_instagram: 4,
+  freq_pinterest: 2,
   freq_blog: 1,
   freq_newsletter: 1,
   auto_plan: true,
@@ -231,14 +232,14 @@ export default function SettingsPage() {
               borderRadius: 999, padding: "0.28rem 0.75rem", fontSize: "0.82rem", color: "var(--accent2)",
             }}>
               {t}
-              <button onClick={() => removeTopic(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", lineHeight: 1, fontSize: "1rem", padding: 0 }}>×</button>
+              <button onClick={() => removeTopic(t)} aria-label={`Thema ${t} entfernen`} title="Entfernen" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--accent)", lineHeight: 1, fontSize: "1rem", padding: 0 }}>×</button>
             </span>
           ))}
         </div>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <input className="input" value={newTopic} onChange={e => setNewTopic(e.target.value)}
             onKeyDown={e => e.key === "Enter" && addTopic()}
-            placeholder="Neues Thema hinzufügen..." style={{ flex: 1 }} />
+            placeholder="Neues Thema hinzufügen…" style={{ flex: 1, minWidth: 180 }} />
           <button className="btn btn-secondary" onClick={addTopic}>+ Hinzufügen</button>
         </div>
       </div>
@@ -249,11 +250,12 @@ export default function SettingsPage() {
         <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1.25rem" }}>
           Wie oft postest du pro Woche auf jedem Kanal? Der Planer füllt sich automatisch.
         </p>
-        <div className="grid-3" style={{ marginBottom: "1.25rem" }}>
+        <div className="freq-grid" style={{ marginBottom: "1.25rem" }}>
           {[
-            { key: "freq_instagram", label: "📸 Instagram", color: "var(--accent)" },
-            { key: "freq_blog",      label: "✍️ Blog",       color: "var(--sage)"   },
-            { key: "freq_newsletter",label: "📧 Newsletter", color: "var(--gold)"   },
+            { key: "freq_instagram", label: "📸 Instagram", color: "var(--accent)"    },
+            { key: "freq_pinterest", label: "📌 Pinterest", color: "var(--warm-red)" },
+            { key: "freq_blog",      label: "✍️ Blog",       color: "var(--sage)"     },
+            { key: "freq_newsletter",label: "📧 Newsletter", color: "var(--gold)"     },
           ].map(({ key, label, color }) => (
             <div key={key} style={{ background: "var(--surface2)", borderRadius: "var(--radius-sm)", padding: "1rem", textAlign: "center" }}>
               <div style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--muted)", marginBottom: "0.65rem" }}>{label}</div>
@@ -361,6 +363,7 @@ export default function SettingsPage() {
                 <span key={domain} style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", background: "var(--sage-light)", border: "1px solid rgba(107,143,113,0.3)", borderRadius: 999, padding: "0.25rem 0.75rem", fontSize: "0.78rem", color: "var(--sage)", fontWeight: 600 }}>
                   🏛️ {domain}
                   <button onClick={() => setS(p => ({ ...p, trusted_sources: p.trusted_sources.filter(d => d !== domain) }))}
+                    aria-label={`Quelle ${domain} entfernen`} title="Entfernen"
                     style={{ background: "none", border: "none", cursor: "pointer", color: "var(--sage)", fontSize: "0.9rem", padding: 0, lineHeight: 1 }}>×</button>
                 </span>
               ))}
@@ -369,8 +372,8 @@ export default function SettingsPage() {
         )}
 
         {/* Eigene Domain hinzufügen */}
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <input className="input" id="trusted-input" placeholder="z.B. medscape.com oder science.org" style={{ flex: 1, fontSize: "0.85rem" }}
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <input className="input" id="trusted-input" placeholder="z.B. medscape.com oder science.org" style={{ flex: 1, minWidth: 180, fontSize: "0.85rem" }}
             onKeyDown={e => {
               if (e.key === "Enter") {
                 const val = (e.target as HTMLInputElement).value.trim().replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");

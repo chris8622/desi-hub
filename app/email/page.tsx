@@ -225,10 +225,10 @@ export default function EmailPage() {
             </div>
 
             {/* Actions */}
-            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
               <input
                 className="input"
-                style={{ flex: 1 }}
+                style={{ flex: 1, minWidth: 180 }}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Suchen nach Name oder E-Mail…"
@@ -249,8 +249,8 @@ export default function EmailPage() {
                 <div>{search ? "Keine Ergebnisse" : "Noch keine Subscriber — CSV importieren"}</div>
               </div>
             ) : (
-              <div className="card" style={{ overflow: "hidden", padding: 0 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+              <div className="card table-scroll" style={{ padding: 0 }}>
+                <table style={{ width: "100%", minWidth: 480, borderCollapse: "collapse", fontSize: "0.85rem" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--surface2)" }}>
                       {["Name", "E-Mail", "Hinzugefügt", ""].map(h => (
@@ -271,6 +271,7 @@ export default function EmailPage() {
                             onClick={() => deleteSub(s.id)}
                             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "1rem" }}
                             title="Löschen"
+                            aria-label={`Subscriber ${s.email} löschen`}
                           >
                             ×
                           </button>
@@ -304,10 +305,10 @@ export default function EmailPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
                   <div>
                     <label className="label">Betreffzeile / Thema</label>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                       <input
                         className="input"
-                        style={{ flex: 1 }}
+                        style={{ flex: 1, minWidth: 180 }}
                         value={nlSubject}
                         onChange={e => setNlSubject(e.target.value)}
                         placeholder="Betreff oder Thema…"
@@ -370,6 +371,8 @@ export default function EmailPage() {
                         <button
                           onClick={() => deleteNewsletter(n.id)}
                           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "1.1rem", padding: "0.2rem 0.4rem" }}
+                          title="Löschen"
+                          aria-label="Newsletter löschen"
                         >
                           ×
                         </button>

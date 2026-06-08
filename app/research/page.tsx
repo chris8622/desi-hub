@@ -213,9 +213,9 @@ export default function ResearchPage() {
 
         {/* Groq Key Warnung */}
         {!groqKey && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", background: "var(--gold-light)", border: "1px solid rgba(184,148,80,0.35)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1.1rem", marginBottom: "1.25rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", background: "var(--gold-light)", border: "1px solid rgba(184,148,80,0.35)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1.1rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
             <span style={{ fontSize: "1.2rem" }}>⚠️</span>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 180 }}>
               <strong style={{ fontSize: "0.88rem", color: "var(--gold)" }}>Kein Groq API Key hinterlegt</strong>
               <p style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "0.15rem" }}>
                 Die KI-Zusammenfassung und der Faktencheck funktionieren nicht. Quellen werden trotzdem gefunden.
@@ -230,10 +230,10 @@ export default function ResearchPage() {
 
         {/* Search bar */}
         <div className="card" style={{ padding: "1.25rem", marginBottom: "1.5rem" }}>
-          <div style={{ display: "flex", gap: "0.75rem" }}>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <input
               className="input"
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 180 }}
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === "Enter" && !loading && runSearch(query)}
@@ -282,7 +282,7 @@ export default function ResearchPage() {
           {/* Suchmodus Toggle */}
           {preferredDomains.length > 0 && (
             <div style={{ marginTop: "1rem", borderTop: "1px solid var(--border)", paddingTop: "0.85rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
-              <div style={{ display: "flex", gap: "0.4rem" }}>
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                 {/* Modus: Überall */}
                 <button onClick={() => setSearchMode("all")}
                   style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.9rem", borderRadius: "var(--radius-sm)", border: "1px solid", cursor: "pointer", fontSize: "0.82rem", fontWeight: searchMode === "all" ? 700 : 400, fontFamily: "inherit", transition: "all 0.15s",

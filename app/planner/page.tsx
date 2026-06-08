@@ -19,12 +19,13 @@ function setLS(key: string, val: unknown) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 }
 
-const CHANNELS = ["Instagram", "Blog", "Newsletter", "Sonstiges"];
+const CHANNELS = ["Instagram", "Pinterest", "Blog", "Newsletter", "Sonstiges"];
 const STATUSES = ["Entwurf", "Geplant", "Veröffentlicht"];
 const DAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 const CHANNEL_COLOR: Record<string, { bg: string; text: string }> = {
   Instagram: { bg: "var(--accent-light)", text: "var(--accent2)" },
+  Pinterest: { bg: "var(--warm-red-light)", text: "var(--warm-red)" },
   Blog: { bg: "var(--sage-light)", text: "var(--sage)" },
   Newsletter: { bg: "var(--gold-light)", text: "var(--gold)" },
   Sonstiges: { bg: "var(--surface2)", text: "var(--muted)" },
@@ -82,7 +83,7 @@ export default function PlannerPage() {
     const settings = getLS("dh_settings", {
       topics: ["Mindset", "Hormongesundheit", "Hautpflege", "Morgenroutine"],
       voice: "warm-inspirierend", niche: "Mind, Health & Ästhetik",
-      freq_instagram: 4, freq_blog: 1, freq_newsletter: 1,
+      freq_instagram: 4, freq_pinterest: 2, freq_blog: 1, freq_newsletter: 1,
     });
     const groqKey = (settings as { groq_key?: string }).groq_key || "";
     setAutoLoading(true); setAutoMsg("KI erstellt deinen Wochenplan…");
@@ -235,8 +236,12 @@ export default function PlannerPage() {
                     <div style={{
                       fontSize: "1.1rem", fontWeight: 700,
                       color: isToday ? "var(--accent)" : "var(--text)",
+                      display: "flex", alignItems: "baseline", gap: "0.3rem",
                     }}>
                       {day.getDate()}
+                      <span style={{ fontSize: "0.72rem", fontWeight: 500, color: "var(--muted)" }}>
+                        {day.toLocaleDateString("de-AT", { month: "short" })}
+                      </span>
                     </div>
                   </div>
                   <button
@@ -249,6 +254,7 @@ export default function PlannerPage() {
                       lineHeight: 1, flexShrink: 0,
                     }}
                     title="Post hinzufügen"
+                    aria-label="Post hinzufügen"
                   >
                     +
                   </button>
@@ -297,10 +303,11 @@ export default function PlannerPage() {
           <div style={{
             position: "fixed", inset: 0, background: "rgba(44,32,22,0.35)",
             display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
+            padding: "1rem",
           }}
           onClick={e => { if (e.target === e.currentTarget) setModal(null); }}
           >
-            <div className="card" style={{ width: "100%", maxWidth: 420, padding: "1.75rem" }}>
+            <div className="card" style={{ width: "100%", maxWidth: 420, padding: "1.75rem", maxHeight: "90vh", overflowY: "auto" }}>
               <div style={{ fontWeight: 700, fontSize: "1.05rem", marginBottom: "1.25rem" }}>
                 {modal.item ? "Post bearbeiten" : "Post hinzufügen"}
                 <span style={{ fontWeight: 400, color: "var(--muted)", fontSize: "0.85rem", marginLeft: "0.5rem" }}>

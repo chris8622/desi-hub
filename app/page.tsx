@@ -21,6 +21,7 @@ function getLS<T>(key: string, fallback: T): T {
 
 const CHANNEL_COLOR: Record<string, string> = {
   Instagram: "var(--accent)",
+  Pinterest: "var(--warm-red)",
   Blog: "var(--sage)",
   Newsletter: "var(--gold)",
   Sonstiges: "var(--muted)",
@@ -239,7 +240,7 @@ export default function DashboardPage() {
                     {" · "}{item.channel}
                   </div>
                 </div>
-                <span className={`badge badge-${item.channel === "Instagram" ? "terra" : item.channel === "Blog" ? "sage" : item.channel === "Newsletter" ? "gold" : "muted"}`} style={{ fontSize: "0.72rem" }}>
+                <span className={`badge badge-${item.channel === "Instagram" ? "terra" : item.channel === "Pinterest" ? "red" : item.channel === "Blog" ? "sage" : item.channel === "Newsletter" ? "gold" : "muted"}`} style={{ fontSize: "0.72rem" }}>
                   {item.status}
                 </span>
               </div>
