@@ -1,12 +1,8 @@
+import { requireAuth } from "@/lib/server-auth";
+
 export const maxDuration = 30;
 
 const DATA_KEY = "desi_hub_data_v1";
-
-function authCheck(req: Request): boolean {
-  const appPassword = process.env.APP_PASSWORD;
-  if (!appPassword) return true;
-  return req.headers.get("x-app-token") === appPassword;
-}
 
 // Upstash REST API direkt — kein Package nötig
 function getUpstashConfig(): { url: string; token: string } | null {
@@ -47,7 +43,8 @@ async function kvSet(cfg: { url: string; token: string }, key: string, value: un
 
 // ── GET: Daten vom Server laden ──────────────────────────
 export async function GET(req: Request) {
-  if (!authCheck(req)) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const authError = requireAuth(req);
+  if (authError) return authError;
 
   const cfg = getUpstashConfig();
   if (!cfg) return Response.json({ available: false, reason: "KV not configured" });
@@ -62,7 +59,8 @@ export async function GET(req: Request) {
 
 // ── POST: Daten auf Server speichern ─────────────────────
 export async function POST(req: Request) {
-  if (!authCheck(req)) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const authError = requireAuth(req);
+  if (authError) return authError;
 
   const cfg = getUpstashConfig();
   if (!cfg) return Response.json({ available: false, saved: false, reason: "KV not configured" });

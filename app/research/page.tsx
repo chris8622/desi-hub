@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
 import { trackTokens } from "@/lib/tokens";
+import { sanitizeHtml } from "@/lib/sanitize";
 
 type Source = { title: string; url: string; snippet: string; credibility?: { level: string; label: string; color: string } };
 type Claim = { claim: string; sources: string[]; source_type: "seriös"|"forum"|"gemischt" };
@@ -332,7 +333,7 @@ export default function ResearchPage() {
                   {new Date().toLocaleDateString("de-AT", { day: "2-digit", month: "long" })}
                 </span>
               </div>
-              <div style={{ lineHeight: 1.7, fontSize: "0.9rem" }} dangerouslySetInnerHTML={{ __html: summary }} />
+              <div style={{ lineHeight: 1.7, fontSize: "0.9rem" }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(summary) }} />
             </div>
 
             {/* ── ACTION BAR ── */}

@@ -1,3 +1,5 @@
+import { requireAuth } from "@/lib/server-auth";
+
 export const maxDuration = 60;
 
 const BROWSER_HEADERS = {
@@ -38,10 +40,8 @@ async function redditHot(topic: string): Promise<SerperItem[]> {
 }
 
 export async function POST(req: Request) {
-  const appPassword = process.env.APP_PASSWORD;
-  if (appPassword && req.headers.get("x-app-token") !== appPassword) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireAuth(req);
+  if (authError) return authError;
 
   const body = await req.json();
   const niche   = (body.niche as string) || "Wellness, Gesundheit, Selbstoptimierung";

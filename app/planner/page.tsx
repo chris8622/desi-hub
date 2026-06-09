@@ -66,9 +66,10 @@ export default function PlannerPage() {
     // Auto-fill week if auto_plan is enabled and this week is empty
     const settings = getLS<{ auto_plan?: boolean; groq_key?: string }>("dh_settings", {});
     if (settings.auto_plan !== false && settings.groq_key) {
+      // formatDate (lokal) statt toISOString (UTC) — sonst Off-by-one nahe Mitternacht
       const weekDates = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(weekStart); d.setDate(d.getDate() + i);
-        return d.toISOString().split("T")[0];
+        return formatDate(d);
       });
       const existingThisWeek = loadedItems.filter(it => weekDates.includes(it.date));
       if (existingThisWeek.length === 0) {
@@ -95,15 +96,19 @@ export default function PlannerPage() {
       });
       const data = await res.json() as { plan?: PlannerItem[]; error?: string };
       if (data.error) { setAutoMsg("⚠️ " + data.error); return; }
-      // Nur neue Slots hinzufügen (bestehende behalten)
+      // Nur neue Slots hinzufügen (bestehende behalten).
+      // WICHTIG: frisch aus localStorage lesen — der `items`-State kann hier
+      // eine veraltete Closure sein (Auto-Fill startet aus dem Mount-Effect),
+      // sonst werden Einträge anderer Wochen gelöscht.
+      const currentItems = getLS<PlannerItem[]>("dh_planner", []);
       const weekDates = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(weekStart); d.setDate(d.getDate() + i);
         return formatDate(d);
       });
-      const existing = items.filter(it => weekDates.includes(it.date));
+      const existing = currentItems.filter(it => weekDates.includes(it.date));
       const existingDates = existing.map(it => `${it.date}-${it.channel}`);
       const newItems = (data.plan ?? []).filter(p => !existingDates.includes(`${p.date}-${p.channel}`));
-      const updated = [...items.filter(it => !weekDates.includes(it.date)), ...existing, ...newItems];
+      const updated = [...currentItems.filter(it => !weekDates.includes(it.date)), ...existing, ...newItems];
       save(updated);
       setAutoMsg(`✓ ${newItems.length} neue Posts eingeplant!`);
     } catch (e) {

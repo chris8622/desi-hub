@@ -1,3 +1,5 @@
+import { requireAuth } from "@/lib/server-auth";
+
 export const maxDuration = 60;
 
 const SYSTEM_PROMPT = `Du bist ein Content-Assistent für Desi, eine deutschsprachige Content Creatorin.
@@ -94,12 +96,8 @@ Antworte mit JSON:
 };
 
 export async function POST(req: Request) {
-  // Simple auth check — token is the app password stored in localStorage on login
-  const appPassword = process.env.APP_PASSWORD;
-  const authHeader = req.headers.get("x-app-token");
-  if (appPassword && authHeader !== appPassword) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireAuth(req);
+  if (authError) return authError;
 
   const { type, topic, context, groqKey: clientKey } = await req.json();
   const groqKey = clientKey || process.env.GROQ_API_KEY || "";

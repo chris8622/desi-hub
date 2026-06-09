@@ -1,3 +1,5 @@
+import { requireAuth } from "@/lib/server-auth";
+
 export const maxDuration = 60;
 
 type Channel = "Instagram" | "Pinterest" | "Blog" | "Newsletter";
@@ -22,12 +24,8 @@ interface PlanEntry {
 }
 
 export async function POST(req: Request) {
-  // Simple auth check — token is the app password stored in localStorage on login
-  const appPassword = process.env.APP_PASSWORD;
-  const authHeader = req.headers.get("x-app-token");
-  if (appPassword && authHeader !== appPassword) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireAuth(req);
+  if (authError) return authError;
 
   const { settings, weekStart, groqKey } = await req.json() as {
     settings: Settings;
