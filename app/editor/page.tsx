@@ -57,7 +57,7 @@ function renderMarkdown(md: string): string {
   return html;
 }
 
-const CHANNELS = ["Instagram", "Blog", "Newsletter"];
+const CHANNELS = ["Instagram", "Pinterest", "Blog", "Newsletter"];
 
 function EditorInner() {
   const searchParams = useSearchParams();
@@ -73,6 +73,11 @@ function EditorInner() {
   const lastSavedContentRef = useRef<string>("");
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Inline schedule state per draft
+  const [schedulingDraftId, setSchedulingDraftId] = useState<string | null>(null);
+  const [scheduleDate, setScheduleDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [scheduleMsgs, setScheduleMsgs] = useState<Record<string, string>>({});
 
   useEffect(() => {
     // Load draft from URL param (?draft=ID)
@@ -221,6 +226,7 @@ function EditorInner() {
   };
 
   const deleteDraft = (id: string) => {
+    if (!window.confirm("Draft wirklich löschen?")) return;
     const updated = drafts.filter(d => d.id !== id);
     setDrafts(updated);
     setLS("dh_drafts", updated);
@@ -228,6 +234,24 @@ function EditorInner() {
     if (activeDraftId === id) {
       setTitle(""); setContent(""); setActiveDraftId(null);
     }
+  };
+
+  const confirmScheduleDraft = (d: Draft) => {
+    if (!scheduleDate) return;
+    const planItems = getLS<PlannerItem[]>("dh_planner", []);
+    const newItem: PlannerItem = {
+      id: Date.now().toString(36),
+      date: scheduleDate,
+      channel: d.channel || "Blog",
+      title: d.title || "Ohne Titel",
+      status: "Geplant",
+      draftId: d.id,
+    };
+    setLS("dh_planner", [...planItems, newItem]);
+    scheduleSyncUp(3000);
+    setSchedulingDraftId(null);
+    setScheduleMsgs(prev => ({ ...prev, [d.id]: `✓ ${scheduleDate}` }));
+    setTimeout(() => setScheduleMsgs(prev => { const next = { ...prev }; delete next[d.id]; return next; }), 3000);
   };
 
   const exportMd = () => {
@@ -285,36 +309,48 @@ function EditorInner() {
                   {d.channel} · {new Date(d.savedAt).toLocaleDateString("de-AT")}
                 </div>
                 <div style={{ position: "absolute", top: "0.4rem", right: "0.4rem", display: "flex", gap: "0.1rem" }}>
-                  <button
-                    onClick={e => {
-                      e.stopPropagation();
-                      const date = prompt("Datum (JJJJ-MM-TT):", new Date().toISOString().split("T")[0]);
-                      if (!date) return;
-                      const planItems = getLS<PlannerItem[]>("dh_planner", []);
-                      const newItem: PlannerItem = {
-                        id: Date.now().toString(36),
-                        date,
-                        channel: d.channel || "Blog",
-                        title: d.title || "Ohne Titel",
-                        status: "Geplant",
-                        draftId: d.id,
-                      };
-                      setLS("dh_planner", [...planItems, newItem]);
-                      alert(`"${d.title || "Ohne Titel"}" wurde für ${date} eingeplant!`);
-                    }}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "0.8rem", lineHeight: 1, padding: "0.1rem 0.2rem" }}
-                    title="Im Planer einplanen"
-                  >
-                    📅
-                  </button>
-                  <button
-                    onClick={e => { e.stopPropagation(); deleteDraft(d.id); }}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "0.8rem", lineHeight: 1, padding: "0.1rem 0.25rem" }}
-                    title="Draft löschen"
-                    aria-label="Draft löschen"
-                  >
-                    ×
-                  </button>
+                  {scheduleMsgs[d.id] ? (
+                    <span style={{ fontSize: "0.72rem", color: "var(--sage)", fontWeight: 600, padding: "0.1rem 0.2rem", whiteSpace: "nowrap" }}>
+                      {scheduleMsgs[d.id]}
+                    </span>
+                  ) : schedulingDraftId === d.id ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }} onClick={e => e.stopPropagation()}>
+                      <input
+                        type="date"
+                        value={scheduleDate}
+                        onChange={e => setScheduleDate(e.target.value)}
+                        style={{ fontSize: "0.72rem", padding: "0.1rem 0.25rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", width: 120 }}
+                      />
+                      <button
+                        onClick={() => confirmScheduleDraft(d)}
+                        style={{ background: "var(--accent)", border: "none", cursor: "pointer", color: "white", fontSize: "0.7rem", borderRadius: "var(--radius-sm)", padding: "0.15rem 0.35rem", fontWeight: 600 }}
+                        title="Bestätigen"
+                      >✓</button>
+                      <button
+                        onClick={() => setSchedulingDraftId(null)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "0.8rem", lineHeight: 1, padding: "0.1rem 0.2rem" }}
+                        title="Abbrechen"
+                      >×</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={e => { e.stopPropagation(); setScheduleDate(new Date().toISOString().split("T")[0]); setSchedulingDraftId(d.id); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "0.8rem", lineHeight: 1, padding: "0.1rem 0.2rem" }}
+                      title="Im Planer einplanen"
+                    >
+                      📅
+                    </button>
+                  )}
+                  {schedulingDraftId !== d.id && (
+                    <button
+                      onClick={e => { e.stopPropagation(); deleteDraft(d.id); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "0.8rem", lineHeight: 1, padding: "0.1rem 0.25rem" }}
+                      title="Draft löschen"
+                      aria-label="Draft löschen"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

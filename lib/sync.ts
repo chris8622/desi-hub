@@ -11,6 +11,7 @@ export const SYNC_KEYS = [
   "dh_trusted_sources",
   "dh_trends_latest",
   "dh_carousels",
+  "dh_pins",
 ];
 
 function getAuthToken(): string {

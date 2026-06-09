@@ -75,7 +75,10 @@ export default function EmailPage() {
     scheduleSyncUp(3000);
   };
 
-  const deleteSub = (id: string) => saveSubs(subscribers.filter(s => s.id !== id));
+  const deleteSub = (id: string) => {
+    if (!window.confirm("Subscriber wirklich löschen?")) return;
+    saveSubs(subscribers.filter(s => s.id !== id));
+  };
 
   const importCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -167,7 +170,10 @@ export default function EmailPage() {
     setNlSubject(n.subject); setNlBody(n.body); setEditingId(n.id); setShowForm(true);
   };
 
-  const deleteNewsletter = (id: string) => saveNLs(newsletters.filter(n => n.id !== id));
+  const deleteNewsletter = (id: string) => {
+    if (!window.confirm("Newsletter wirklich löschen?")) return;
+    saveNLs(newsletters.filter(n => n.id !== id));
+  };
 
   const exportNlMd = (n: Newsletter) => {
     const plain = n.body.replace(/<[^>]+>/g, "");

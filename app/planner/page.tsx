@@ -45,6 +45,7 @@ export default function PlannerPage() {
   const [formStatus, setFormStatus] = useState("Geplant");
   const [autoLoading, setAutoLoading] = useState(false);
   const [autoMsg, setAutoMsg] = useState("");
+  const [showAutoFillBanner, setShowAutoFillBanner] = useState(false);
   const [formDraftId, setFormDraftId] = useState<string>("");
   const [availableDrafts, setAvailableDrafts] = useState<Draft[]>([]);
 
@@ -53,7 +54,7 @@ export default function PlannerPage() {
     setItems(loadedItems);
     setAvailableDrafts(getLS<Draft[]>("dh_drafts", []));
 
-    // Auto-fill week if auto_plan is enabled and this week is empty
+    // Auto-fill banner if auto_plan is enabled and this week is empty
     const settings = getLS<{ auto_plan?: boolean; groq_key?: string }>("dh_settings", {});
     if (settings.auto_plan !== false && settings.groq_key) {
       // formatDate (lokal) statt toISOString (UTC) — sonst Off-by-one nahe Mitternacht
@@ -63,8 +64,7 @@ export default function PlannerPage() {
       });
       const existingThisWeek = loadedItems.filter(it => weekDates.includes(it.date));
       if (existingThisWeek.length === 0) {
-        // Run in background — do not await, do not block UI
-        setTimeout(() => { autoFillWeek(); }, 100);
+        setShowAutoFillBanner(true);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,6 +100,7 @@ export default function PlannerPage() {
       const newItems = (data.plan ?? []).filter(p => !existingDates.includes(`${p.date}-${p.channel}`));
       const updated = [...currentItems.filter(it => !weekDates.includes(it.date)), ...existing, ...newItems];
       save(updated);
+      setShowAutoFillBanner(false);
       setAutoMsg(`✓ ${newItems.length} neue Posts eingeplant!`);
     } catch (e) {
       setAutoMsg("⚠️ " + (e as Error).message);
@@ -207,6 +208,36 @@ export default function PlannerPage() {
             </div>
           </div>
         </div>
+
+        {/* Auto-fill opt-in banner */}
+        {showAutoFillBanner && !autoLoading && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.75rem",
+            background: "var(--accent-light)", border: "1px solid rgba(196,112,74,0.3)",
+            borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem", marginBottom: "1rem",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+              <span style={{ fontSize: "1.1rem" }}>✨</span>
+              <span style={{ fontSize: "0.88rem", color: "var(--accent2)", fontWeight: 500 }}>
+                Diese Woche ist noch leer. Auto-Wochenplan erstellen?
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => { setShowAutoFillBanner(false); autoFillWeek(); }}
+              >
+                ✨ Jetzt erstellen
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowAutoFillBanner(false)}
+              >
+                Nicht jetzt
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Calendar grid */}
         <div className="planner-week-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.5rem" }}>

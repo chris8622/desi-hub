@@ -20,6 +20,18 @@ type SavedCarousel = {
   styles: string[];
 };
 
+type SavedPin = {
+  id: string;
+  headline: string;
+  title: string;
+  description: string;
+  hashtags: string[];
+  style: string;
+  savedAt: string;
+};
+
+type PlannerItem = { id: string; date: string; channel: string; title: string; status: string; draftId?: string };
+
 const TYPE_BADGE: Record<string, string> = {
   instagram: "badge-terra",
   blog: "badge-sage",
@@ -399,11 +411,12 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
   // Per-slide photo picker state
   const [openPhotoPicker, setOpenPhotoPicker] = useState<number | null>(null);
 
-  // Load Instagram handle and saved carousels from localStorage
+  // Load Instagram handle, saved carousels and saved pins from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("dh_instagram_handle");
     if (saved) setIgHandle(saved);
     setSavedCarousels(getLS<SavedCarousel[]>("dh_carousels", []));
+    setSavedPins(getLS<SavedPin[]>("dh_pins", []));
   }, []);
 
   const saveHandle = (val: string) => {
@@ -429,6 +442,24 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
   const [pinCopied, setPinCopied] = useState(false);
   const [pinPhotoPickerOpen, setPinPhotoPickerOpen] = useState(false);
   const pinRef = useRef<HTMLDivElement | null>(null);
+
+  // Saved pins state
+  const [savedPins, setSavedPins] = useState<SavedPin[]>([]);
+  const [pinSavedMsg, setPinSavedMsg] = useState(false);
+  const [showSavedPins, setShowSavedPins] = useState(false);
+
+  // Schedule state — Carousel
+  const [showCarouselScheduler, setShowCarouselScheduler] = useState(false);
+  const [carouselScheduleDate, setCarouselScheduleDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [carouselScheduleMsg, setCarouselScheduleMsg] = useState("");
+
+  // Schedule state — Pin
+  const [showPinScheduler, setShowPinScheduler] = useState(false);
+  const [pinScheduleDate, setPinScheduleDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [pinScheduleMsg, setPinScheduleMsg] = useState("");
+
+  // Caption copy state
+  const [captionCopied, setCaptionCopied] = useState(false);
 
   const generateCarousel = async (topicOverride?: string) => {
     const topic = topicOverride ?? carouselTopic;
@@ -624,10 +655,96 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
   };
 
   const deleteSavedCarousel = (id: string) => {
+    if (!window.confirm("Carousel wirklich löschen?")) return;
     const updated = savedCarousels.filter(c => c.id !== id);
     setSavedCarousels(updated);
     setLS("dh_carousels", updated);
-    scheduleSyncUp(2000);
+    scheduleSyncUp(3000);
+  };
+
+  const savePin = () => {
+    if (!pinHeadline && !pinTitle) return;
+    const newEntry: SavedPin = {
+      id: Date.now().toString(),
+      headline: pinHeadline,
+      title: pinTitle,
+      description: pinDescription,
+      hashtags: pinHashtags,
+      style: pinStyle,
+      savedAt: new Date().toLocaleDateString("de-AT", { day: "2-digit", month: "2-digit", year: "numeric" }),
+    };
+    const existing = getLS<SavedPin[]>("dh_pins", []);
+    const updated = [newEntry, ...existing].slice(0, 20);
+    setLS("dh_pins", updated);
+    setSavedPins(updated);
+    scheduleSyncUp(3000);
+    setPinSavedMsg(true);
+    setTimeout(() => setPinSavedMsg(false), 2000);
+  };
+
+  const loadSavedPin = (pin: SavedPin) => {
+    setPinHeadline(pin.headline);
+    setPinTitle(pin.title);
+    setPinDescription(pin.description);
+    setPinHashtags(pin.hashtags);
+    setPinStyle(pin.style);
+    setShowSavedPins(false);
+  };
+
+  const deleteSavedPin = (id: string) => {
+    if (!window.confirm("Pin wirklich löschen?")) return;
+    const updated = savedPins.filter(p => p.id !== id);
+    setSavedPins(updated);
+    setLS("dh_pins", updated);
+    scheduleSyncUp(3000);
+  };
+
+  const scheduleCarousel = () => {
+    if (!carousel || !carouselScheduleDate) return;
+    const planItems = getLS<PlannerItem[]>("dh_planner", []);
+    const newItem: PlannerItem = {
+      id: Date.now().toString(36),
+      date: carouselScheduleDate,
+      channel: "Instagram",
+      title: carousel.title,
+      status: "Geplant",
+    };
+    setLS("dh_planner", [...planItems, newItem]);
+    scheduleSyncUp(3000);
+    setShowCarouselScheduler(false);
+    setCarouselScheduleMsg(`✓ Für ${carouselScheduleDate} eingeplant!`);
+    setTimeout(() => setCarouselScheduleMsg(""), 3000);
+  };
+
+  const schedulePin = () => {
+    if (!pinScheduleDate) return;
+    const label = pinTitle || pinHeadline || "Pinterest-Pin";
+    const planItems = getLS<PlannerItem[]>("dh_planner", []);
+    const newItem: PlannerItem = {
+      id: Date.now().toString(36),
+      date: pinScheduleDate,
+      channel: "Pinterest",
+      title: label,
+      status: "Geplant",
+    };
+    setLS("dh_planner", [...planItems, newItem]);
+    scheduleSyncUp(3000);
+    setShowPinScheduler(false);
+    setPinScheduleMsg(`✓ Für ${pinScheduleDate} eingeplant!`);
+    setTimeout(() => setPinScheduleMsg(""), 3000);
+  };
+
+  const copyCaptionHashtags = async () => {
+    if (!carousel) return;
+    const tags = carousel.hashtags.map(h => `#${h.replace(/^#/, "")}`).join(" ");
+    const text = `${carousel.caption}\n\n${tags}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCaptionCopied(true);
+      setTimeout(() => setCaptionCopied(false), 2500);
+    } catch {
+      setCarouselError("Konnte Text nicht kopieren — bitte manuell markieren.");
+    }
   };
 
   const setAllSlideStyles = (style: string) => {
@@ -1225,16 +1342,48 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
 
                 {/* Caption & Hashtags */}
                 <div className="card" style={{ padding: "1.25rem" }}>
-                  <div className="section-label" style={{ marginBottom: "0.5rem" }}>Caption & Hashtags</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                    <div className="section-label" style={{ marginBottom: 0 }}>Caption & Hashtags</div>
+                    <button className="btn btn-secondary btn-sm" onClick={copyCaptionHashtags}>
+                      {captionCopied ? "✓ Kopiert!" : "📋 Caption & Hashtags kopieren"}
+                    </button>
+                  </div>
                   <p style={{ fontSize: "0.9rem", lineHeight: 1.7, marginBottom: "0.85rem", whiteSpace: "pre-wrap" }}>
                     {carousel.caption}
                   </p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "1rem" }}>
                     {carousel.hashtags.map((h, i) => (
                       <span key={i} className="badge badge-terra" style={{ fontSize: "0.75rem" }}>
                         #{h.replace(/^#/, "")}
                       </span>
                     ))}
+                  </div>
+
+                  {/* Einplanen */}
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "0.85rem" }}>
+                    {carouselScheduleMsg ? (
+                      <div style={{ fontSize: "0.85rem", color: "var(--sage)", fontWeight: 600 }}>{carouselScheduleMsg}</div>
+                    ) : showCarouselScheduler ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                        <input
+                          type="date"
+                          className="input"
+                          value={carouselScheduleDate}
+                          onChange={e => setCarouselScheduleDate(e.target.value)}
+                          style={{ width: "auto" }}
+                        />
+                        <button className="btn btn-primary btn-sm" onClick={scheduleCarousel} disabled={!carouselScheduleDate}>
+                          ✓ Einplanen
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setShowCarouselScheduler(false)}>
+                          Abbrechen
+                        </button>
+                      </div>
+                    ) : (
+                      <button className="btn btn-secondary btn-sm" onClick={() => setShowCarouselScheduler(true)}>
+                        📅 Im Planer einplanen
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1632,12 +1781,110 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
                     </div>
                   )}
 
-                  <button className="btn btn-secondary" onClick={copyPinText} style={{ alignSelf: "flex-start" }}>
-                    {pinCopied ? "✓ Kopiert!" : "📋 Titel + Beschreibung kopieren"}
-                  </button>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                    <button className="btn btn-secondary" onClick={copyPinText} style={{ alignSelf: "flex-start" }}>
+                      {pinCopied ? "✓ Kopiert!" : "📋 Titel + Beschreibung kopieren"}
+                    </button>
+                    <button className="btn btn-secondary" onClick={savePin} style={{ alignSelf: "flex-start" }}>
+                      {pinSavedMsg ? "✓ Gespeichert" : "💾 Pin speichern"}
+                    </button>
+                  </div>
+
+                  {/* Pin einplanen */}
+                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "0.85rem" }}>
+                    {pinScheduleMsg ? (
+                      <div style={{ fontSize: "0.85rem", color: "var(--sage)", fontWeight: 600 }}>{pinScheduleMsg}</div>
+                    ) : showPinScheduler ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                        <input
+                          type="date"
+                          className="input"
+                          value={pinScheduleDate}
+                          onChange={e => setPinScheduleDate(e.target.value)}
+                          style={{ width: "auto" }}
+                        />
+                        <button className="btn btn-primary btn-sm" onClick={schedulePin} disabled={!pinScheduleDate}>
+                          ✓ Einplanen
+                        </button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setShowPinScheduler(false)}>
+                          Abbrechen
+                        </button>
+                      </div>
+                    ) : (
+                      <button className="btn btn-secondary btn-sm" onClick={() => setShowPinScheduler(true)}>
+                        📅 Im Planer einplanen
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
+
+            {/* Gespeicherte Pins */}
+            <div className="card" style={{ padding: "1.25rem", marginTop: "1.5rem" }}>
+              <button
+                onClick={() => setShowSavedPins(v => !v)}
+                style={{
+                  display: "flex", alignItems: "center", gap: "0.5rem",
+                  background: "none", border: "none", cursor: "pointer",
+                  fontWeight: 600, fontSize: "0.9rem", color: "var(--text)",
+                  padding: 0, width: "100%", justifyContent: "space-between",
+                }}
+              >
+                <span>💾 Gespeicherte Pins ({savedPins.length})</span>
+                <span style={{ fontSize: "0.8rem", color: "var(--muted)", fontWeight: 400 }}>
+                  {showSavedPins ? "▲ Einklappen" : "▼ Anzeigen"}
+                </span>
+              </button>
+
+              {showSavedPins && (
+                <div style={{ marginTop: "1rem" }}>
+                  {savedPins.length === 0 ? (
+                    <div style={{ fontSize: "0.85rem", color: "var(--muted)", textAlign: "center", padding: "1rem 0" }}>
+                      Noch keine Pins gespeichert.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                      {savedPins.map(pin => (
+                        <div
+                          key={pin.id}
+                          style={{
+                            display: "flex", alignItems: "center", gap: "0.75rem",
+                            padding: "0.65rem 0.85rem",
+                            background: "var(--surface)", borderRadius: "var(--radius-sm)",
+                            border: "1px solid var(--border)",
+                          }}
+                        >
+                          <div style={{
+                            width: 32, height: 48, borderRadius: 6, flexShrink: 0,
+                            background: pin.style.startsWith("photo-") ? "#4A3728" : (STYLE_OPTIONS.find(o => o.key === pin.style)?.bg ?? "#F7F3EE"),
+                            border: "1px solid var(--border)",
+                          }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: "0.88rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {pin.headline || pin.title || "Ohne Titel"}
+                            </div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--muted)" }}>
+                              {pin.savedAt}
+                            </div>
+                          </div>
+                          <button className="btn btn-secondary btn-sm" onClick={() => loadSavedPin(pin)} style={{ flexShrink: 0 }}>
+                            Laden
+                          </button>
+                          <button
+                            onClick={() => deleteSavedPin(pin.id)}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)", fontSize: "1rem", flexShrink: 0, padding: "0 0.25rem" }}
+                            title="Löschen" aria-label="Pin löschen"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

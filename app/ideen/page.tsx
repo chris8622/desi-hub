@@ -82,7 +82,10 @@ export default function IdeenPage() {
     inputRef.current?.focus();
   };
 
-  const deleteIdee = (id: string) => save(ideen.filter(i => i.id !== id));
+  const deleteIdee = (id: string) => {
+    if (!window.confirm("Idee wirklich löschen?")) return;
+    save(ideen.filter(i => i.id !== id));
+  };
 
   const updateStatus = (id: string, status: Status) =>
     save(ideen.map(i => i.id === id ? { ...i, status, updatedAt: new Date().toISOString() } : i));
