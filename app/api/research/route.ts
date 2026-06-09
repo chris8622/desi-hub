@@ -272,14 +272,13 @@ Erstelle eine fundierte Tiefen-Analyse auf Deutsch. Antworte nur mit HTML (h3, p
           .slice(0, 19000); // ~4800 Tokens — passt mit 3500 Output unter Groq Free-Limit (12k TPM)
 
         // ── 4. Groq: Zusammenfassung ────────────────────────
-        const [summaryRes, factRes] = await Promise.allSettled([
-          fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "llama-3.3-70b-versatile",
-              messages: [
-                { role: "system", content: `Du bist ein gründlicher Research-Analyst mit wissenschaftlichem Anspruch für eine deutschsprachige Content Creatorin (Themen: Mind, Health, Ästhetik, Selbstoptimierung). Du lieferst KEINE oberflächlichen Zusammenfassungen, sondern eine fundierte Tiefen-Analyse, die echten Mehrwert bietet und auf der die Creatorin verlässlich Content aufbauen kann. Analysiere NUR die bereitgestellten Inhalte. Antworte nur mit HTML (h3, p, ul, li, strong, em — kein anderes HTML).
+        const summaryRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              { role: "system", content: `Du bist ein gründlicher Research-Analyst mit wissenschaftlichem Anspruch für eine deutschsprachige Content Creatorin (Themen: Mind, Health, Ästhetik, Selbstoptimierung). Du lieferst KEINE oberflächlichen Zusammenfassungen, sondern eine fundierte Tiefen-Analyse, die echten Mehrwert bietet und auf der die Creatorin verlässlich Content aufbauen kann. Analysiere NUR die bereitgestellten Inhalte. Antworte nur mit HTML (h3, p, ul, li, strong, em — kein anderes HTML).
 
 ABSOLUT WICHTIG — Quellen-Ehrlichkeit & Evidenz-Einordnung:
 - Erfinde NIEMALS Quellen. Zitiere nur was wörtlich in den Inhalten steht, mit echter Domain.
@@ -304,17 +303,13 @@ Struktur (gehe in die TIEFE, sei konkret, nenne Mechanismen und Details):
 6. <h3>Content-Potenzial mit Substanz</h3> — ul/li: konkrete, fundierte Content-Ideen (Instagram/Blog/Newsletter) — KEINE Floskeln, sondern Ideen die auf den Erkenntnissen aufbauen und einen klaren Mehrwert/Hook haben.
 
 Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als drei oberflächliche.` },
-                { role: "user", content: `Research-Thema: "${query}"\n\nGefundene Inhalte (jede Quelle mit ihrer Domain — achte auf den Quellentyp in [Klammern]):\n\n${context}` },
-              ],
-              temperature: 0.35,
-              max_tokens: 3500,
-            }),
-            signal: AbortSignal.timeout(45000),
+              { role: "user", content: `Research-Thema: "${query}"\n\nGefundene Inhalte (jede Quelle mit ihrer Domain — achte auf den Quellentyp in [Klammern]):\n\n${context}` },
+            ],
+            temperature: 0.35,
+            max_tokens: 3500,
           }),
-          // Faktencheck ist in die Tiefen-Analyse integriert ("Was die Wissenschaft sagt")
-          // → kein separater Call nötig (spart Token-Budget für tiefere Analyse)
-          Promise.resolve(new Response(JSON.stringify({ choices: [] }), { status: 200 })),
-        ]);
+          signal: AbortSignal.timeout(45000),
+        });
 
         // Ergebnisse auswerten
         let summary = !groqKey
@@ -322,16 +317,15 @@ Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als d
           : "<p>Zusammenfassung konnte nicht erstellt werden. Bitte versuche es erneut.</p>";
 
         let summaryTokens = 0;
-        if (summaryRes.status === "fulfilled") {
-          const res = summaryRes.value;
-          const d = await res.json();
-          if (res.ok) {
+        try {
+          const d = await summaryRes.json();
+          if (summaryRes.ok) {
             summary = d.choices?.[0]?.message?.content || summary;
             summaryTokens = d.usage?.total_tokens || 0;
           } else {
             const errMsg = d?.error?.message || JSON.stringify(d);
             // Rate-Limit (429) → freundliche Meldung mit Hinweis auf manuellen Modus
-            if (res.status === 429) {
+            if (summaryRes.status === 429) {
               const waitMatch = errMsg.match(/try again in ([\dm.s]+)/i);
               const waitStr = waitMatch ? waitMatch[1].replace(/\.\d+s/, "s") : "etwas";
               const isDaily = /per day|TPD/i.test(errMsg);
@@ -341,21 +335,11 @@ Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als d
                 <p style="color:var(--text);font-size:0.88rem;line-height:1.6;margin-top:0.5rem">💡 <strong>Tipp:</strong> Erstelle Content jetzt manuell — mach den Text in Claude und nutze im Content-Bereich „✍️ Selbst eingeben" für Carousels ganz ohne Tokens.</p>
               </div>`;
             } else {
-              summary = `<p style="color:var(--warm-red)">⚠️ <strong>Groq API Fehler (${res.status}):</strong> ${errMsg}</p>`;
+              summary = `<p style="color:var(--warm-red)">⚠️ <strong>Groq API Fehler (${summaryRes.status}):</strong> ${errMsg}</p>`;
             }
           }
-        } else {
-          summary = `<p style="color:var(--warm-red)">⚠️ Verbindungsfehler zu Groq: ${summaryRes.reason}</p>`;
-        }
-
-        let factCheck = null;
-        if (factRes.status === "fulfilled" && factRes.value.ok) {
-          const d = await factRes.value.json();
-          const raw = d.choices?.[0]?.message?.content || "{}";
-          try {
-            const match = raw.match(/\{[\s\S]*\}/);
-            factCheck = match ? JSON.parse(match[0]) : null;
-          } catch { factCheck = null; }
+        } catch {
+          summary = `<p style="color:var(--warm-red)">⚠️ Verbindungsfehler zu Groq.</p>`;
         }
 
         // hasContent-Flag pro Quelle ergänzen
@@ -364,7 +348,7 @@ Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als d
           hasContent: i < contents.length && contents[i].length > 200,
         }));
 
-        send({ type: "result", data: { sources: sourcesWithFlag, summary, factCheck, tokens: summaryTokens } });
+        send({ type: "result", data: { sources: sourcesWithFlag, summary, tokens: summaryTokens } });
 
       } catch (err) {
         send({ type: "error", data: err instanceof Error ? err.message : "Fehler" });

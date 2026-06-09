@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { scheduleSyncUp } from "@/lib/sync";
 import LoginGate from "@/components/LoginGate";
+import { getLS, setLS } from "@/lib/storage";
 
 // ─── Types ───────────────────────────────────────────────
 type Status = "neu" | "recherchiert" | "in_arbeit" | "fertig";
@@ -27,12 +28,6 @@ const STATUS_CONFIG: Record<Status, { label: string; color: string; bg: string; 
 const DEFAULT_TAGS = ["Mindset","Hormongesundheit","Hautpflege","Morgenroutine","Selbstdisziplin","Minimalismus","Ernährung","Bewegung","Mental Health","Ästhetik"];
 
 // ─── Helpers ─────────────────────────────────────────────
-function getLS<T>(key: string, fallback: T): T {
-  try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; } catch { return fallback; }
-}
-function setLS(key: string, val: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-}
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
 // ─── Component ───────────────────────────────────────────

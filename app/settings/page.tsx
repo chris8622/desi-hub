@@ -1,7 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
 import LoginGate from "@/components/LoginGate";
-import { scheduleSyncUp, syncDown, syncUp } from "@/lib/sync";
+import { scheduleSyncUp, syncDown, syncUp, SYNC_KEYS } from "@/lib/sync";
+
+// Alle Backup-Keys: zentrale Sync-Keys + Instagram-Handle
+const BACKUP_KEYS = [...SYNC_KEYS, "dh_instagram_handle"];
 import { getTokenUsage } from "@/lib/tokens";
 
 const DEFAULT_SETTINGS = {
@@ -545,16 +548,10 @@ export default function SettingsPage() {
         </p>
         <div style={{ display: "flex", gap: "0.65rem", flexWrap: "wrap" }}>
           <button className="btn btn-secondary" onClick={() => {
-            const backup = {
-              exportedAt: new Date().toISOString(),
-              settings: JSON.parse(localStorage.getItem("dh_settings") || "{}"),
-              ideen: JSON.parse(localStorage.getItem("dh_ideenpool") || "[]"),
-              planner: JSON.parse(localStorage.getItem("dh_planner") || "[]"),
-              drafts: JSON.parse(localStorage.getItem("dh_drafts") || "[]"),
-              subscribers: JSON.parse(localStorage.getItem("dh_subscribers") || "[]"),
-              newsletters: JSON.parse(localStorage.getItem("dh_newsletters") || "[]"),
-              researchHistory: JSON.parse(localStorage.getItem("dh_research_history") || "[]"),
-            };
+            const backup: Record<string, unknown> = { exportedAt: new Date().toISOString() };
+            for (const key of BACKUP_KEYS) {
+              try { const raw = localStorage.getItem(key); backup[key] = raw ? JSON.parse(raw) : null; } catch { backup[key] = null; }
+            }
             const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
             const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
             a.download = `desi-hub-backup-${new Date().toISOString().split("T")[0]}.json`; a.click();
@@ -566,12 +563,11 @@ export default function SettingsPage() {
               const text = await file.text();
               try {
                 const backup = JSON.parse(text);
-                if (backup.settings) localStorage.setItem("dh_settings", JSON.stringify(backup.settings));
-                if (backup.ideen) localStorage.setItem("dh_ideenpool", JSON.stringify(backup.ideen));
-                if (backup.planner) localStorage.setItem("dh_planner", JSON.stringify(backup.planner));
-                if (backup.drafts) localStorage.setItem("dh_drafts", JSON.stringify(backup.drafts));
-                if (backup.subscribers) localStorage.setItem("dh_subscribers", JSON.stringify(backup.subscribers));
-                if (backup.newsletters) localStorage.setItem("dh_newsletters", JSON.stringify(backup.newsletters));
+                for (const key of BACKUP_KEYS) {
+                  if (backup[key] !== undefined && backup[key] !== null) {
+                    localStorage.setItem(key, JSON.stringify(backup[key]));
+                  }
+                }
                 alert("Backup erfolgreich wiederhergestellt! Seite wird neu geladen.");
                 window.location.reload();
               } catch { alert("Fehler beim Lesen der Backup-Datei."); }

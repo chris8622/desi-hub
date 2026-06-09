@@ -3,20 +3,10 @@ import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { scheduleSyncUp } from "@/lib/sync";
 import { useSearchParams } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
+import { getLS, setLS } from "@/lib/storage";
 
 type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
 type PlannerItem = { id: string; date: string; channel: string; title: string; status: string; draftId?: string };
-
-function getLS<T>(key: string, fallback: T): T {
-  try {
-    if (typeof window === "undefined") return fallback;
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch { return fallback; }
-}
-function setLS(key: string, val: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-}
 
 function renderMarkdown(md: string): string {
   let html = md
@@ -234,6 +224,7 @@ function EditorInner() {
     const updated = drafts.filter(d => d.id !== id);
     setDrafts(updated);
     setLS("dh_drafts", updated);
+    scheduleSyncUp(3000);
     if (activeDraftId === id) {
       setTitle(""); setContent(""); setActiveDraftId(null);
     }

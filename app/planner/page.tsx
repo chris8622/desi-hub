@@ -3,21 +3,11 @@ import { useState, useEffect } from "react";
 import { scheduleSyncUp } from "@/lib/sync";
 import Link from "next/link";
 import LoginGate from "@/components/LoginGate";
+import { getLS, setLS } from "@/lib/storage";
 
 type PlannerItem = { id: string; date: string; channel: string; title: string; status: string; draftId?: string };
 type ModalData = { date: string; item?: PlannerItem };
 type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
-
-function getLS<T>(key: string, fallback: T): T {
-  try {
-    if (typeof window === "undefined") return fallback;
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch { return fallback; }
-}
-function setLS(key: string, val: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-}
 
 const CHANNELS = ["Instagram", "Pinterest", "Blog", "Newsletter", "Sonstiges"];
 const STATUSES = ["Entwurf", "Geplant", "Veröffentlicht"];

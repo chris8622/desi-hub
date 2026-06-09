@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
 import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
+import { getLS, setLS } from "@/lib/storage";
 
 type Slide = { headline: string; points: string[]; cta?: string };
 type CarouselResult = { title: string; slides: Slide[]; caption: string; hashtags: string[] };
@@ -18,17 +19,6 @@ type SavedCarousel = {
   carousel: CarouselResult;
   styles: string[];
 };
-
-function setLS(key: string, val: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-}
-function getLS<T>(key: string, fallback: T): T {
-  try {
-    if (typeof window === "undefined") return fallback;
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch { return fallback; }
-}
 
 const TYPE_BADGE: Record<string, string> = {
   instagram: "badge-terra",

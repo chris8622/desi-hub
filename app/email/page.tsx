@@ -2,20 +2,11 @@
 import { useState, useEffect, useRef } from "react";
 import LoginGate from "@/components/LoginGate";
 import { trackTokens } from "@/lib/tokens";
+import { scheduleSyncUp } from "@/lib/sync";
+import { getLS, setLS } from "@/lib/storage";
 
 type Subscriber = { id: string; name: string; email: string; addedAt: string };
 type Newsletter = { id: string; subject: string; preheader?: string; body: string; createdAt: string };
-
-function getLS<T>(key: string, fallback: T): T {
-  try {
-    if (typeof window === "undefined") return fallback;
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch { return fallback; }
-}
-function setLS(key: string, val: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-}
 
 // Quote-aware CSV line parser — handles quoted fields containing commas
 function parseCSVLine(line: string): string[] {
@@ -81,6 +72,7 @@ export default function EmailPage() {
   const saveSubs = (updated: Subscriber[]) => {
     setSubscribers(updated);
     setLS("dh_subscribers", updated);
+    scheduleSyncUp(3000);
   };
 
   const deleteSub = (id: string) => saveSubs(subscribers.filter(s => s.id !== id));
@@ -129,6 +121,7 @@ export default function EmailPage() {
   const saveNLs = (updated: Newsletter[]) => {
     setNewsletters(updated);
     setLS("dh_newsletters", updated);
+    scheduleSyncUp(3000);
   };
 
   const generateNewsletter = async () => {

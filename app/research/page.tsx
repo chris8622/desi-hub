@@ -4,29 +4,23 @@ import { useRouter } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
 import { trackTokens } from "@/lib/tokens";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { scheduleSyncUp } from "@/lib/sync";
+import { getLS, setLS } from "@/lib/storage";
 
 type Source = { title: string; url: string; snippet: string; credibility?: { level: string; label: string; color: string } };
-type Claim = { claim: string; sources: string[]; source_type: "seriös"|"forum"|"gemischt" };
-type FactCheck = { confidence: "hoch"|"mittel"|"niedrig"; confidence_reason: string; source_diversity: number; verified_claims: Claim[]; unverified_claims: Claim[]; red_flags: string[]; recommendation: string };
 type HistoryItem = { query: string; date: string; summary: string };
-
-function getLS<T>(key: string, fallback: T): T {
-  try {
-    if (typeof window === "undefined") return fallback;
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch { return fallback; }
-}
-
-function setLS(key: string, val: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-}
 
 const SUGGESTED = [
   "Rückenschmerzen", "Burnout Erholung", "Hautpflege Routine",
   "Selbstdisziplin", "Intermittent Fasting", "Morgenroutine",
   "Hormongesundheit", "Minimalismus",
 ];
+
+// Neueste zuerst, Cap 30, dedupliziert nach query
+function addToHistory(prev: HistoryItem[], query: string, summary: string): HistoryItem[] {
+  const item: HistoryItem = { query, date: new Date().toISOString(), summary };
+  return [item, ...prev.filter(h => h.query !== query)].slice(0, 30);
+}
 
 export default function ResearchPage() {
   const router = useRouter();
@@ -35,7 +29,6 @@ export default function ResearchPage() {
   const [status, setStatus] = useState("");
   const [summary, setSummary] = useState("");
   const [sources, setSources] = useState<Source[]>([]);
-  const [factCheck, setFactCheck] = useState<FactCheck | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [deepLoading, setDeepLoading] = useState(false);
@@ -46,7 +39,6 @@ export default function ResearchPage() {
   const [searchMode, setSearchMode] = useState<"all" | "trusted_only">("all");
   const [engine, setEngine] = useState<"standard" | "perplexity">("standard");
   const [hasPerplexity, setHasPerplexity] = useState(false);
-  const [verifyingClaim, setVerifyingClaim] = useState<string | null>(null);
 
   useEffect(() => {
     setHistory(getLS<HistoryItem[]>("dh_research_history", []));
@@ -107,26 +99,10 @@ export default function ResearchPage() {
               trackTokens(evt.data.tokens || 0);
               setSummary(evt.data.summary || "");
               setSources(Array.isArray(evt.data.sources) ? evt.data.sources : []);
-              // Faktencheck robust normalisieren — KI liefert nicht immer alle Felder
-              const fc = evt.data.factCheck;
-              if (fc && typeof fc === "object") {
-                setFactCheck({
-                  confidence: fc.confidence || "mittel",
-                  confidence_reason: fc.confidence_reason || "",
-                  source_diversity: fc.source_diversity || 0,
-                  verified_claims: Array.isArray(fc.verified_claims) ? fc.verified_claims : [],
-                  unverified_claims: Array.isArray(fc.unverified_claims) ? fc.unverified_claims : [],
-                  red_flags: Array.isArray(fc.red_flags) ? fc.red_flags : [],
-                  recommendation: fc.recommendation || "",
-                });
-              } else {
-                setFactCheck(null);
-              }
-
-              const newItem: HistoryItem = { query: q, date: new Date().toISOString(), summary: evt.data.summary };
               setHistory(prev => {
-                const updated = [...prev.filter(h => h.query !== q), newItem].slice(-20);
+                const updated = addToHistory(prev, q, evt.data.summary || "");
                 setLS("dh_research_history", updated);
+                scheduleSyncUp(3000);
                 return updated;
               });
             }
@@ -158,17 +134,18 @@ export default function ResearchPage() {
 
   // Research in localStorage speichern + zur Zielseite navigieren
   const saveContext = (destination: "/editor" | "/content", mode?: string) => {
-    const ctx = { query, summary, sources: sources.map(s => ({ title: s.title, url: s.url, snippet: s.snippet })), factCheck, date: new Date().toISOString(), mode };
+    const ctx = { query, summary, sources: sources.map(s => ({ title: s.title, url: s.url, snippet: s.snippet })), date: new Date().toISOString(), mode };
     setLS("dh_research_context", ctx);
     router.push(destination);
   };
 
   const saveResearch = () => {
-    const h = getLS<HistoryItem[]>("dh_research_history", []);
-    const item: HistoryItem = { query, date: new Date().toISOString(), summary };
-    const updated = [item, ...h.filter(x => x.query !== query)].slice(0, 30);
-    setLS("dh_research_history", updated);
-    setHistory(updated);
+    setHistory(prev => {
+      const updated = addToHistory(prev, query, summary);
+      setLS("dh_research_history", updated);
+      scheduleSyncUp(3000);
+      return updated;
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
@@ -179,15 +156,9 @@ export default function ResearchPage() {
       const next = new Set(prev);
       if (next.has(domain)) next.delete(domain); else next.add(domain);
       setLS("dh_trusted_sources", [...next]);
+      scheduleSyncUp(3000);
       return next;
     });
-  };
-
-  const verifyClaim = async (claim: string) => {
-    setVerifyingClaim(claim);
-    const verifyQuery = `"${claim.slice(0, 60)}" ${query} wissenschaftlich belegt studie`;
-    await runSearch(verifyQuery);
-    setVerifyingClaim(null);
   };
 
   const deepResearch = async () => {
@@ -394,89 +365,6 @@ export default function ResearchPage() {
               </div>
             </div>
 
-            {/* Faktencheck — nur anzeigen wenn echte Claims vorhanden */}
-            {factCheck && (factCheck.verified_claims.length > 0 || factCheck.unverified_claims.length > 0 || factCheck.red_flags.filter(f => f !== "Keine Quellenübersicht vorhanden").length > 0) && (
-              <div className="card" style={{ borderLeft: `4px solid ${factCheck.confidence === "hoch" ? "var(--sage)" : factCheck.confidence === "mittel" ? "var(--gold)" : "var(--warm-red)"}` }}>
-                <div className="flex-between" style={{ marginBottom: "0.75rem" }}>
-                  <div style={{ fontWeight: 700, fontSize: "1rem" }}>🔍 Faktencheck</div>
-                  <span style={{ padding: "0.25rem 0.8rem", borderRadius: 999, fontSize: "0.78rem", fontWeight: 700, background: factCheck.confidence === "hoch" ? "var(--sage-light)" : factCheck.confidence === "mittel" ? "var(--gold-light)" : "var(--warm-red-light)", color: factCheck.confidence === "hoch" ? "var(--sage)" : factCheck.confidence === "mittel" ? "var(--gold)" : "var(--warm-red)" }}>
-                    {factCheck.confidence === "hoch" ? "✅ Gut belegt" : factCheck.confidence === "mittel" ? "⚠️ Teilweise belegt" : "🔴 Vorsicht geboten"}
-                  </span>
-                </div>
-                <p style={{ fontSize: "0.85rem", color: "var(--muted)", marginBottom: "1.25rem" }}>{factCheck.confidence_reason}</p>
-
-                {/* Claim-Listen mit Quellen */}
-                {[
-                  { claims: factCheck.verified_claims,   label: "✅ Mehrfach bestätigt",      bg: "var(--sage-light)",     color: "var(--sage)",     border: "rgba(107,143,113,0.2)" },
-                  { claims: factCheck.unverified_claims, label: "⚠️ Nur vereinzelt belegt",   bg: "var(--gold-light)",     color: "var(--gold)",     border: "rgba(184,148,80,0.2)"  },
-                ].map(({ claims, label, bg, color, border }) => claims.length > 0 && (
-                  <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: "var(--radius-sm)", padding: "1rem", marginBottom: "0.85rem" }}>
-                    <div style={{ fontWeight: 700, fontSize: "0.75rem", color, marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-                      {claims.map((c, i) => {
-                        const claimObj = typeof c === "string"
-                          ? { claim: c, sources: [] as string[], source_type: "gemischt" as const }
-                          : { claim: c.claim || "", sources: Array.isArray(c.sources) ? c.sources : [], source_type: c.source_type || "gemischt" as const };
-                        const allTrusted = claimObj.sources.length > 0 && claimObj.sources.every(s => trustedSources.has(s));
-                        return (
-                          <div key={i} style={{ background: "rgba(255,255,255,0.6)", borderRadius: 8, padding: "0.75rem 0.85rem" }}>
-                            <p style={{ fontSize: "0.85rem", color: "var(--text)", marginBottom: "0.5rem", lineHeight: 1.5 }}>{claimObj.claim}</p>
-
-                            {/* Quellen-Badges */}
-                            {claimObj.sources.length > 0 && (
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginBottom: "0.5rem" }}>
-                                <span style={{ fontSize: "0.68rem", color: "var(--muted)", alignSelf: "center" }}>Quelle:</span>
-                                {claimObj.sources.map(domain => {
-                                  const isTrusted = trustedSources.has(domain);
-                                  return (
-                                    <button key={domain} onClick={() => toggleTrust(domain)}
-                                      title={isTrusted ? "Als vertrauenswürdig markiert — klicken zum Entfernen" : "Klicken um als vertrauenswürdig zu markieren"}
-                                      style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", padding: "0.15rem 0.55rem", borderRadius: 999, border: `1px solid ${isTrusted ? "var(--sage)" : "var(--border)"}`, background: isTrusted ? "var(--sage-light)" : "var(--surface)", color: isTrusted ? "var(--sage)" : "var(--muted)", fontSize: "0.72rem", fontWeight: isTrusted ? 700 : 400, cursor: "pointer", transition: "all 0.15s" }}>
-                                      {isTrusted ? "★" : "☆"} {domain}
-                                    </button>
-                                  );
-                                })}
-                                {claimObj.source_type && (
-                                  <span style={{ fontSize: "0.68rem", padding: "0.15rem 0.5rem", borderRadius: 999, background: claimObj.source_type === "seriös" ? "var(--sage-light)" : claimObj.source_type === "forum" ? "var(--surface2)" : "var(--gold-light)", color: claimObj.source_type === "seriös" ? "var(--sage)" : claimObj.source_type === "forum" ? "var(--muted)" : "var(--gold)", fontWeight: 600 }}>
-                                    {claimObj.source_type === "seriös" ? "🏛 Seriöse Quelle" : claimObj.source_type === "forum" ? "💬 Forum" : "🔀 Gemischt"}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Verifizieren Button */}
-                            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                              {allTrusted && (
-                                <span style={{ fontSize: "0.72rem", color: "var(--sage)", fontWeight: 600 }}>★ Vertrauenswürdige Quelle</span>
-                              )}
-                              <button onClick={() => verifyClaim(claimObj.claim)} disabled={verifyingClaim === claimObj.claim}
-                                style={{ fontSize: "0.72rem", padding: "0.2rem 0.65rem", borderRadius: 999, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--muted)", cursor: "pointer", transition: "all 0.15s", marginLeft: "auto" }}>
-                                {verifyingClaim === claimObj.claim ? "⏳ Suche…" : "🔬 Tiefer verifizieren"}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-
-                {factCheck.red_flags.length > 0 && (
-                  <div style={{ background: "var(--warm-red-light)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem", marginBottom: "0.85rem" }}>
-                    <div style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--warm-red)", marginBottom: "0.4rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>🚩 Red Flags</div>
-                    <ul style={{ paddingLeft: "1.1rem" }}>
-                      {factCheck.red_flags.map((f, i) => <li key={i} style={{ fontSize: "0.82rem", color: "var(--warm-red)" }}>{f}</li>)}
-                    </ul>
-                  </div>
-                )}
-
-                <div style={{ background: "var(--surface2)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem" }}>
-                  <div style={{ fontWeight: 700, fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.3rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>💡 Empfehlung für Content</div>
-                  <p style={{ fontSize: "0.85rem", color: "var(--text)" }}>{factCheck.recommendation}</p>
-                </div>
-              </div>
-            )}
-
             {/* Sources grid — immer angezeigt */}
             <div>
               <div className="flex-between" style={{ marginBottom: "0.65rem" }}>
@@ -553,7 +441,7 @@ export default function ResearchPage() {
             </button>
             {showHistory && (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                {[...history].reverse().map((h, i) => (
+                {history.map((h, i) => (
                   <div
                     key={i}
                     className="card-sm"

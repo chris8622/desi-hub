@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import LoginGate from "@/components/LoginGate";
 import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
+import { getLS, setLS } from "@/lib/storage";
 
 type Trend = {
   name: string;
@@ -19,13 +20,6 @@ type Result = {
   summary: string;
   sources: { title: string; url: string }[];
 };
-
-function getLS<T>(key: string, fallback: T): T {
-  try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; } catch { return fallback; }
-}
-function setLS(key: string, val: unknown) {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-}
 
 const ORIGIN_FLAG: Record<string, string> = { USA: "🇺🇸", China: "🇨🇳", Europa: "🇪🇺", Global: "🌍" };
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
@@ -112,6 +106,7 @@ export default function TrendsPage() {
       updatedAt: new Date().toISOString(),
     };
     setLS("dh_ideenpool", [idea, ...pool]);
+    scheduleSyncUp(3000);
     alert(`"${t.name}" wurde in den Ideen-Pool übernommen!`);
   };
 
