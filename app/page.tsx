@@ -81,10 +81,11 @@ export default function DashboardPage() {
     .slice(0, 5);
 
   const QUICK_ACTIONS = [
-    { href: "/research", icon: "🔍", label: "Neue Research starten", desc: "Themen recherchieren & Quellen finden" },
-    { href: "/content", icon: "💡", label: "Content erstellen", desc: "Karussell, Ideen & Captions generieren" },
-    { href: "/editor", icon: "✍️", label: "Blog schreiben", desc: "Markdown-Editor mit Live-Vorschau" },
-    { href: "/planner", icon: "📅", label: "Post einplanen", desc: "Wochenübersicht & Redaktionsplan" },
+    { href: "/research",  icon: "🔍", label: "Neue Research starten", desc: "Themen recherchieren & Quellen finden" },
+    { href: "/content",   icon: "💡", label: "Content erstellen",     desc: "Karussell, Ideen & Captions generieren" },
+    { href: "/editor",    icon: "✍️", label: "Blog schreiben",        desc: "Markdown-Editor mit Live-Vorschau" },
+    { href: "/planner",   icon: "📅", label: "Post einplanen",        desc: "Wochenübersicht & Redaktionsplan" },
+    { href: "/analytics", icon: "📊", label: "Learnings auswerten",   desc: "Kennzahlen eintragen & Muster erkennen" },
   ];
 
   return (

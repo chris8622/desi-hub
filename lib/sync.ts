@@ -12,6 +12,8 @@ export const SYNC_KEYS = [
   "dh_trends_latest",
   "dh_carousels",
   "dh_pins",
+  "dh_analytics",
+  "dh_pinterest_board",
 ];
 
 function getAuthToken(): string {

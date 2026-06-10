@@ -1,0 +1,95 @@
+import { requireAuth } from "@/lib/server-auth";
+
+export const maxDuration = 30;
+
+const PINTEREST_KEY = "desi_pinterest_v1";
+
+function getUpstashConfig(): { url: string; token: string } | null {
+  const url   = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
+  if (!url || !token) return null;
+  return { url, token };
+}
+
+async function kvGet(cfg: { url: string; token: string }, key: string): Promise<unknown> {
+  const res = await fetch(`${cfg.url}/get/${encodeURIComponent(key)}`, {
+    headers: { Authorization: `Bearer ${cfg.token}` },
+    signal: AbortSignal.timeout(8000),
+  });
+  const json = await res.json() as { result: string | null };
+  if (!json.result) return null;
+  try { return JSON.parse(json.result); } catch { return json.result; }
+}
+
+export async function POST(req: Request) {
+  const authError = requireAuth(req);
+  if (authError) return authError;
+
+  const cfg = getUpstashConfig();
+  if (!cfg) return Response.json({ error: "KV nicht verfügbar" }, { status: 503 });
+
+  const tokenData = await kvGet(cfg, PINTEREST_KEY) as { access_token?: string } | null;
+  if (!tokenData?.access_token) {
+    return Response.json({ error: "Pinterest nicht verbunden — bitte zuerst in den Einstellungen verbinden" }, { status: 401 });
+  }
+
+  let body: {
+    board_id: string;
+    title: string;
+    description: string;
+    image_base64: string; // "data:image/png;base64,..."
+    link?: string;
+  };
+
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Ungültige Anfrage" }, { status: 400 });
+  }
+
+  if (!body.board_id || !body.title || !body.image_base64) {
+    return Response.json({ error: "board_id, title und image_base64 sind erforderlich" }, { status: 400 });
+  }
+
+  // base64-Prefix entfernen wenn vorhanden
+  const base64Data = body.image_base64.replace(/^data:image\/[a-z]+;base64,/, "");
+
+  try {
+    const pinBody: Record<string, unknown> = {
+      title:       body.title,
+      description: body.description || "",
+      board_id:    body.board_id,
+      media_source: {
+        source_type:  "image_base64",
+        content_type: "image/png",
+        data:         base64Data,
+      },
+    };
+
+    if (body.link) pinBody.link = body.link;
+
+    const res = await fetch("https://api.pinterest.com/v5/pins", {
+      method:  "POST",
+      headers: {
+        Authorization:  `Bearer ${tokenData.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(pinBody),
+      signal: AbortSignal.timeout(25000),
+    });
+
+    const data = await res.json() as { id?: string; link?: string; message?: string };
+
+    if (!res.ok) {
+      return Response.json({ error: data.message || `Pinterest API Fehler ${res.status}` }, { status: res.status });
+    }
+
+    return Response.json({
+      success: true,
+      pin_id:  data.id,
+      pin_url: data.link || `https://pinterest.com/pin/${data.id}`,
+    });
+  } catch (e) {
+    return Response.json({ error: (e as Error).message }, { status: 500 });
+  }
+}

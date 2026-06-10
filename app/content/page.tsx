@@ -448,6 +448,13 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
   const [pinSavedMsg, setPinSavedMsg] = useState(false);
   const [showSavedPins, setShowSavedPins] = useState(false);
 
+  // Pinterest direct-post state
+  const [pinterestPosting, setPinterestPosting] = useState(false);
+  const [pinterestMsg, setPinterestMsg]         = useState<{ type: "success"|"error"|"info"; text: string } | null>(null);
+  const [pinterestBoards, setPinterestBoards]   = useState<{ id: string; name: string }[]>([]);
+  const [pinterestBoardId, setPinterestBoardId] = useState(() => getLS<string>("dh_pinterest_board", ""));
+  const [showBoardPicker, setShowBoardPicker]   = useState(false);
+
   // Schedule state — Carousel
   const [showCarouselScheduler, setShowCarouselScheduler] = useState(false);
   const [carouselScheduleDate, setCarouselScheduleDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -595,6 +602,123 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
       setTimeout(() => setPinCopied(false), 2500);
     } catch {
       setPinError("Konnte Text nicht kopieren — bitte manuell markieren.");
+    }
+  };
+
+  const loadPinterestBoards = async (): Promise<{ id: string; name: string }[]> => {
+    const token = localStorage.getItem("desi_auth_token") || "";
+    const res = await fetch("/api/pinterest/boards", { headers: { "x-app-token": token } });
+    const d = await res.json() as { boards?: { id: string; name: string }[]; error?: string };
+    if (d.error) throw new Error(d.error);
+    return d.boards || [];
+  };
+
+  const postToP = async () => {
+    if (!pinRef.current) return;
+    setPinterestPosting(true);
+    setPinterestMsg(null);
+    try {
+      // Board-Auswahl: falls noch keins gewählt → Boards laden und Picker zeigen
+      if (!pinterestBoardId) {
+        setPinterestMsg({ type: "info", text: "Lade deine Pinnwände…" });
+        const boards = await loadPinterestBoards();
+        if (boards.length === 0) {
+          setPinterestMsg({ type: "error", text: "Keine Pinnwände gefunden. Erstelle zuerst eine Pinnwand auf Pinterest." });
+          setPinterestPosting(false);
+          return;
+        }
+        setPinterestBoards(boards);
+        setShowBoardPicker(true);
+        setPinterestMsg(null);
+        setPinterestPosting(false);
+        return;
+      }
+
+      // Pin-Bild generieren (500×750px — Vercel-freundliche Größe)
+      setPinterestMsg({ type: "info", text: "Bild wird generiert…" });
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(pinRef.current, { width: 360, height: 540, pixelRatio: 1.39 }); // ~500×750px
+
+      // An API-Route senden
+      setPinterestMsg({ type: "info", text: "Pin wird hochgeladen…" });
+      const token = localStorage.getItem("desi_auth_token") || "";
+      const res = await fetch("/api/pinterest/pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-app-token": token },
+        body: JSON.stringify({
+          board_id:    pinterestBoardId,
+          title:       pinTitle || pinHeadline || "Neuer Pin",
+          description: [pinDescription, pinHashtags.map(h => `#${h.replace(/^#/, "")}`).join(" ")].filter(Boolean).join("\n"),
+          image_base64: dataUrl,
+        }),
+      });
+      const d = await res.json() as { success?: boolean; pin_url?: string; error?: string };
+
+      if (!res.ok || d.error) {
+        if (res.status === 401) {
+          setPinterestMsg({ type: "error", text: "Pinterest nicht verbunden — bitte in den Einstellungen verbinden." });
+        } else {
+          setPinterestMsg({ type: "error", text: d.error || "Fehler beim Posten." });
+        }
+        return;
+      }
+
+      setPinterestMsg({
+        type: "success",
+        text: `✓ Pin erfolgreich gepostet!${d.pin_url ? " " : ""}`,
+      });
+      // Externen Link separat merken
+      if (d.pin_url) {
+        setPinterestMsg({
+          type: "success",
+          text: `✓ Pin erfolgreich gepostet! → ${d.pin_url}`,
+        });
+      }
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (msg.includes("nicht verbunden") || msg.includes("401")) {
+        setPinterestMsg({ type: "error", text: "Pinterest nicht verbunden — bitte in den Einstellungen verbinden." });
+      } else {
+        setPinterestMsg({ type: "error", text: msg });
+      }
+    } finally {
+      setPinterestPosting(false);
+    }
+  };
+
+  const selectBoardAndPost = async (boardId: string, boardName: string) => {
+    setShowBoardPicker(false);
+    setPinterestBoardId(boardId);
+    setLS("dh_pinterest_board", boardId);
+    scheduleSyncUp(1000);
+    // Direkt posten mit gewähltem Board
+    setPinterestPosting(true);
+    setPinterestMsg({ type: "info", text: `Poste auf „${boardName}"…` });
+    try {
+      if (!pinRef.current) throw new Error("Pin-Vorschau nicht gefunden.");
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(pinRef.current, { width: 360, height: 540, pixelRatio: 1.39 });
+      const token = localStorage.getItem("desi_auth_token") || "";
+      const res = await fetch("/api/pinterest/pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-app-token": token },
+        body: JSON.stringify({
+          board_id:     boardId,
+          title:        pinTitle || pinHeadline || "Neuer Pin",
+          description:  [pinDescription, pinHashtags.map(h => `#${h.replace(/^#/, "")}`).join(" ")].filter(Boolean).join("\n"),
+          image_base64: dataUrl,
+        }),
+      });
+      const d = await res.json() as { success?: boolean; pin_url?: string; error?: string };
+      if (!res.ok || d.error) {
+        setPinterestMsg({ type: "error", text: d.error || "Fehler beim Posten." });
+      } else {
+        setPinterestMsg({ type: "success", text: `✓ Gepostet auf „${boardName}"!${d.pin_url ? ` → ${d.pin_url}` : ""}` });
+      }
+    } catch (e) {
+      setPinterestMsg({ type: "error", text: (e as Error).message });
+    } finally {
+      setPinterestPosting(false);
     }
   };
 
@@ -1788,7 +1912,89 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
                     <button className="btn btn-secondary" onClick={savePin} style={{ alignSelf: "flex-start" }}>
                       {pinSavedMsg ? "✓ Gespeichert" : "💾 Pin speichern"}
                     </button>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={postToP}
+                      disabled={pinterestPosting}
+                      style={{ alignSelf: "flex-start", background: "var(--warm-red)", borderColor: "var(--warm-red)" }}
+                    >
+                      {pinterestPosting ? "⏳ Wird gepostet…" : "📌 Auf Pinterest posten"}
+                    </button>
+                    {pinterestBoardId && !pinterestPosting && (
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={async () => {
+                          const boards = await loadPinterestBoards().catch(() => []);
+                          if (boards.length) setPinterestBoards(boards);
+                          setShowBoardPicker(true);
+                        }}
+                        style={{ fontSize: "0.75rem", color: "var(--muted)" }}
+                        title="Pinnwand wechseln"
+                      >
+                        ▾
+                      </button>
+                    )}
                   </div>
+
+                  {/* Pinterest Feedback */}
+                  {pinterestMsg && (
+                    <div
+                      style={{
+                        fontSize: "0.82rem",
+                        padding: "0.6rem 0.85rem",
+                        borderRadius: "var(--radius-sm)",
+                        border: `1px solid ${pinterestMsg.type === "success" ? "rgba(46,213,115,0.25)" : pinterestMsg.type === "error" ? "rgba(255,71,87,0.25)" : "var(--border)"}`,
+                        background: pinterestMsg.type === "success" ? "rgba(46,213,115,0.08)" : pinterestMsg.type === "error" ? "rgba(255,71,87,0.08)" : "var(--surface2)",
+                        color: pinterestMsg.type === "success" ? "var(--ok)" : pinterestMsg.type === "error" ? "var(--hot)" : "var(--muted)",
+                      }}
+                    >
+                      {pinterestMsg.text}
+                      {pinterestMsg.type === "error" && pinterestMsg.text.includes("nicht verbunden") && (
+                        <a href="/settings#pinterest" style={{ marginLeft: "0.5rem", color: "var(--accent)", textDecoration: "underline" }}>
+                          Jetzt verbinden →
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Board-Picker */}
+                  {showBoardPicker && pinterestBoards.length > 0 && (
+                    <div style={{
+                      background: "var(--surface)", border: "1px solid var(--border)",
+                      borderRadius: "var(--radius-sm)", padding: "0.75rem",
+                      boxShadow: "var(--shadow-md)",
+                    }}>
+                      <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "var(--muted)", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                        Pinnwand wählen
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+                        {pinterestBoards.map(b => (
+                          <button
+                            key={b.id}
+                            onClick={() => selectBoardAndPost(b.id, b.name)}
+                            style={{
+                              background: b.id === pinterestBoardId ? "var(--warm-red-light)" : "var(--surface2)",
+                              border: `1px solid ${b.id === pinterestBoardId ? "var(--warm-red)" : "var(--border)"}`,
+                              borderRadius: "var(--radius-sm)", padding: "0.5rem 0.75rem",
+                              textAlign: "left", cursor: "pointer", fontSize: "0.85rem",
+                              color: b.id === pinterestBoardId ? "var(--warm-red)" : "var(--text)",
+                              fontWeight: b.id === pinterestBoardId ? 700 : 400,
+                              transition: "all 0.15s",
+                            }}
+                          >
+                            📌 {b.name}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setShowBoardPicker(false)}
+                        style={{ marginTop: "0.5rem" }}
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
+                  )}
 
                   {/* Pin einplanen */}
                   <div style={{ borderTop: "1px solid var(--border)", paddingTop: "0.85rem" }}>

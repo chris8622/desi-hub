@@ -3,15 +3,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
-  { href: "/",          icon: "🏠", label: "Dashboard"     },
-  { href: "/ideen",     icon: "🌱", label: "Ideen-Pool"   },
-  { href: "/research",  icon: "🔍", label: "Research"      },
-  { href: "/trends",    icon: "📈", label: "Trend-Radar"   },
-  { href: "/content",   icon: "💡", label: "Content"       },
-  { href: "/editor",    icon: "✍️",  label: "Editor"       },
-  { href: "/planner",   icon: "📅", label: "Planer"        },
-  { href: "/email",     icon: "📧", label: "E-Mail"        },
-  { href: "/settings",  icon: "⚙️", label: "Einstellungen" },
+  { href: "/",           icon: "🏠", label: "Dashboard"     },
+  { href: "/ideen",      icon: "🌱", label: "Ideen-Pool"   },
+  { href: "/research",   icon: "🔍", label: "Research"      },
+  { href: "/trends",     icon: "📈", label: "Trend-Radar"   },
+  { href: "/content",    icon: "💡", label: "Content"       },
+  { href: "/editor",     icon: "✍️",  label: "Editor"       },
+  { href: "/planner",    icon: "📅", label: "Planer"        },
+  { href: "/email",      icon: "📧", label: "E-Mail"        },
+  { href: "/analytics",  icon: "📊", label: "Analytics"     },
+  { href: "/settings",   icon: "⚙️", label: "Einstellungen" },
 ];
 
 export default function Sidebar({ onLogout, open }: { onLogout: () => void; open?: boolean }) {

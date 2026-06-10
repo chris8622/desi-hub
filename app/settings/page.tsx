@@ -124,6 +124,135 @@ function TestKeyButton({ groqKey }: { groqKey: string }) {
   );
 }
 
+// ─── Pinterest Connect Card ──────────────────────────────
+function PinterestCard() {
+  const [status, setStatus] = useState<"loading"|"unconfigured"|"disconnected"|"connected"|"error">("loading");
+  const [username, setUsername]   = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  // URL-Param auswerten (Callback-Redirect)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const p = params.get("pinterest");
+    if (p === "connected") { setMsg("✓ Pinterest erfolgreich verbunden!"); window.history.replaceState({}, "", window.location.pathname + "#pinterest"); }
+    else if (p === "denied")  { setMsg("⚠️ Zugriff verweigert — bitte nochmal versuchen."); }
+    else if (p)               { setMsg("⚠️ Fehler beim Verbinden. Bitte nochmal versuchen."); }
+    loadStatus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function loadStatus() {
+    setStatus("loading");
+    try {
+      const token = localStorage.getItem("desi_auth_token") || "";
+      const res = await fetch("/api/pinterest/status", { headers: { "x-app-token": token } });
+      const d = await res.json() as { configured: boolean; connected: boolean; username?: string };
+      if (!d.configured) { setStatus("unconfigured"); return; }
+      if (d.connected) { setStatus("connected"); setUsername(d.username || ""); return; }
+      setStatus("disconnected");
+    } catch { setStatus("error"); }
+  }
+
+  async function connect() {
+    setConnecting(true);
+    setMsg("");
+    try {
+      const token = localStorage.getItem("desi_auth_token") || "";
+      const res = await fetch("/api/pinterest/auth", { headers: { "x-app-token": token } });
+      const d = await res.json() as { configured?: boolean; authUrl?: string; error?: string };
+      if (!d.configured) { setMsg("Pinterest ist noch nicht konfiguriert. Bitte die Anleitung unten befolgen."); setConnecting(false); return; }
+      if (d.authUrl) window.location.href = d.authUrl;
+    } catch { setMsg("Fehler beim Starten der Verbindung."); setConnecting(false); }
+  }
+
+  async function disconnect() {
+    if (!confirm("Pinterest-Verbindung trennen?")) return;
+    try {
+      const token = localStorage.getItem("desi_auth_token") || "";
+      await fetch("/api/pinterest/disconnect", { method: "POST", headers: { "x-app-token": token } });
+      setStatus("disconnected");
+      setUsername("");
+      setMsg("");
+    } catch { setMsg("Fehler beim Trennen."); }
+  }
+
+  return (
+    <div className="card" id="pinterest" style={{ marginBottom: "1.25rem", scrollMarginTop: "2rem" }}>
+      <h3 style={{ marginBottom: "0.4rem" }}>📌 Pinterest verbinden</h3>
+      <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1.25rem" }}>
+        Verbinde dein Pinterest-Konto um Pins direkt aus dem Content-Bereich zu posten — ohne manuelles Hochladen.
+      </p>
+
+      {status === "loading" && (
+        <div style={{ fontSize: "0.85rem", color: "var(--muted)" }}>Prüfe Verbindung…</div>
+      )}
+
+      {status === "unconfigured" && (
+        <div>
+          <div className="alert alert-error" style={{ marginBottom: "1rem", fontSize: "0.82rem" }}>
+            Pinterest noch nicht konfiguriert — folge der Einrichtungsanleitung:
+          </div>
+          <PinterestSetupGuide />
+        </div>
+      )}
+
+      {(status === "disconnected" || status === "error") && (
+        <div>
+          <button className="btn btn-primary" onClick={connect} disabled={connecting}>
+            {connecting ? "⏳ Weiterleitung…" : "📌 Mit Pinterest verbinden"}
+          </button>
+          {status === "error" && (
+            <div className="alert alert-error" style={{ marginTop: "0.75rem", fontSize: "0.82rem" }}>
+              Fehler beim Prüfen der Verbindung.
+            </div>
+          )}
+        </div>
+      )}
+
+      {status === "connected" && (
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+          <div className="alert alert-success" style={{ fontSize: "0.85rem", flex: 1 }}>
+            ✓ Verbunden{username ? ` als @${username}` : ""}
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={disconnect}>Trennen</button>
+        </div>
+      )}
+
+      {msg && (
+        <div
+          className={msg.startsWith("✓") ? "alert alert-success" : "alert alert-error"}
+          style={{ marginTop: "0.75rem", fontSize: "0.82rem" }}
+        >
+          {msg}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PinterestSetupGuide() {
+  return (
+    <div style={{ background: "var(--surface2)", borderRadius: "var(--radius-sm)", padding: "1rem", fontSize: "0.8rem" }}>
+      <div style={{ fontWeight: 700, marginBottom: "0.65rem" }}>Einrichtung (einmalig, ~5 Minuten):</div>
+      <ol style={{ paddingLeft: "1.2rem", color: "var(--muted)", lineHeight: 2 }}>
+        <li>Gehe zu <strong style={{ color: "var(--text)" }}>developers.pinterest.com</strong> → App erstellen</li>
+        <li>Redirect URI eintragen: <code style={{ background: "var(--surface)", borderRadius: 4, padding: "1px 5px", fontSize: "0.78rem" }}>[deine-vercel-url]/api/pinterest/callback</code></li>
+        <li>Scopes aktivieren: <strong style={{ color: "var(--text)" }}>boards:read</strong> und <strong style={{ color: "var(--text)" }}>pins:write</strong></li>
+        <li>In Vercel → Environment Variables diese 3 Werte eintragen:
+          <ul style={{ paddingLeft: "1.2rem", marginTop: "0.25rem" }}>
+            <li><code style={{ background: "var(--surface)", borderRadius: 4, padding: "1px 5px", fontSize: "0.78rem" }}>PINTEREST_APP_ID</code></li>
+            <li><code style={{ background: "var(--surface)", borderRadius: 4, padding: "1px 5px", fontSize: "0.78rem" }}>PINTEREST_APP_SECRET</code></li>
+            <li><code style={{ background: "var(--surface)", borderRadius: 4, padding: "1px 5px", fontSize: "0.78rem" }}>PINTEREST_CALLBACK_URL</code> = <code style={{ background: "var(--surface)", borderRadius: 4, padding: "1px 5px", fontSize: "0.78rem" }}>https://[deine-domain]/api/pinterest/callback</code></li>
+          </ul>
+        </li>
+        <li>Einmal Redeploy in Vercel → dann auf „Mit Pinterest verbinden" klicken</li>
+      </ol>
+    </div>
+  );
+}
+
 function load(): Settings {
   try {
     const s = localStorage.getItem("dh_settings");
@@ -421,6 +550,9 @@ export default function SettingsPage() {
           {Math.round((tokenUsage.tokens / 100000) * 100)}% des Tageslimits (Schätzung)
         </div>
       </div>
+
+      {/* Pinterest Verbindung */}
+      <PinterestCard />
 
       {/* API Keys */}
       <div className="card" style={{ marginBottom: "1.25rem" }}>
