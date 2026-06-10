@@ -1,7 +1,25 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
 import { syncDown, syncUp } from "@/lib/sync";
+
+// Rolling session: 8 Stunden Inaktivität → Auto-Logout
+const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
+const SESSION_KEY = "desi_session_expires";
+
+function getSessionExpires(): number {
+  try { return Number(localStorage.getItem(SESSION_KEY)) || 0; } catch { return 0; }
+}
+function refreshSession(): void {
+  try { localStorage.setItem(SESSION_KEY, String(Date.now() + SESSION_DURATION_MS)); } catch {}
+}
+function clearSession(): void {
+  try {
+    localStorage.removeItem("desi_auth");
+    localStorage.removeItem("desi_auth_token");
+    localStorage.removeItem(SESSION_KEY);
+  } catch {}
+}
 
 export default function LoginGate({ children }: { children: React.ReactNode }) {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -11,19 +29,55 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle"|"syncing"|"synced"|"local">("idle");
   const [kvAvailable, setKvAvailable] = useState(false);
+  const activityThrottle = useRef(0);
+
+  // Aktivität tracken — refresht die Session (gedrosselt auf 1× pro Minute)
+  const onActivity = useCallback(() => {
+    if (!authed) return;
+    const now = Date.now();
+    if (now - activityThrottle.current > 60_000) {
+      activityThrottle.current = now;
+      refreshSession();
+    }
+  }, [authed]);
+
+  useEffect(() => {
+    if (!authed) return;
+    const events = ["mousedown", "keydown", "touchstart", "scroll"];
+    events.forEach(e => window.addEventListener(e, onActivity, { passive: true }));
+    return () => events.forEach(e => window.removeEventListener(e, onActivity));
+  }, [authed, onActivity]);
+
+  // Prüft Session-Ablauf alle 60 Sekunden
+  useEffect(() => {
+    if (!authed) return;
+    const interval = setInterval(() => {
+      if (Date.now() > getSessionExpires()) {
+        clearSession();
+        setAuthed(false);
+      }
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [authed]);
 
   useEffect(() => {
     try {
       const val = typeof window !== "undefined" ? localStorage.getItem("desi_auth") : null;
       if (val === "1") {
-        // Erst sync, dann App anzeigen — so hat jede Seite die neuesten Settings
+        // Session abgelaufen → sofort ausloggen
+        if (Date.now() > getSessionExpires()) {
+          clearSession();
+          setAuthed(false);
+          return;
+        }
+        refreshSession(); // Rolling: Seitenaufruf zählt als Aktivität
         setSyncStatus("syncing");
         syncDown().then(({ available }) => {
           setKvAvailable(available);
           setSyncStatus(available ? "synced" : "local");
-          setAuthed(true); // App erst nach Sync rendern
+          setAuthed(true);
         }).catch(() => {
-          setAuthed(true); // Bei Fehler trotzdem zeigen
+          setAuthed(true);
         });
       } else {
         setAuthed(false);
@@ -47,8 +101,8 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
         try {
           localStorage.setItem("desi_auth", "1");
           localStorage.setItem("desi_auth_token", password);
+          refreshSession(); // Session-Timer starten
         } catch {}
-        // Daten vom Server laden nach Login
         setSyncStatus("syncing");
         const { available } = await syncDown();
         setKvAvailable(available);
@@ -74,7 +128,7 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   };
 
   const handleLogout = () => {
-    try { localStorage.removeItem("desi_auth"); } catch {}
+    clearSession();
     window.location.reload();
   };
 
