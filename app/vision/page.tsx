@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import LoginGate from "@/components/LoginGate";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
@@ -431,7 +431,7 @@ export default function VisionPage() {
   useEffect(() => {
     setBoard(getLS<BoardCard[]>("dh_vision_board", []));
     setVision(getLS<Vision>("dh_vision", { my_why: "", my_vision: "", next_goal: "" }));
-    const saved = getLS<Goals>("dh_goals", null);
+    const saved = getLS<Goals | null>("dh_goals", null);
     if (saved) {
       const existingIds = new Set(saved.milestones.map(m => m.id));
       const merged = [...saved.milestones, ...DEFAULT_MILESTONES.filter(m => !existingIds.has(m.id))];
