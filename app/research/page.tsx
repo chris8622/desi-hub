@@ -114,6 +114,7 @@ export default function ResearchPage() {
             const evt = JSON.parse(line.slice(6));
             if (evt.type === "status") setStatus(evt.data);
             if (evt.type === "rate_limit") {
+              trackTokens(0); // Request zählen auch ohne Token-Daten
               setRateLimited({ countdown: evt.data.retryAfter ?? 60, isDaily: evt.data.isDaily ?? false });
             }
             if (evt.type === "result") {

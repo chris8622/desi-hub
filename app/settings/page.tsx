@@ -269,7 +269,14 @@ export default function SettingsPage() {
   const [syncMsg, setSyncMsg] = useState("");
   const [tokenUsage, setTokenUsage] = useState({ date: "", tokens: 0, requests: 0 });
 
-  useEffect(() => { setS(load()); setMounted(true); setTokenUsage(getTokenUsage()); }, []);
+  useEffect(() => {
+    setS(load());
+    setMounted(true);
+    setTokenUsage(getTokenUsage());
+    const refresh = () => setTokenUsage(getTokenUsage());
+    document.addEventListener("visibilitychange", refresh);
+    return () => document.removeEventListener("visibilitychange", refresh);
+  }, []);
 
   function save() {
     localStorage.setItem("dh_settings", JSON.stringify(s));
@@ -528,18 +535,20 @@ export default function SettingsPage() {
 
       {/* Token-Verbrauch */}
       <div className="card" style={{ marginBottom: "1.25rem" }}>
-        <h3 style={{ marginBottom: "0.4rem" }}>📊 Token-Verbrauch heute</h3>
+        <h3 style={{ marginBottom: "0.4rem" }}>📊 KI-Nutzung heute</h3>
         <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1rem" }}>
-          Groq Free-Tier: ca. 100.000 Tokens/Tag &amp; 12.000/Minute. Bei Erreichen einfach morgen weiter oder Content manuell erstellen.
+          Dein kostenloses KI-Kontingent reicht für ca. 20–30 Analysen pro Tag. Bei Erreichen einfach morgen weitermachen.
         </p>
         <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: "2rem", color: "var(--accent)" }}>{tokenUsage.tokens.toLocaleString("de-AT")}</div>
-            <div style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Tokens heute</div>
+            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: "2rem", color: "var(--accent)" }}>{tokenUsage.requests}</div>
+            <div style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Analysen heute</div>
           </div>
           <div>
-            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: "2rem", color: "var(--sage)" }}>{tokenUsage.requests}</div>
-            <div style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>KI-Anfragen</div>
+            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: "2rem", color: "var(--sage)" }}>
+              {tokenUsage.tokens > 0 ? tokenUsage.tokens.toLocaleString("de-AT") : "—"}
+            </div>
+            <div style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Verarbeitete Wörter</div>
           </div>
         </div>
         {/* Fortschrittsbalken */}
@@ -547,7 +556,10 @@ export default function SettingsPage() {
           <div style={{ height: "100%", width: `${Math.min(100, (tokenUsage.tokens / 100000) * 100)}%`, background: tokenUsage.tokens > 80000 ? "var(--warm-red)" : "var(--accent)", transition: "width 0.3s" }} />
         </div>
         <div style={{ fontSize: "0.7rem", color: "var(--muted)", marginTop: "0.4rem" }}>
-          {Math.round((tokenUsage.tokens / 100000) * 100)}% des Tageslimits (Schätzung)
+          {tokenUsage.tokens > 0
+            ? `${Math.round((tokenUsage.tokens / 100000) * 100)}% des Tageskontingents genutzt`
+            : tokenUsage.requests > 0 ? `${tokenUsage.requests} Anfrage${tokenUsage.requests > 1 ? "n" : ""} heute` : "Noch keine KI-Nutzung heute"
+          }
         </div>
       </div>
 
