@@ -39,6 +39,7 @@ export default function ResearchPage() {
   const [searchMode, setSearchMode] = useState<"all" | "trusted_only">("all");
   const [engine, setEngine] = useState<"standard" | "perplexity">("standard");
   const [hasPerplexity, setHasPerplexity] = useState(false);
+  const [rateLimited, setRateLimited] = useState<{ countdown: number; isDaily: boolean } | null>(null);
 
   useEffect(() => {
     setHistory(getLS<HistoryItem[]>("dh_research_history", []));
@@ -56,12 +57,29 @@ export default function ResearchPage() {
     }
   }, []);
 
+  // Countdown für Rate-Limit → Auto-Retry wenn 0
+  useEffect(() => {
+    if (!rateLimited) return;
+    if (rateLimited.isDaily) return; // Tageslimit: kein Auto-Retry
+    if (rateLimited.countdown <= 0) {
+      setRateLimited(null);
+      runSearch(query);
+      return;
+    }
+    const t = setTimeout(() => {
+      setRateLimited(prev => prev ? { ...prev, countdown: prev.countdown - 1 } : null);
+    }, 1000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rateLimited]);
+
   const runSearch = async (q: string) => {
     if (!q.trim()) return;
     setLoading(true);
     setStatus("Starte Suche…");
     setSummary("");
     setSources([]);
+    setRateLimited(null);
 
     try {
       const res = await fetch("/api/research", {
@@ -95,6 +113,9 @@ export default function ResearchPage() {
           try {
             const evt = JSON.parse(line.slice(6));
             if (evt.type === "status") setStatus(evt.data);
+            if (evt.type === "rate_limit") {
+              setRateLimited({ countdown: evt.data.retryAfter ?? 60, isDaily: evt.data.isDaily ?? false });
+            }
             if (evt.type === "result") {
               trackTokens(evt.data.tokens || 0);
               setSummary(evt.data.summary || "");
@@ -288,6 +309,56 @@ export default function ResearchPage() {
           <div className="alert" style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <span className="pulse-dot" />
             {status}
+          </div>
+        )}
+
+        {/* Rate-Limit-Banner */}
+        {rateLimited && (
+          <div style={{
+            background: "var(--gold-light)", border: "1px solid rgba(184,148,80,0.35)",
+            borderRadius: "var(--radius)", padding: "1.25rem 1.5rem",
+            display: "flex", alignItems: "flex-start", gap: "1rem",
+          }}>
+            <div style={{ fontSize: "1.75rem", lineHeight: 1 }}>
+              {rateLimited.isDaily ? "😴" : "⏳"}
+            </div>
+            <div style={{ flex: 1 }}>
+              {rateLimited.isDaily ? (
+                <>
+                  <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--gold)", marginBottom: "0.4rem" }}>
+                    Für heute reicht&apos;s der KI
+                  </div>
+                  <div style={{ fontSize: "0.85rem", color: "var(--text)", lineHeight: 1.6 }}>
+                    Das tägliche Analyse-Kontingent ist ausgeschöpft. Morgen früh steht wieder alles zur Verfügung.
+                  </div>
+                  <div style={{ fontSize: "0.82rem", color: "var(--muted)", marginTop: "0.5rem" }}>
+                    💡 Bis dahin: Text in Claude schreiben und im Content-Bereich „✍️ Selbst eingeben" für Carousels nutzen.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--gold)", marginBottom: "0.4rem" }}>
+                    KI macht kurz Pause
+                  </div>
+                  <div style={{ fontSize: "0.85rem", color: "var(--text)", lineHeight: 1.6 }}>
+                    Zu viele Anfragen auf einmal — die Analyse startet automatisch neu
+                    {rateLimited.countdown > 0 && (
+                      <> in <strong style={{ color: "var(--gold)" }}>{rateLimited.countdown}s</strong></>
+                    )}.
+                  </div>
+                  <button
+                    onClick={() => { setRateLimited(null); runSearch(query); }}
+                    style={{
+                      marginTop: "0.75rem", fontSize: "0.82rem", fontWeight: 600,
+                      color: "var(--gold)", background: "none", border: "1px solid var(--gold)",
+                      borderRadius: "var(--radius-sm)", padding: "0.35rem 0.85rem", cursor: "pointer",
+                    }}
+                  >
+                    Jetzt sofort nochmal →
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
 

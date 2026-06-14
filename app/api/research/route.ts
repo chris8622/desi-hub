@@ -324,18 +324,14 @@ Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als d
             summaryTokens = d.usage?.total_tokens || 0;
           } else {
             const errMsg = d?.error?.message || JSON.stringify(d);
-            // Rate-Limit (429) → freundliche Meldung mit Hinweis auf manuellen Modus
             if (summaryRes.status === 429) {
-              const waitMatch = errMsg.match(/try again in ([\dm.s]+)/i);
-              const waitStr = waitMatch ? waitMatch[1].replace(/\.\d+s/, "s") : "etwas";
+              const waitMatch = errMsg.match(/try again in ([\d.]+)s/i);
+              const retryAfter = waitMatch ? Math.ceil(parseFloat(waitMatch[1])) : 60;
               const isDaily = /per day|TPD/i.test(errMsg);
-              summary = `<div style="background:var(--gold-light);border:1px solid rgba(184,148,80,0.35);border-radius:8px;padding:1rem 1.25rem">
-                <p style="color:var(--gold);font-weight:700;margin-bottom:0.5rem">⏳ ${isDaily ? "Tageslimit erreicht" : "Minutenlimit erreicht"}</p>
-                <p style="color:var(--text);font-size:0.88rem;line-height:1.6">Du hast das ${isDaily ? "kostenlose Tageslimit (100.000 Tokens/Tag)" : "Minutenlimit"} von Groq erreicht. Das ist kein Fehler — es setzt sich ${isDaily ? "morgen früh" : `automatisch zurück${waitStr && waitStr !== "etwas" ? ` (in ca. ${waitStr})` : " (in ca. 1 min)"}`}.</p>
-                <p style="color:var(--text);font-size:0.88rem;line-height:1.6;margin-top:0.5rem">💡 <strong>Tipp:</strong> Erstelle Content jetzt manuell — mach den Text in Claude und nutze im Content-Bereich „✍️ Selbst eingeben" für Carousels ganz ohne Tokens.</p>
-              </div>`;
+              send({ type: "rate_limit", data: { retryAfter, isDaily } });
+              return; // kein result-Event senden
             } else {
-              summary = `<p style="color:var(--warm-red)">⚠️ <strong>Groq API Fehler (${summaryRes.status}):</strong> ${errMsg}</p>`;
+              summary = `<p style="color:var(--warm-red)">⚠️ Analyse fehlgeschlagen (${summaryRes.status}). Bitte versuche es erneut.</p>`;
             }
           }
         } catch {
