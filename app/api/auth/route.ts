@@ -50,36 +50,56 @@ function parseDevice(ua: string): string {
   return "🌐 Unbekannt";
 }
 
+async function geoLookup(ip: string): Promise<{ city?: string; country?: string }> {
+  if (!ip || ip === "?" || ip === "::1" || ip.startsWith("127.") || ip.startsWith("192.168.") || ip.startsWith("10.")) {
+    return { city: "Lokal", country: "" };
+  }
+  try {
+    const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
+      headers: { "User-Agent": "desi-hub/1.0" },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return {};
+    const data = await res.json() as { city?: string; country_name?: string; country_code?: string; error?: boolean };
+    if (data.error) return {};
+    return { city: data.city || "", country: data.country_code || data.country_name || "" };
+  } catch {
+    return {};
+  }
+}
+
 export async function POST(req: Request) {
   const { password } = await req.json() as { password?: string };
   const correct = process.env.APP_PASSWORD;
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "?";
+  const ua = req.headers.get("user-agent") || "";
 
   if (!correct || password !== correct) {
-    // Fehlgeschlagene Versuche ebenfalls loggen
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "?";
-    const ua = req.headers.get("user-agent") || "";
     const cfg = getUpstashConfig();
     if (cfg) {
-      const existing = (await kvGet(cfg, LOG_KEY) as LoginEntry[] | null) || [];
-      const entry: LoginEntry = { ts: Date.now(), ip, device: parseDevice(ua), success: false };
-      await kvSet(cfg, LOG_KEY, [entry, ...existing].slice(0, MAX_ENTRIES));
+      const [existing, geo] = await Promise.all([
+        kvGet(cfg, LOG_KEY) as Promise<LoginEntry[] | null>,
+        geoLookup(ip),
+      ]);
+      const entry: LoginEntry = { ts: Date.now(), ip, device: parseDevice(ua), success: false, ...geo };
+      await kvSet(cfg, LOG_KEY, [entry, ...(existing || [])].slice(0, MAX_ENTRIES));
     }
     return Response.json({ ok: false }, { status: 401 });
   }
 
-  // Erfolgreichen Login loggen
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "?";
-  const ua = req.headers.get("user-agent") || "";
   const cfg = getUpstashConfig();
   if (cfg) {
     try {
-      const existing = (await kvGet(cfg, LOG_KEY) as LoginEntry[] | null) || [];
-      const entry: LoginEntry = { ts: Date.now(), ip, device: parseDevice(ua), success: true };
-      await kvSet(cfg, LOG_KEY, [entry, ...existing].slice(0, MAX_ENTRIES));
+      const [existing, geo] = await Promise.all([
+        kvGet(cfg, LOG_KEY) as Promise<LoginEntry[] | null>,
+        geoLookup(ip),
+      ]);
+      const entry: LoginEntry = { ts: Date.now(), ip, device: parseDevice(ua), success: true, ...geo };
+      await kvSet(cfg, LOG_KEY, [entry, ...(existing || [])].slice(0, MAX_ENTRIES));
     } catch {}
   }
 
   return Response.json({ ok: true });
 }
 
-type LoginEntry = { ts: number; ip: string; device: string; success: boolean };
+type LoginEntry = { ts: number; ip: string; device: string; success: boolean; city?: string; country?: string };

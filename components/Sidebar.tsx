@@ -16,7 +16,7 @@ const NAV = [
   { href: "/settings",   icon: "⚙️", label: "Einstellungen" },
 ];
 
-type LoginEntry = { ts: number; ip: string; device: string; success: boolean };
+type LoginEntry = { ts: number; ip: string; device: string; success: boolean; city?: string; country?: string };
 
 function formatTs(ts: number): string {
   return new Date(ts).toLocaleString("de-AT", {
@@ -107,7 +107,10 @@ function LoginLogModal({ onClose }: { onClose: () => void }) {
                     </div>
                     <div style={{ fontSize: "0.75rem", color: "var(--muted)", display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                       <span>🕐 {formatTs(e.ts)}</span>
-                      <span>🌐 {e.ip}</span>
+                      {(e.city || e.country) && (
+                        <span>📍 {[e.city, e.country].filter(Boolean).join(", ")}</span>
+                      )}
+                      <span style={{ opacity: 0.6 }}>{e.ip}</span>
                     </div>
                   </div>
                   <div style={{
