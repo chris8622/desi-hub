@@ -93,43 +93,40 @@ function ProgressRing({ pct, size = 72, stroke = 6, color = "var(--accent)" }: {
 
 function BoardCardEl({ card, onDelete }: { card: BoardCard; onDelete: () => void }) {
   const [hovered, setHovered] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const colSpan = card.size === "lg" ? 2 : 1;
 
-  const baseStyle: React.CSSProperties = {
-    gridColumn: `span ${colSpan}`,
-    borderRadius: "var(--radius-sm)",
-    overflow: "hidden",
-    position: "relative",
-    cursor: "default",
-    minHeight: 160,
-  };
-
-  return (
-    <div style={baseStyle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}>
-
-      {/* Delete button */}
-      {hovered && (
-        <button onClick={onDelete} style={{
-          position: "absolute", top: 8, right: 8, zIndex: 10,
-          width: 28, height: 28, borderRadius: "50%",
-          background: "rgba(0,0,0,0.55)", color: "#fff",
-          border: "none", cursor: "pointer", fontSize: "0.9rem",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          backdropFilter: "blur(4px)",
-        }}>×</button>
-      )}
-
-      {card.type === "image" && (
-        <div style={{
-          width: "100%", height: "100%", minHeight: 180,
-          backgroundImage: `url(${card.content})`,
-          backgroundSize: "cover", backgroundPosition: "center",
-        }} />
-      )}
-
-      {card.type === "quote" && (
+  function renderContent() {
+    if (card.type === "image") {
+      if (imgError) {
+        return (
+          <div style={{
+            width: "100%", height: "100%", minHeight: 180,
+            background: "var(--surface2)", border: "1px dashed var(--border)",
+            display: "flex", flexDirection: "column", alignItems: "center",
+            justifyContent: "center", gap: "0.4rem",
+          }}>
+            <span style={{ fontSize: "1.5rem" }}>🖼️</span>
+            <span style={{ fontSize: "0.72rem", color: "var(--muted)", textAlign: "center", padding: "0 0.5rem" }}>
+              Bild konnte nicht geladen werden
+            </span>
+          </div>
+        );
+      }
+      return (
+        <>
+          <img src={card.content} alt="" style={{ display: "none" }}
+            onError={() => setImgError(true)} onLoad={() => setImgError(false)} />
+          <div style={{
+            width: "100%", height: "100%", minHeight: 180,
+            backgroundImage: `url(${card.content})`,
+            backgroundSize: "cover", backgroundPosition: "center",
+          }} />
+        </>
+      );
+    }
+    if (card.type === "quote") {
+      return (
         <div style={{
           width: "100%", height: "100%", minHeight: 160,
           background: card.color || "#f9f0e8",
@@ -146,26 +143,50 @@ function BoardCardEl({ card, onDelete }: { card: BoardCard; onDelete: () => void
             &ldquo;{card.content}&rdquo;
           </p>
         </div>
-      )}
-
-      {card.type === "word" && (
-        <div style={{
-          width: "100%", height: "100%", minHeight: 140,
-          background: card.color || "#2d2d2d",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          padding: "1rem",
+      );
+    }
+    return (
+      <div style={{
+        width: "100%", height: "100%", minHeight: 140,
+        background: card.color || "#2d2d2d",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "1rem",
+      }}>
+        <span style={{
+          color: card.textColor || "#f0ebe3",
+          fontSize: card.size === "lg" ? "2.2rem" : "1.6rem",
+          fontWeight: 800, textAlign: "center", lineHeight: 1.2,
+          letterSpacing: "-0.02em",
+          fontFamily: "'DM Serif Display', serif",
         }}>
-          <span style={{
-            color: card.textColor || "#f0ebe3",
-            fontSize: card.size === "lg" ? "2.2rem" : "1.6rem",
-            fontWeight: 800, textAlign: "center", lineHeight: 1.2,
-            letterSpacing: "-0.02em",
-            fontFamily: "'DM Serif Display', serif",
-          }}>
-            {card.content}
-          </span>
-        </div>
+          {card.content}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      gridColumn: `span ${colSpan}`,
+      borderRadius: "var(--radius-sm)",
+      overflow: "hidden",
+      position: "relative",
+      cursor: "default",
+      minHeight: 160,
+    }}
+    onMouseEnter={() => setHovered(true)}
+    onMouseLeave={() => setHovered(false)}>
+      {hovered && (
+        <button onClick={onDelete} style={{
+          position: "absolute", top: 8, right: 8, zIndex: 10,
+          width: 28, height: 28, borderRadius: "50%",
+          background: "rgba(0,0,0,0.55)", color: "#fff",
+          border: "none", cursor: "pointer", fontSize: "0.9rem",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          backdropFilter: "blur(4px)",
+        }}>×</button>
       )}
+      {renderContent()}
     </div>
   );
 }
