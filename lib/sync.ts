@@ -16,6 +16,10 @@ export const SYNC_KEYS = [
   "dh_pinterest_board",
   "dh_hashtag_sets",
   "dh_caption_bank",
+  "dh_vision",
+  "dh_goals",
+  "dh_checkins",
+  "dh_vision_board",
 ];
 
 function getAuthToken(): string {

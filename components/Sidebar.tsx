@@ -13,6 +13,7 @@ const NAV = [
   { href: "/repurpose",  icon: "♻️",  label: "Repurpose"    },
   { href: "/hashtags",   icon: "#️⃣",  label: "Hashtags"     },
   { href: "/captions",   icon: "✨",  label: "Caption-Bank" },
+  { href: "/vision",     icon: "🌟", label: "Mein Northstar"},
   { href: "/planner",    icon: "📅", label: "Planer"        },
   { href: "/email",      icon: "📧", label: "E-Mail"        },
   { href: "/analytics",  icon: "📊", label: "Analytics"     },

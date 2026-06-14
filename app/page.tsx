@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import LoginGate from "@/components/LoginGate";
 import { getLS } from "@/lib/storage";
+import { DAILY_TIPS } from "@/lib/tips";
 
 type PlannerItem = { id: string; date: string; channel: string; title: string; status: string };
 type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
@@ -28,6 +29,8 @@ export default function DashboardPage() {
   const [missingGroqKey, setMissingGroqKey] = useState(false);
   const [earlyTrends, setEarlyTrends] = useState<Trend[]>([]);
   const [trendsDate, setTrendsDate] = useState("");
+  const [myWhy, setMyWhy] = useState("");
+  const [checkinDue, setCheckinDue] = useState(false);
 
   useEffect(() => {
     setPlanner(getLS<PlannerItem[]>("dh_planner", []));
@@ -48,6 +51,17 @@ export default function DashboardPage() {
     // Check if Groq key is set
     const groqKey = getLS<{ groq_key?: string }>("dh_settings", {}).groq_key;
     setMissingGroqKey(!groqKey);
+
+    // Northstar
+    const vision = getLS<{ my_why?: string }>("dh_vision", {});
+    setMyWhy(vision.my_why || "");
+    const checkins = getLS<{ date: string }[]>("dh_checkins", []);
+    if (checkins.length > 0) {
+      const daysSince = Math.floor((Date.now() - new Date(checkins[0].date).getTime()) / 86400000);
+      setCheckinDue(daysSince >= 7);
+    } else {
+      setCheckinDue(true);
+    }
 
     // Letzte Trends laden — "früh dran" hervorheben
     const trends = getLS<TrendsLatest | null>("dh_trends_latest", null);
@@ -166,6 +180,76 @@ export default function DashboardPage() {
             </Link>
           ))}
         </div>
+      </div>
+
+      {/* Northstar cards */}
+      <div className="grid-2" style={{ marginBottom: "2rem", gap: "1rem" }}>
+        {/* Daily Tip */}
+        {(() => {
+          const tip = DAILY_TIPS[new Date().getDate() % DAILY_TIPS.length];
+          return (
+            <Link href="/vision" style={{ textDecoration: "none" }}>
+              <div className="card" style={{
+                padding: "1.1rem 1.25rem", height: "100%", cursor: "pointer",
+                background: "var(--accent-light)", border: "1px solid rgba(196,112,74,0.2)",
+                transition: "box-shadow 0.15s",
+              }}
+              onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)"}
+              onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow)"}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                  <span style={{ fontSize: "1.1rem" }}>{tip.icon}</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.82rem", color: "var(--accent2)" }}>Tipp des Tages</span>
+                  <span className="badge badge-terra" style={{ fontSize: "0.65rem", marginLeft: "auto" }}>{tip.cat}</span>
+                </div>
+                <p style={{ fontSize: "0.82rem", lineHeight: 1.6, color: "var(--text)", margin: 0 }}>
+                  {tip.tip}
+                </p>
+              </div>
+            </Link>
+          );
+        })()}
+
+        {/* Mein Warum / Check-in reminder */}
+        <Link href="/vision" style={{ textDecoration: "none" }}>
+          <div className="card" style={{
+            padding: "1.1rem 1.25rem", height: "100%", cursor: "pointer",
+            transition: "box-shadow 0.15s",
+            border: checkinDue ? "1px solid rgba(184,148,80,0.4)" : "1px solid var(--border)",
+            background: checkinDue ? "var(--gold-light)" : "var(--surface)",
+          }}
+          onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)"}
+          onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow)"}>
+            {myWhy ? (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                  <span style={{ fontSize: "1.1rem" }}>💜</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.82rem", color: "var(--accent2)" }}>Mein Warum</span>
+                </div>
+                <p style={{ fontSize: "0.82rem", lineHeight: 1.6, color: "var(--text)", margin: 0, fontStyle: "italic" }}>
+                  &ldquo;{myWhy.length > 140 ? myWhy.slice(0, 140) + "…" : myWhy}&rdquo;
+                </p>
+                {checkinDue && (
+                  <div style={{ marginTop: "0.65rem", fontSize: "0.75rem", color: "var(--gold)", fontWeight: 600 }}>
+                    📓 Dein wöchentliches Check-in wartet →
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                  <span style={{ fontSize: "1.1rem" }}>🌟</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.82rem", color: "var(--accent2)" }}>Mein Northstar</span>
+                </div>
+                <p style={{ fontSize: "0.82rem", lineHeight: 1.6, color: "var(--muted)", margin: "0 0 0.65rem" }}>
+                  Definiere dein Warum, deine Ziele und deinen Weg. Das gibt dir Klarheit an langen Tagen.
+                </p>
+                <span style={{ fontSize: "0.78rem", color: "var(--accent)", fontWeight: 600 }}>
+                  Jetzt ausfüllen →
+                </span>
+              </>
+            )}
+          </div>
+        </Link>
       </div>
 
       {/* Trend-Highlight */}
