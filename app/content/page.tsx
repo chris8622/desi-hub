@@ -419,6 +419,21 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     setSavedPins(getLS<SavedPin[]>("dh_pins", []));
   }, []);
 
+  function getBrandVoice() {
+    return getLS<Record<string, unknown>>("dh_settings", {});
+  }
+
+  function saveToCaptionBank(text: string, hashtags: string[]) {
+    type Cap = { id: string; text: string; hashtags: string[]; channel: string; notes: string; savedAt: string };
+    const existing = getLS<Cap[]>("dh_caption_bank", []);
+    const entry: Cap = {
+      id: Math.random().toString(36).slice(2, 9),
+      text, hashtags, channel: "Instagram", notes: "", savedAt: new Date().toISOString(),
+    };
+    setLS("dh_caption_bank", [entry, ...existing]);
+    scheduleSyncUp(2000);
+  }
+
   const saveHandle = (val: string) => {
     setIgHandle(val);
     localStorage.setItem("dh_instagram_handle", val);
@@ -455,6 +470,8 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
   const [pinterestBoardId, setPinterestBoardId] = useState(() => getLS<string>("dh_pinterest_board", ""));
   const [showBoardPicker, setShowBoardPicker]   = useState(false);
 
+  const [captionSavedToBank, setCaptionSavedToBank] = useState(false);
+
   // Schedule state — Carousel
   const [showCarouselScheduler, setShowCarouselScheduler] = useState(false);
   const [carouselScheduleDate, setCarouselScheduleDate] = useState(() => new Date().toISOString().split("T")[0]);
@@ -484,7 +501,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ type: "carousel", topic, context: researchContext || undefined, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
+        body: JSON.stringify({ type: "carousel", topic, context: researchContext || undefined, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "", brandVoice: getBrandVoice() }),
       });
       const data = await res.json();
       trackTokens(data._tokens || 0);
@@ -1468,9 +1485,21 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
                 <div className="card" style={{ padding: "1.25rem" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.5rem" }}>
                     <div className="section-label" style={{ marginBottom: 0 }}>Caption & Hashtags</div>
-                    <button className="btn btn-secondary btn-sm" onClick={copyCaptionHashtags}>
-                      {captionCopied ? "✓ Kopiert!" : "📋 Caption & Hashtags kopieren"}
-                    </button>
+                    <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                      <button className="btn btn-secondary btn-sm" onClick={copyCaptionHashtags}>
+                        {captionCopied ? "✓ Kopiert!" : "📋 Caption kopieren"}
+                      </button>
+                      <button className="btn btn-ghost btn-sm"
+                        style={{ color: captionSavedToBank ? "var(--sage)" : undefined }}
+                        onClick={() => {
+                          if (!carousel) return;
+                          saveToCaptionBank(carousel.caption, carousel.hashtags);
+                          setCaptionSavedToBank(true);
+                          setTimeout(() => setCaptionSavedToBank(false), 3000);
+                        }}>
+                        {captionSavedToBank ? "✓ Gespeichert" : "✨ In Caption-Bank"}
+                      </button>
+                    </div>
                   </div>
                   <p style={{ fontSize: "0.9rem", lineHeight: 1.7, marginBottom: "0.85rem", whiteSpace: "pre-wrap" }}>
                     {carousel.caption}

@@ -13,6 +13,8 @@ const DEFAULT_SETTINGS = {
   topics: ["Mindset", "Hormongesundheit", "Hautpflege", "Morgenroutine", "Selbstdisziplin", "Minimalismus"],
   voice: "warm-inspirierend",
   audience: "Frauen 25–40 die an sich arbeiten möchten",
+  brand_keywords: "",
+  brand_avoid: "",
   freq_instagram: 4,
   freq_pinterest: 2,
   freq_blog: 1,
@@ -354,6 +356,28 @@ export default function SettingsPage() {
               <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginTop: "0.2rem" }}>{opt.desc}</div>
             </button>
           ))}
+        </div>
+        <div className="grid-2" style={{ gap: "1rem", marginTop: "1.25rem" }}>
+          <div>
+            <label className="label">✨ Lieblingsworte & Phrasen</label>
+            <textarea className="input" rows={3}
+              value={(s as typeof s & { brand_keywords?: string }).brand_keywords || ""}
+              onChange={e => setS(p => ({ ...p, brand_keywords: e.target.value }))}
+              placeholder="z.B. verwurzelt, authentisch, wissenschaftlich belegt, mit Leichtigkeit…"
+              style={{ resize: "vertical", fontFamily: "inherit" }}
+            />
+            <p style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.3rem" }}>Die KI verwendet diese Worte bevorzugt.</p>
+          </div>
+          <div>
+            <label className="label">🚫 Tabu-Wörter</label>
+            <textarea className="input" rows={3}
+              value={(s as typeof s & { brand_avoid?: string }).brand_avoid || ""}
+              onChange={e => setS(p => ({ ...p, brand_avoid: e.target.value }))}
+              placeholder="z.B. toxic positivity, perfekt, du musst, solltest…"
+              style={{ resize: "vertical", fontFamily: "inherit" }}
+            />
+            <p style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.3rem" }}>Diese Wörter vermeidet die KI.</p>
+          </div>
         </div>
       </div>
 
