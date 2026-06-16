@@ -129,18 +129,33 @@ export default function DashboardPage() {
       {/* Stats row */}
       <div className="grid-4" style={{ marginBottom: "2rem" }}>
         {[
-          { label: "Diese Woche geplant", value: thisWeek, icon: "📅", color: "var(--accent)" },
-          { label: "Drafts", value: drafts.length, icon: "✍️", color: "var(--sage)" },
-          { label: "Subscriber", value: subscribers.length, icon: "📧", color: "var(--gold)" },
-          { label: "Letzte Research", value: lastResearch, icon: "🔍", color: "var(--muted)" },
+          { label: "Diese Woche geplant", value: thisWeek,         icon: "📅", color: "var(--accent)",   href: "/planner"  },
+          { label: "Drafts",              value: drafts.length,    icon: "✍️", color: "var(--sage)",     href: "/editor"   },
+          { label: "Subscriber",          value: subscribers.length, icon: "📧", color: "var(--gold)",  href: "/email"    },
+          { label: "Letzte Research",     value: lastResearch,     icon: "🔍", color: "var(--muted)",   href: "/research" },
         ].map(stat => (
-          <div key={stat.label} className="card" style={{ padding: "1.25rem" }}>
-            <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{stat.icon}</div>
-            <div style={{ fontSize: "1.6rem", fontWeight: 700, color: stat.color, lineHeight: 1 }}>
-              {stat.value}
+          <Link key={stat.label} href={stat.href} style={{ textDecoration: "none" }}>
+            <div className="card" style={{
+              padding: "1.25rem", cursor: "pointer",
+              transition: "box-shadow 0.15s, transform 0.15s",
+            }}
+            onPointerEnter={e => {
+              (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)";
+              (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+            }}
+            onPointerLeave={e => {
+              (e.currentTarget as HTMLElement).style.boxShadow = "";
+              (e.currentTarget as HTMLElement).style.transform = "";
+            }}
+            onPointerDown={e => (e.currentTarget as HTMLElement).style.transform = "scale(0.98)"}
+            onPointerUp={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"}>
+              <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>{stat.icon}</div>
+              <div style={{ fontSize: "1.6rem", fontWeight: 700, color: stat.color, lineHeight: 1 }}>
+                {stat.value}
+              </div>
+              <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "0.25rem" }}>{stat.label}</div>
             </div>
-            <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "0.25rem" }}>{stat.label}</div>
-          </div>
+          </Link>
         ))}
       </div>
 
@@ -156,14 +171,16 @@ export default function DashboardPage() {
                 transition: "box-shadow 0.15s, transform 0.15s",
                 display: "flex", alignItems: "flex-start", gap: "1rem",
               }}
-              onMouseOver={e => {
+              onPointerEnter={e => {
                 (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)";
                 (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
               }}
-              onMouseOut={e => {
+              onPointerLeave={e => {
                 (e.currentTarget as HTMLElement).style.boxShadow = "";
                 (e.currentTarget as HTMLElement).style.transform = "";
               }}
+              onPointerDown={e => (e.currentTarget as HTMLElement).style.transform = "scale(0.98)"}
+              onPointerUp={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"}
               >
                 <div style={{
                   width: 44, height: 44, borderRadius: "var(--radius-sm)",
@@ -188,51 +205,70 @@ export default function DashboardPage() {
         {(() => {
           const tip = DAILY_TIPS[new Date().getDate() % DAILY_TIPS.length];
           return (
-            <Link href="/vision" style={{ textDecoration: "none" }}>
+            <Link href="/vision" style={{ textDecoration: "none", display: "flex" }}>
               <div className="card" style={{
-                padding: "1.1rem 1.25rem", height: "100%", cursor: "pointer",
+                padding: "1.1rem 1.25rem", flex: 1, cursor: "pointer",
                 background: "var(--accent-light)", border: "1px solid rgba(196,112,74,0.2)",
-                transition: "box-shadow 0.15s",
+                transition: "box-shadow 0.15s, transform 0.15s",
+                display: "flex", flexDirection: "column",
               }}
-              onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)"}
-              onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow)"}>
+              onPointerEnter={e => {
+                (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)";
+                (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+              }}
+              onPointerLeave={e => {
+                (e.currentTarget as HTMLElement).style.boxShadow = "";
+                (e.currentTarget as HTMLElement).style.transform = "";
+              }}
+              onPointerDown={e => (e.currentTarget as HTMLElement).style.transform = "scale(0.985)"}
+              onPointerUp={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"}>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
                   <span style={{ fontSize: "1.1rem" }}>{tip.icon}</span>
                   <span style={{ fontWeight: 700, fontSize: "0.82rem", color: "var(--accent2)" }}>Tipp des Tages</span>
                   <span className="badge badge-terra" style={{ fontSize: "0.65rem", marginLeft: "auto" }}>{tip.cat}</span>
                 </div>
-                <p style={{ fontSize: "0.82rem", lineHeight: 1.6, color: "var(--text)", margin: 0 }}>
+                <p style={{ fontSize: "0.82rem", lineHeight: 1.6, color: "var(--text)", margin: "0 0 0.65rem", flex: 1 }}>
                   {tip.tip}
                 </p>
+                <div style={{ fontSize: "0.75rem", color: "var(--accent2)", fontWeight: 600 }}>
+                  Zum Northstar →
+                </div>
               </div>
             </Link>
           );
         })()}
 
         {/* Mein Warum / Check-in reminder */}
-        <Link href="/vision" style={{ textDecoration: "none" }}>
+        <Link href="/vision" style={{ textDecoration: "none", display: "flex" }}>
           <div className="card" style={{
-            padding: "1.1rem 1.25rem", height: "100%", cursor: "pointer",
-            transition: "box-shadow 0.15s",
+            padding: "1.1rem 1.25rem", flex: 1, cursor: "pointer",
+            transition: "box-shadow 0.15s, transform 0.15s",
             border: checkinDue ? "1px solid rgba(184,148,80,0.4)" : "1px solid var(--border)",
             background: checkinDue ? "var(--gold-light)" : "var(--surface)",
+            display: "flex", flexDirection: "column",
           }}
-          onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)"}
-          onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow)"}>
+          onPointerEnter={e => {
+            (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)";
+            (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+          }}
+          onPointerLeave={e => {
+            (e.currentTarget as HTMLElement).style.boxShadow = "";
+            (e.currentTarget as HTMLElement).style.transform = "";
+          }}
+          onPointerDown={e => (e.currentTarget as HTMLElement).style.transform = "scale(0.985)"}
+          onPointerUp={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"}>
             {myWhy ? (
               <>
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
                   <span style={{ fontSize: "1.1rem" }}>💜</span>
                   <span style={{ fontWeight: 700, fontSize: "0.82rem", color: "var(--accent2)" }}>Mein Warum</span>
                 </div>
-                <p style={{ fontSize: "0.82rem", lineHeight: 1.6, color: "var(--text)", margin: 0, fontStyle: "italic" }}>
+                <p style={{ fontSize: "0.82rem", lineHeight: 1.6, color: "var(--text)", margin: "0 0 0.65rem", flex: 1, fontStyle: "italic" }}>
                   &ldquo;{myWhy.length > 140 ? myWhy.slice(0, 140) + "…" : myWhy}&rdquo;
                 </p>
-                {checkinDue && (
-                  <div style={{ marginTop: "0.65rem", fontSize: "0.75rem", color: "var(--gold)", fontWeight: 600 }}>
-                    📓 Dein wöchentliches Check-in wartet →
-                  </div>
-                )}
+                <div style={{ fontSize: "0.75rem", color: checkinDue ? "var(--gold)" : "var(--accent2)", fontWeight: 600 }}>
+                  {checkinDue ? "📓 Check-in ausfüllen →" : "Zum Northstar →"}
+                </div>
               </>
             ) : (
               <>
@@ -240,12 +276,12 @@ export default function DashboardPage() {
                   <span style={{ fontSize: "1.1rem" }}>🌟</span>
                   <span style={{ fontWeight: 700, fontSize: "0.82rem", color: "var(--accent2)" }}>Mein Northstar</span>
                 </div>
-                <p style={{ fontSize: "0.82rem", lineHeight: 1.6, color: "var(--muted)", margin: "0 0 0.65rem" }}>
+                <p style={{ fontSize: "0.82rem", lineHeight: 1.6, color: "var(--muted)", margin: "0 0 0.65rem", flex: 1 }}>
                   Definiere dein Warum, deine Ziele und deinen Weg. Das gibt dir Klarheit an langen Tagen.
                 </p>
-                <span style={{ fontSize: "0.78rem", color: "var(--accent)", fontWeight: 600 }}>
+                <div style={{ fontSize: "0.75rem", color: "var(--accent)", fontWeight: 600 }}>
                   Jetzt ausfüllen →
-                </span>
+                </div>
               </>
             )}
           </div>
@@ -264,9 +300,17 @@ export default function DashboardPage() {
           <div className="grid-3">
             {earlyTrends.map((t, i) => (
               <Link key={i} href="/trends" style={{ textDecoration: "none" }}>
-                <div className="card" style={{ padding: "1rem 1.1rem", height: "100%", borderLeft: "3px solid var(--accent)", transition: "box-shadow 0.15s" }}
-                  onMouseOver={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)"}
-                  onMouseOut={e => (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow)"}>
+                <div className="card" style={{ padding: "1rem 1.1rem", height: "100%", borderLeft: "3px solid var(--accent)", transition: "box-shadow 0.15s, transform 0.15s", cursor: "pointer" }}
+                  onPointerEnter={e => {
+                    (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)";
+                    (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+                  }}
+                  onPointerLeave={e => {
+                    (e.currentTarget as HTMLElement).style.boxShadow = "";
+                    (e.currentTarget as HTMLElement).style.transform = "";
+                  }}
+                  onPointerDown={e => (e.currentTarget as HTMLElement).style.transform = "scale(0.985)"}
+                  onPointerUp={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)"}>
                   <div style={{ fontSize: "0.7rem", fontWeight: 700, color: t.europe_status === "frueh_dran" ? "var(--accent2)" : "var(--gold)", marginBottom: "0.3rem" }}>
                     {t.europe_status === "frueh_dran" ? "🚀 Früh dran" : t.europe_status === "kommt_bald" ? "⏳ Kommt bald" : "✅ Aktuell"}
                     {t.origin ? ` · ${t.origin}` : ""}
