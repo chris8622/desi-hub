@@ -224,15 +224,20 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
         onClick={() => setSidebarOpen(false)}
       />
       <Sidebar onLogout={handleLogout} open={sidebarOpen} />
-      <main className="main-content">
-        <button
-          className="hamburger"
-          onClick={() => setSidebarOpen(true)}
-          aria-label="Menü öffnen"
-          style={{ position: 'fixed', top: '1rem', left: '1rem', zIndex: 60, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.7rem', boxShadow: 'var(--shadow)' }}
-        >
-          ☰
-        </button>
+      <div className="main-wrapper">
+        {/* Mobile sticky header */}
+        <div className="mobile-topbar">
+          <button
+            className="hamburger"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Menü öffnen"
+          >
+            ☰
+          </button>
+          <span className="mobile-topbar-logo">Desi Hub</span>
+          <div style={{ width: 40 }} />
+        </div>
+        <main className="main-content">
         {children}
         <footer style={{ marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
           {/* Sync-Status */}
@@ -270,7 +275,8 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
             </a>
           </p>
         </footer>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
