@@ -29,7 +29,19 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle"|"syncing"|"synced"|"local">("idle");
   const [kvAvailable, setKvAvailable] = useState(false);
+  const [conflictNote, setConflictNote] = useState(false);
   const activityThrottle = useRef(0);
+
+  // Nach einem Sync-Konflikt (Reload durch lib/sync) einmalig einen Hinweis zeigen
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("desi_sync_conflict") === "1") {
+        sessionStorage.removeItem("desi_sync_conflict");
+        setConflictNote(true);
+        setTimeout(() => setConflictNote(false), 6000);
+      }
+    } catch {}
+  }, []);
 
   // Aktivität tracken — refresht die Session (gedrosselt auf 1× pro Minute)
   const onActivity = useCallback(() => {
@@ -61,6 +73,20 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   }, [authed]);
 
   useEffect(() => {
+    // Migration: früher im Browser gespeicherte API-Keys entfernen —
+    // KI läuft jetzt ausschließlich serverseitig (Sicherheit).
+    try {
+      const raw = localStorage.getItem("dh_settings");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && (("groq_key" in parsed) || ("perplexity_key" in parsed))) {
+          delete parsed.groq_key;
+          delete parsed.perplexity_key;
+          localStorage.setItem("dh_settings", JSON.stringify(parsed));
+        }
+      }
+    } catch {}
+
     try {
       const val = typeof window !== "undefined" ? localStorage.getItem("desi_auth") : null;
       if (val === "1") {
@@ -219,6 +245,18 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-layout">
+      {conflictNote && (
+        <div style={{
+          position: "fixed", top: "1rem", left: "50%", transform: "translateX(-50%)",
+          zIndex: 300, background: "var(--surface)", border: "1px solid var(--border)",
+          borderLeft: "3px solid var(--gold)", borderRadius: "var(--radius-sm)",
+          boxShadow: "var(--shadow-md)", padding: "0.75rem 1.1rem", maxWidth: 420,
+          fontSize: "0.82rem", color: "var(--text)", display: "flex", alignItems: "center", gap: "0.6rem",
+        }}>
+          <span style={{ fontSize: "1.1rem" }}>🔄</span>
+          Daten wurden von einem anderen Gerät aktualisiert und neu geladen.
+        </div>
+      )}
       <div
         className={sidebarOpen ? "sidebar-overlay visible" : "sidebar-overlay"}
         onClick={() => setSidebarOpen(false)}

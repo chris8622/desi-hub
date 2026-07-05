@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/server-auth";
+import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 
 export const maxDuration = 60;
 
@@ -43,12 +44,17 @@ export async function POST(req: Request) {
   const authError = requireAuth(req);
   if (authError) return authError;
 
+  const rl = await checkRateLimit(aiLimiter, getClientIp(req));
+  if (!rl.ok) {
+    return tooManyRequests(rl.retryAfterSec, "Zu viele KI-Anfragen in kurzer Zeit. Bitte warte einen Moment und versuche es erneut.");
+  }
+
   const body = await req.json();
   const niche   = (body.niche as string) || "Wellness, Gesundheit, Selbstoptimierung";
-  const groqKey = (body.groqKey as string | undefined) || process.env.GROQ_API_KEY || "";
+  const groqKey = process.env.GROQ_API_KEY || "";
   const serperKey = process.env.SERPER_API_KEY || "";
 
-  if (!groqKey) return new Response(JSON.stringify({ error: "Kein Groq API Key" }), { status: 400 });
+  if (!groqKey) return new Response(JSON.stringify({ error: "KI ist serverseitig nicht konfiguriert." }), { status: 503 });
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({

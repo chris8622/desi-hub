@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/server-auth";
+import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 
 export const maxDuration = 60;
 
@@ -27,14 +28,18 @@ export async function POST(req: Request) {
   const authError = requireAuth(req);
   if (authError) return authError;
 
-  const { settings, weekStart, groqKey } = await req.json() as {
+  const rl = await checkRateLimit(aiLimiter, getClientIp(req));
+  if (!rl.ok) {
+    return tooManyRequests(rl.retryAfterSec, "Zu viele KI-Anfragen in kurzer Zeit. Bitte warte einen Moment und versuche es erneut.");
+  }
+
+  const { settings, weekStart } = await req.json() as {
     settings: Settings;
     weekStart: string; // "YYYY-MM-DD" of Monday
-    groqKey?: string;
   };
 
-  const apiKey = groqKey || process.env.GROQ_API_KEY;
-  if (!apiKey) return Response.json({ error: "Kein Groq API Key" }, { status: 400 });
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return Response.json({ error: "KI ist serverseitig nicht konfiguriert." }, { status: 503 });
 
   // Wochentage berechnen (Mo–So) — lokale Datumsberechnung ohne Timezone-Shift
   const [y, m, d] = weekStart.split("-").map(Number);

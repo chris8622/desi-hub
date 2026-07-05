@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/server-auth";
+import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 
 export const maxDuration = 60;
 
@@ -143,14 +144,19 @@ export async function POST(req: Request) {
   const authError = requireAuth(req);
   if (authError) return authError;
 
-  const { type, topic, context, groqKey: clientKey, brandVoice } = await req.json() as {
+  const rl = await checkRateLimit(aiLimiter, getClientIp(req));
+  if (!rl.ok) {
+    return tooManyRequests(rl.retryAfterSec, "Zu viele KI-Anfragen in kurzer Zeit. Bitte warte einen Moment und versuche es erneut.");
+  }
+
+  const { type, topic, context, brandVoice } = await req.json() as {
     type: string; topic: string; context?: string;
-    groqKey?: string; brandVoice?: BrandVoice;
+    brandVoice?: BrandVoice;
   };
-  const groqKey = clientKey || process.env.GROQ_API_KEY || "";
+  const groqKey = process.env.GROQ_API_KEY || "";
 
   if (!groqKey) {
-    return Response.json({ error: "Kein Groq API Key — bitte in den Einstellungen eintragen." }, { status: 400 });
+    return Response.json({ error: "KI ist serverseitig nicht konfiguriert. Bitte wende dich an den Betreiber." }, { status: 503 });
   }
 
   const promptFn = PROMPTS[type];

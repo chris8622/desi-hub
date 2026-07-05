@@ -20,8 +20,6 @@ const DEFAULT_SETTINGS = {
   freq_blog: 1,
   freq_newsletter: 1,
   auto_plan: true,
-  groq_key: "",
-  perplexity_key: "",
   trusted_sources: [
     "pubmed.ncbi.nlm.nih.gov",
     "who.int",
@@ -90,41 +88,6 @@ const SOURCE_CATEGORIES = [
 const SUGGESTED_TRUSTED = SOURCE_CATEGORIES.flatMap(c => c.sources);
 
 type Settings = typeof DEFAULT_SETTINGS & { trusted_sources: string[] };
-
-// ─── Groq Key Tester ────────────────────────────────────
-function TestKeyButton({ groqKey }: { groqKey: string }) {
-  const [state, setState] = useState<"idle"|"loading"|"ok"|"error">("idle");
-  const [msg, setMsg] = useState("");
-
-  async function test() {
-    if (!groqKey) { setMsg("Bitte zuerst einen Key eintragen."); setState("error"); return; }
-    setState("loading");
-    try {
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{ role: "user", content: "Antworte nur: OK" }], max_tokens: 5 }),
-      });
-      const d = await res.json();
-      if (res.ok) { setState("ok"); setMsg("✓ Key funktioniert!"); }
-      else { setState("error"); setMsg(d?.error?.message || `Fehler ${res.status}`); }
-    } catch (e) { setState("error"); setMsg((e as Error).message); }
-    setTimeout(() => { setState("idle"); setMsg(""); }, 5000);
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", flexShrink: 0 }}>
-      <button onClick={test} disabled={state === "loading"}
-        style={{ background: state==="ok" ? "var(--sage)" : state==="error" ? "var(--warm-red)" : "var(--surface2)",
-          border: "1px solid var(--border)", color: state==="ok"||state==="error" ? "white" : "var(--text)",
-          borderRadius: "var(--radius-sm)", padding: "0 1rem", height: 42, fontSize: "0.82rem",
-          fontWeight: 600, cursor: state==="loading" ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}>
-        {state === "loading" ? "⏳ Test…" : "Key testen"}
-      </button>
-      {msg && <span style={{ fontSize: "0.7rem", color: state==="ok" ? "var(--sage)" : "var(--warm-red)", maxWidth: 120 }}>{msg}</span>}
-    </div>
-  );
-}
 
 // ─── Pinterest Connect Card ──────────────────────────────
 function PinterestCard() {
@@ -590,45 +553,16 @@ export default function SettingsPage() {
       {/* Pinterest Verbindung */}
       <PinterestCard />
 
-      {/* API Keys */}
+      {/* KI-Status */}
       <div className="card" style={{ marginBottom: "1.25rem" }}>
-        <h3 style={{ marginBottom: "0.4rem" }}>🔑 API Keys</h3>
-        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1.25rem" }}>
-          Nur in deinem Browser gespeichert — wird für KI-Funktionen benötigt.
-        </p>
-        <label className="label">Groq API Key (kostenlos)</label>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <input className="input" type="password" value={s.groq_key}
-            onChange={e => setS(p => ({ ...p, groq_key: e.target.value }))}
-            placeholder="gsk_..." style={{ flex: 1, minWidth: 200 }} />
-          <TestKeyButton groqKey={s.groq_key} />
+        <h3 style={{ marginBottom: "0.4rem" }}>🔑 KI &amp; API-Zugänge</h3>
+        <div className="alert alert-success" style={{ fontSize: "0.82rem" }}>
+          ✓ KI ist serverseitig konfiguriert — alle KI-Funktionen sind sofort einsatzbereit.
         </div>
-        <p style={{ fontSize: "0.73rem", color: "var(--muted)", marginTop: "0.35rem" }}>
-          Kostenlos holen unter{" "}
-          <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>console.groq.com</a>
-          {" "}→ API Keys → Create API Key
+        <p style={{ fontSize: "0.73rem", color: "var(--muted)", marginTop: "0.65rem" }}>
+          Die Schlüssel für Text-KI und Web-Recherche liegen sicher auf dem Server und
+          werden nicht mehr im Browser gespeichert. Du musst nichts eintragen.
         </p>
-        {s.groq_key && (
-          <div className="alert alert-success" style={{ marginTop: "0.65rem", fontSize: "0.8rem" }}>
-            ✓ API Key gesetzt — KI-Funktionen aktiv
-          </div>
-        )}
-
-        {/* Perplexity (optional, Premium-Research) */}
-        <label className="label" style={{ marginTop: "1.25rem" }}>Perplexity API Key (optional, Premium-Research)</label>
-        <input className="input" type="password" value={s.perplexity_key || ""}
-          onChange={e => setS(p => ({ ...p, perplexity_key: e.target.value }))}
-          placeholder="pplx-..." />
-        <p style={{ fontSize: "0.73rem", color: "var(--muted)", marginTop: "0.35rem" }}>
-          Für noch bessere Research mit Echtzeit-Web &amp; echten Quellen (kostenpflichtig, ~0,5–1 Cent/Anfrage). Holen unter{" "}
-          <a href="https://www.perplexity.ai/settings/api" target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>perplexity.ai/settings/api</a>.
-          In der Research dann „🔮 Perplexity" wählen.
-        </p>
-        {s.perplexity_key && (
-          <div className="alert alert-success" style={{ marginTop: "0.65rem", fontSize: "0.8rem" }}>
-            ✓ Perplexity verfügbar — wähle es in der Research als Engine
-          </div>
-        )}
       </div>
 
       {/* Cross-Device Sync */}

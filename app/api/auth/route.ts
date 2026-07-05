@@ -1,3 +1,5 @@
+import { authLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
+
 export const maxDuration = 10;
 
 const LOG_KEY = "desi_login_log";
@@ -50,37 +52,40 @@ function parseDevice(ua: string): string {
   return "🌐 Unbekannt";
 }
 
-async function geoLookup(ip: string): Promise<{ city?: string; country?: string }> {
-  if (!ip || ip === "?" || ip === "::1" || ip.startsWith("127.") || ip.startsWith("192.168.") || ip.startsWith("10.")) {
-    return { city: "Lokal", country: "" };
-  }
-  try {
-    const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
-      headers: { "User-Agent": "desi-hub/1.0" },
-      signal: AbortSignal.timeout(3000),
-    });
-    if (!res.ok) return {};
-    const data = await res.json() as { city?: string; country_name?: string; country_code?: string; error?: boolean };
-    if (data.error) return {};
-    return { city: data.city || "", country: data.country_code || data.country_name || "" };
-  } catch {
-    return {};
-  }
+// Geo aus Vercel-Edge-Headern — kein externer Call mit Besucher-IPs (DSGVO).
+function geoFromHeaders(req: Request): { city?: string; country?: string } {
+  const dec = (v: string | null) => {
+    if (!v) return "";
+    try { return decodeURIComponent(v); } catch { return v; }
+  };
+  const city    = dec(req.headers.get("x-vercel-ip-city"));
+  const country = dec(req.headers.get("x-vercel-ip-country"));
+  if (!city && !country) return {};
+  return { city, country };
 }
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+
+  // Brute-Force-Schutz: max. 5 Versuche pro IP / 15 Minuten
+  const rl = await checkRateLimit(authLimiter, ip);
+  if (!rl.ok) {
+    const min = Math.ceil(rl.retryAfterSec / 60);
+    return tooManyRequests(
+      rl.retryAfterSec,
+      `Zu viele Anmeldeversuche. Bitte versuche es in ${min} Minute${min === 1 ? "" : "n"} erneut.`,
+    );
+  }
+
   const { password } = await req.json() as { password?: string };
   const correct = process.env.APP_PASSWORD;
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "?";
   const ua = req.headers.get("user-agent") || "";
+  const geo = geoFromHeaders(req);
 
   if (!correct || password !== correct) {
     const cfg = getUpstashConfig();
     if (cfg) {
-      const [existing, geo] = await Promise.all([
-        kvGet(cfg, LOG_KEY) as Promise<LoginEntry[] | null>,
-        geoLookup(ip),
-      ]);
+      const existing = await (kvGet(cfg, LOG_KEY) as Promise<LoginEntry[] | null>);
       const entry: LoginEntry = { ts: Date.now(), ip, device: parseDevice(ua), success: false, ...geo };
       await kvSet(cfg, LOG_KEY, [entry, ...(existing || [])].slice(0, MAX_ENTRIES));
     }
@@ -90,10 +95,7 @@ export async function POST(req: Request) {
   const cfg = getUpstashConfig();
   if (cfg) {
     try {
-      const [existing, geo] = await Promise.all([
-        kvGet(cfg, LOG_KEY) as Promise<LoginEntry[] | null>,
-        geoLookup(ip),
-      ]);
+      const existing = await (kvGet(cfg, LOG_KEY) as Promise<LoginEntry[] | null>);
       const entry: LoginEntry = { ts: Date.now(), ip, device: parseDevice(ua), success: true, ...geo };
       await kvSet(cfg, LOG_KEY, [entry, ...(existing || [])].slice(0, MAX_ENTRIES));
     } catch {}

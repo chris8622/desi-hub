@@ -209,22 +209,62 @@ function AddCardModal({ onClose, onAdd }: { onClose: () => void; onAdd: (card: B
     setTextColor(c.text);
   }
 
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  // Bild clientseitig verkleinern (max. 1280 px) + als JPEG komprimieren.
+  // Hält die Base64-Größe klein, damit localStorage nicht überläuft.
+  function compressImage(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAX = 1280;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          const scale = MAX / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Canvas nicht verfügbar")); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Byte-Größe der Base64-Nutzlast schätzen
+        const bytesOf = (dataUrl: string) => Math.ceil((dataUrl.split(",")[1]?.length || 0) * 0.75);
+        const LIMIT = 300 * 1024; // 300 KB
+        let out = canvas.toDataURL("image/jpeg", 0.8);
+        if (bytesOf(out) > LIMIT) out = canvas.toDataURL("image/jpeg", 0.6);
+        if (bytesOf(out) > LIMIT) { reject(new Error("zu groß")); return; }
+        resolve(out);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Bild konnte nicht gelesen werden")); };
+      img.src = url;
+    });
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 800 * 1024) {
-      alert("Bild zu groß (max. 800 KB). Bitte ein kleineres Bild wählen oder die URL-Option nutzen.");
+    if (!file.type.startsWith("image/")) {
+      alert("Bitte eine Bilddatei wählen.");
       return;
     }
     setUploading(true);
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const b64 = ev.target?.result as string;
+    try {
+      const b64 = await compressImage(file);
       setContent(b64);
       setPreview(b64);
+    } catch (err) {
+      if ((err as Error).message === "zu groß") {
+        alert("Dieses Bild ist auch nach der Komprimierung zu groß. Bitte ein kleineres Motiv wählen oder die URL-Option nutzen.");
+      } else {
+        alert("Das Bild konnte nicht verarbeitet werden. Bitte ein anderes wählen.");
+      }
+    } finally {
       setUploading(false);
-    };
-    reader.readAsDataURL(file);
+    }
   }
 
   function handleAdd() {
@@ -316,8 +356,11 @@ function AddCardModal({ onClose, onAdd }: { onClose: () => void; onAdd: (card: B
                     style={{ display: "none" }} onChange={handleFileUpload} />
                   <button className="btn btn-secondary" style={{ width: "100%" }}
                     onClick={() => fileRef.current?.click()} disabled={uploading}>
-                    {uploading ? "Lädt…" : "📁 Bild vom Gerät wählen (max. 800 KB)"}
+                    {uploading ? "Wird verarbeitet…" : "📁 Bild vom Gerät wählen"}
                   </button>
+                  <p style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.4rem", textAlign: "center" }}>
+                    Wird automatisch verkleinert &amp; komprimiert
+                  </p>
                 </>
               )}
               {preview && (
@@ -463,7 +506,11 @@ export default function VisionPage() {
 
   function saveBoard(updated: BoardCard[]) {
     setBoard(updated);
-    setLS("dh_vision_board", updated);
+    const ok = setLS("dh_vision_board", updated);
+    if (!ok) {
+      alert("Speicher voll — das Board konnte nicht gesichert werden. Bitte entferne einige Bilder.");
+      return;
+    }
     scheduleSyncUp(2000);
   }
 

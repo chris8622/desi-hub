@@ -75,7 +75,6 @@ export default function HashtagsPage() {
         body: JSON.stringify({
           type: "hashtags",
           topic: suggestTopic,
-          groqKey: (settings.groq_key as string) || "",
           brandVoice: settings,
         }),
       });

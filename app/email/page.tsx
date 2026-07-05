@@ -129,17 +129,12 @@ export default function EmailPage() {
 
   const generateNewsletter = async () => {
     if (!nlSubject.trim()) return;
-    const groqKey = getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "";
-    if (!groqKey) {
-      alert("Bitte zuerst den Groq API Key in den Einstellungen eintragen.");
-      return;
-    }
     setNlLoading(true);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ type: "newsletter", topic: nlSubject, groqKey }),
+        body: JSON.stringify({ type: "newsletter", topic: nlSubject }),
       });
       const data = await res.json();
       trackTokens(data._tokens || 0);

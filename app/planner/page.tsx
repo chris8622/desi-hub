@@ -55,8 +55,8 @@ export default function PlannerPage() {
     setAvailableDrafts(getLS<Draft[]>("dh_drafts", []));
 
     // Auto-fill banner if auto_plan is enabled and this week is empty
-    const settings = getLS<{ auto_plan?: boolean; groq_key?: string }>("dh_settings", {});
-    if (settings.auto_plan !== false && settings.groq_key) {
+    const settings = getLS<{ auto_plan?: boolean }>("dh_settings", {});
+    if (settings.auto_plan !== false) {
       // formatDate (lokal) statt toISOString (UTC) — sonst Off-by-one nahe Mitternacht
       const weekDates = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(weekStart); d.setDate(d.getDate() + i);
@@ -76,13 +76,12 @@ export default function PlannerPage() {
       voice: "warm-inspirierend", niche: "Mind, Health & Ästhetik",
       freq_instagram: 4, freq_pinterest: 2, freq_blog: 1, freq_newsletter: 1,
     });
-    const groqKey = (settings as { groq_key?: string }).groq_key || "";
     setAutoLoading(true); setAutoMsg("KI erstellt deinen Wochenplan…");
     try {
       const res = await fetch("/api/autoplan", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ settings, weekStart: formatDate(weekStart), groqKey }),
+        body: JSON.stringify({ settings, weekStart: formatDate(weekStart) }),
       });
       const data = await res.json() as { plan?: PlannerItem[]; error?: string };
       if (data.error) { setAutoMsg("⚠️ " + data.error); return; }

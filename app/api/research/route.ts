@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/server-auth";
+import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 
 export const maxDuration = 60;
 
@@ -122,11 +123,16 @@ export async function POST(req: Request) {
   const authError = requireAuth(req);
   if (authError) return authError;
 
+  const rl = await checkRateLimit(aiLimiter, getClientIp(req));
+  if (!rl.ok) {
+    return tooManyRequests(rl.retryAfterSec, "Zu viele KI-Anfragen in kurzer Zeit. Bitte warte einen Moment und versuche es erneut.");
+  }
+
   const body = await req.json();
   const query          = body.query as string;
-  const groqKey        = (body.groqKey as string | undefined) || process.env.GROQ_API_KEY || "";
+  const groqKey        = process.env.GROQ_API_KEY || "";
   const serperKey      = process.env.SERPER_API_KEY || "";
-  const perplexityKey  = (body.perplexityKey as string | undefined) || process.env.PERPLEXITY_API_KEY || "";
+  const perplexityKey  = process.env.PERPLEXITY_API_KEY || "";
   const engine         = (body.engine as string | undefined) || "standard";
   const trustedDomains = (body.trustedDomains as string[] | undefined) || [];
   const searchMode     = (body.searchMode as string | undefined) || "all";

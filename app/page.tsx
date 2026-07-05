@@ -26,7 +26,6 @@ export default function DashboardPage() {
   const [lastResearch, setLastResearch] = useState<string>("—");
   const [today, setToday] = useState("");
   const [greeting, setGreeting] = useState("Guten Tag");
-  const [missingGroqKey, setMissingGroqKey] = useState(false);
   const [earlyTrends, setEarlyTrends] = useState<Trend[]>([]);
   const [trendsDate, setTrendsDate] = useState("");
   const [myWhy, setMyWhy] = useState("");
@@ -47,10 +46,6 @@ export default function DashboardPage() {
     const hour = now.getHours();
     setGreeting(hour < 12 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend");
     setToday(now.toLocaleDateString("de-AT", { weekday: "long", year: "numeric", month: "long", day: "numeric" }));
-
-    // Check if Groq key is set
-    const groqKey = getLS<{ groq_key?: string }>("dh_settings", {}).groq_key;
-    setMissingGroqKey(!groqKey);
 
     // Northstar
     const vision = getLS<{ my_why?: string }>("dh_vision", {});
@@ -111,20 +106,6 @@ export default function DashboardPage() {
         </h1>
         <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>{today}</p>
       </div>
-
-      {/* Onboarding banner — shown when no Groq key is set */}
-      {missingGroqKey && (
-        <div style={{background:"var(--gold-light)", border:"1px solid rgba(184,148,80,0.35)", borderRadius:"var(--radius)", padding:"1rem 1.25rem", marginBottom:"1.5rem", display:"flex", alignItems:"center", gap:"1rem", flexWrap:"wrap"}}>
-          <span style={{fontSize:"1.5rem"}}>⚙️</span>
-          <div style={{flex:1}}>
-            <strong style={{fontSize:"0.9rem", color:"var(--gold)"}}>Einrichtung erforderlich</strong>
-            <p style={{fontSize:"0.8rem", color:"var(--muted)", marginTop:"0.15rem"}}>Trage deinen kostenlosen Groq API Key ein um alle KI-Funktionen zu nutzen.</p>
-          </div>
-          <Link href="/settings" style={{background:"var(--gold)", color:"white", borderRadius:"var(--radius-sm)", padding:"0.5rem 1rem", textDecoration:"none", fontSize:"0.82rem", fontWeight:700, whiteSpace:"nowrap"}}>
-            Jetzt einrichten →
-          </Link>
-        </div>
-      )}
 
       {/* Stats row */}
       <div className="grid-4" style={{ marginBottom: "2rem" }}>

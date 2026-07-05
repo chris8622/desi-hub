@@ -49,13 +49,13 @@ export default function TrendsPage() {
 
   const runTrends = async () => {
     setLoading(true); setError(""); setResult(null);
-    const settings = getLS<{ niche?: string; groq_key?: string }>("dh_settings", {});
+    const settings = getLS<{ niche?: string }>("dh_settings", {});
     const useNiche = niche.trim() || settings.niche || "Wellness, Gesundheit, Selbstoptimierung";
     try {
       const res = await fetch("/api/trends", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ niche: useNiche, groqKey: settings.groq_key || "" }),
+        body: JSON.stringify({ niche: useNiche }),
       });
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();

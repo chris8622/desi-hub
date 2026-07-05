@@ -501,7 +501,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ type: "carousel", topic, context: researchContext || undefined, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "", brandVoice: getBrandVoice() }),
+        body: JSON.stringify({ type: "carousel", topic, context: researchContext || undefined, brandVoice: getBrandVoice() }),
       });
       const data = await res.json();
       trackTokens(data._tokens || 0);
@@ -553,7 +553,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ type: "ideas", topic: ideaTopic, context: researchContext || undefined, groqKey: getLS<{groq_key?:string}>("dh_settings",{}).groq_key || "" }),
+        body: JSON.stringify({ type: "ideas", topic: ideaTopic, context: researchContext || undefined }),
       });
       const data = await res.json();
       trackTokens(data._tokens || 0);
@@ -568,18 +568,13 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
 
   const generatePin = async () => {
     if (!pinTopic.trim()) return;
-    const groqKey = getLS<{ groq_key?: string }>("dh_settings", {}).groq_key || "";
-    if (!groqKey) {
-      alert("Bitte trage zuerst deinen Groq API Key in den Einstellungen ein.");
-      return;
-    }
     setPinLoading(true);
     setPinError("");
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ type: "pinterest", topic: pinTopic, context: researchContext || undefined, groqKey }),
+        body: JSON.stringify({ type: "pinterest", topic: pinTopic, context: researchContext || undefined }),
       });
       const data = await res.json();
       trackTokens(data._tokens || 0);

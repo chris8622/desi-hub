@@ -86,7 +86,6 @@ export default function RepurposePage() {
         body: JSON.stringify({
           sourceText: text.slice(0, 6000),
           formats,
-          groqKey: (settings.groq_key as string) || "",
           brandVoice: settings,
         }),
       });
