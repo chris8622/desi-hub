@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import LoginGate from "@/components/LoginGate";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
@@ -97,7 +96,7 @@ export default function HashtagsPage() {
   }
 
   return (
-    <LoginGate>
+    <>
       <div style={{ maxWidth: 720 }}>
         <div className="flex-between" style={{ marginBottom: "2rem" }}>
           <div>
@@ -258,6 +257,6 @@ export default function HashtagsPage() {
           ))}
         </div>
       </div>
-    </LoginGate>
+    </>
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import LoginGate from "@/components/LoginGate";
 import { scheduleSyncUp, syncDown, syncUp, SYNC_KEYS } from "@/lib/sync";
 import { THEMES, applyTheme } from "@/lib/theme";
 
@@ -290,7 +289,7 @@ export default function SettingsPage() {
   if (!mounted) return null;
 
   return (
-    <LoginGate>
+    <>
     <div style={{ maxWidth: 720 }}>
       <div className="flex-between" style={{ marginBottom: "2rem" }}>
         <div>
@@ -756,6 +755,6 @@ export default function SettingsPage() {
         </button>
       </div>
     </div>
-    </LoginGate>
+    </>
   );
 }

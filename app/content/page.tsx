@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 // html-to-image wird dynamisch geladen (braucht Browser-DOM, kein SSR)
 // import { toPng } from "html-to-image"; ← nicht mehr hier
-import LoginGate from "@/components/LoginGate";
 import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
 import { getLS, setLS } from "@/lib/storage";
@@ -959,7 +958,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
   };
 
   return (
-    <LoginGate>
+    <>
       <div style={{ maxWidth: 900 }}>
         {/* Header */}
         <div style={{ marginBottom: "1.75rem" }}>
@@ -2121,6 +2120,6 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
           </div>
         )}
       </div>
-    </LoginGate>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import LoginGate from "@/components/LoginGate";
 import { trackTokens } from "@/lib/tokens";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { scheduleSyncUp } from "@/lib/sync";
@@ -187,7 +186,7 @@ export default function ResearchPage() {
   };
 
   return (
-    <LoginGate>
+    <>
       <div style={{ maxWidth: 900 }}>
         {/* Header */}
         <div style={{ marginBottom: "1.75rem" }}>
@@ -493,6 +492,6 @@ export default function ResearchPage() {
           </div>
         )}
       </div>
-    </LoginGate>
+    </>
   );
 }

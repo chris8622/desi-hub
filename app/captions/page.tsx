@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import LoginGate from "@/components/LoginGate";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
 
@@ -79,7 +78,7 @@ export default function CaptionsPage() {
   const visible = filter === "Alle" ? captions : captions.filter(c => c.channel === filter);
 
   return (
-    <LoginGate>
+    <>
       <div style={{ maxWidth: 720 }}>
         <div className="flex-between" style={{ marginBottom: "2rem" }}>
           <div>
@@ -224,6 +223,6 @@ export default function CaptionsPage() {
           })}
         </div>
       </div>
-    </LoginGate>
+    </>
   );
 }

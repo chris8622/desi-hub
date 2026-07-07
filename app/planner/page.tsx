@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { scheduleSyncUp } from "@/lib/sync";
 import Link from "next/link";
-import LoginGate from "@/components/LoginGate";
 import { getLS, setLS } from "@/lib/storage";
 
 type PlannerItem = { id: string; date: string; channel: string; title: string; status: string; draftId?: string };
@@ -175,7 +174,7 @@ export default function PlannerPage() {
   })();
 
   return (
-    <LoginGate>
+    <>
       <div>
         {/* Header */}
         <div style={{ marginBottom: "1.5rem" }}>
@@ -385,6 +384,6 @@ export default function PlannerPage() {
           </div>
         )}
       </div>
-    </LoginGate>
+    </>
   );
 }

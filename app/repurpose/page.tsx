@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import LoginGate from "@/components/LoginGate";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
 import { sanitizeHtml } from "@/lib/sanitize";
@@ -122,7 +121,7 @@ export default function RepurposePage() {
   const effectiveSource = getEffectiveSource();
 
   return (
-    <LoginGate>
+    <>
       <div style={{ maxWidth: 720 }}>
         <div style={{ marginBottom: "2rem" }}>
           <h1>Repurpose-Assistent</h1>
@@ -312,6 +311,6 @@ export default function RepurposePage() {
           </div>
         )}
       </div>
-    </LoginGate>
+    </>
   );
 }

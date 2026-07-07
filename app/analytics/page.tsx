@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import LoginGate from "@/components/LoginGate";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
 
@@ -141,7 +140,7 @@ export default function AnalyticsPage() {
   const hasInsights = logged.length >= 2;
 
   return (
-    <LoginGate>
+    <>
       <div style={{ maxWidth: 860 }}>
         <div style={{ marginBottom: "2rem" }}>
           <h1>📊 Learnings & Analytics</h1>
@@ -309,7 +308,7 @@ export default function AnalyticsPage() {
           </div>
         )}
       </div>
-    </LoginGate>
+    </>
   );
 }
 

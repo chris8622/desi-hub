@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import LoginGate from "@/components/LoginGate";
 import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
 import { getLS, setLS } from "@/lib/storage";
@@ -130,7 +129,7 @@ export default function TrendsPage() {
   };
 
   return (
-    <LoginGate>
+    <>
       <div style={{ maxWidth: 900 }}>
         {/* Header */}
         <div style={{ marginBottom: "1.5rem" }}>
@@ -259,6 +258,6 @@ export default function TrendsPage() {
           </div>
         )}
       </div>
-    </LoginGate>
+    </>
   );
 }

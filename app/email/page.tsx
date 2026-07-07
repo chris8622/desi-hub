@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import LoginGate from "@/components/LoginGate";
 import { trackTokens } from "@/lib/tokens";
 import { scheduleSyncUp } from "@/lib/sync";
 import { getLS, setLS } from "@/lib/storage";
@@ -188,7 +187,7 @@ export default function EmailPage() {
   };
 
   return (
-    <LoginGate>
+    <>
       <div style={{ maxWidth: 900 }}>
         {/* Header */}
         <div style={{ marginBottom: "1.75rem" }}>
@@ -386,6 +385,6 @@ export default function EmailPage() {
           </div>
         )}
       </div>
-    </LoginGate>
+    </>
   );
 }

@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { scheduleSyncUp } from "@/lib/sync";
-import LoginGate from "@/components/LoginGate";
 import { getLS, setLS } from "@/lib/storage";
 
 // ─── Types ───────────────────────────────────────────────
@@ -132,7 +131,7 @@ export default function IdeenPage() {
   if (!mounted) return null;
 
   return (
-    <LoginGate>
+    <>
       <div style={{ maxWidth: 960 }}>
 
         {/* Header */}
@@ -357,6 +356,6 @@ export default function IdeenPage() {
         )}
 
       </div>
-    </LoginGate>
+    </>
   );
 }

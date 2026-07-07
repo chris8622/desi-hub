@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { scheduleSyncUp } from "@/lib/sync";
 import { useSearchParams } from "next/navigation";
-import LoginGate from "@/components/LoginGate";
 import { getLS, setLS } from "@/lib/storage";
 
 type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
@@ -276,7 +275,7 @@ function EditorInner() {
   };
 
   return (
-    <LoginGate>
+    <>
       <div className="editor-layout" style={{ display: "flex", gap: "1.25rem", height: "calc(100vh - 8rem)", maxWidth: "100%", minHeight: 500 }}>
         {/* Left: drafts sidebar */}
         <div className="editor-drafts" style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -424,7 +423,7 @@ function EditorInner() {
           </div>
         </div>
       </div>
-    </LoginGate>
+    </>
   );
 }
 

@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import LoginGate from "@/components/LoginGate";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
 import { DAILY_TIPS } from "@/lib/tips";
@@ -570,7 +569,7 @@ export default function VisionPage() {
   const totalMilestones = goals.milestones.length;
 
   return (
-    <LoginGate>
+    <>
       <div style={{ maxWidth: 720 }}>
 
         {showAddCard && (
@@ -907,6 +906,6 @@ export default function VisionPage() {
         </div>
 
       </div>
-    </LoginGate>
+    </>
   );
 }

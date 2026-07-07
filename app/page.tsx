@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import LoginGate from "@/components/LoginGate";
 import { getLS } from "@/lib/storage";
 import { DAILY_TIPS } from "@/lib/tips";
 
@@ -102,7 +101,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <LoginGate>
+    <>
       {/* Header */}
       <div style={{ marginBottom: "2rem" }}>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: "0.25rem" }}>
@@ -353,6 +352,6 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
-    </LoginGate>
+    </>
   );
 }

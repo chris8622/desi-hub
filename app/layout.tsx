@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import LoginGate from "@/components/LoginGate";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,7 +26,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body>{children}</body>
+      {/* LoginGate EINMAL hier statt in jeder Seite — beendet den
+          syncDown + „Laden…"-Zyklus bei jedem Seitenwechsel (Audit A2) */}
+      <body><LoginGate>{children}</LoginGate></body>
     </html>
   );
 }
