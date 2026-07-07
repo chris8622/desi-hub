@@ -218,10 +218,10 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
             fontSize: "2.2rem", color: "var(--accent)",
             marginBottom: "0.35rem", lineHeight: 1.15,
           }}>
-            Desi Hub
+            Contentraum
           </h1>
           <p style={{ color: "var(--muted)", fontSize: "0.88rem", marginBottom: "2rem" }}>
-            Content Workspace
+            Wo Ideen Raum finden
           </p>
 
           <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
@@ -299,7 +299,7 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
           >
             ☰
           </button>
-          <span className="mobile-topbar-logo">Desi Hub</span>
+          <span className="mobile-topbar-logo">Contentraum</span>
           <div style={{ width: 40 }} />
         </div>
         <main className="main-content">

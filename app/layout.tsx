@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Desi Hub",
-  description: "Content Workspace für Desi",
+  title: "Contentraum",
+  description: "Contentraum — wo Ideen Raum finden",
 };
 
 export const viewport: Viewport = {

@@ -179,9 +179,9 @@ export default function Sidebar({ onLogout, open }: { onLogout: () => void; open
           onClick={handleLogoClick}
         >
           <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.4rem", color: "var(--accent)" }}>
-            Desi Hub
+            Contentraum
           </div>
-          <div style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.15rem" }}>Content Workspace</div>
+          <div style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.15rem" }}>Wo Ideen Raum finden</div>
         </div>
 
         <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "0 1.25rem 0.75rem" }} />
