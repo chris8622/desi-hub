@@ -361,9 +361,7 @@ export default function ContentPage() {
     const topic = promptTopic.trim() || "[DEIN THEMA HIER EINFÜGEN]";
     return `Erstelle ein Instagram-Karussell zum Thema: "${topic}"
 
-Kontext:
-- Nische: ${settings.niche || "Mind, Health, Ästhetik & Selbstoptimierung"}
-- Zielgruppe: ${settings.audience || "Frauen 25–40 die an sich arbeiten möchten"}
+Kontext:${settings.niche ? `\n- Nische: ${settings.niche}` : ""}${settings.audience ? `\n- Zielgruppe: ${settings.audience}` : ""}
 - Tonalität: ${tone}, auf Deutsch, per "du"
 
 Erstelle 6–8 Slides. WICHTIG — halte dich EXAKT an dieses Ausgabeformat, damit ich es direkt weiterverwenden kann:
@@ -506,9 +504,14 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
       const data = await res.json();
       trackTokens(data._tokens || 0);
       if (data.error) throw new Error(data.error);
+      // KI-Antwort validieren — eine unerwartete Struktur würde sonst beim
+      // Rendern crashen (weiße Seite) statt eine Fehlermeldung zu zeigen.
+      if (!Array.isArray(data.slides) || data.slides.length === 0) {
+        throw new Error("Die KI-Antwort war unvollständig. Bitte versuche es noch einmal.");
+      }
       setCarousel(data);
       // Initialize per-slide styles
-      const initialStyles = Array(data.slides?.length ?? 0).fill(slideStyle);
+      const initialStyles = Array(data.slides.length).fill(slideStyle);
       setSlideStyles(initialStyles);
     } catch (e) {
       setCarouselError(e instanceof Error ? e.message : "Fehler beim Generieren");

@@ -8,12 +8,14 @@ import { THEMES, applyTheme } from "@/lib/theme";
 const BACKUP_KEYS = [...SYNC_KEYS, "dh_instagram_handle"];
 import { getTokenUsage } from "@/lib/tokens";
 
+// NEUTRALE Defaults — kein vorausgefülltes Profil einer bestimmten Person.
+// Jede Nutzerin füllt Name/Nische/Themen selbst (bzw. der Onboarding-Flow).
 const DEFAULT_SETTINGS = {
-  name: "Desi",
-  niche: "Mind, Health, Ästhetik & Selbstoptimierung",
-  topics: ["Mindset", "Hormongesundheit", "Hautpflege", "Morgenroutine", "Selbstdisziplin", "Minimalismus"],
+  name: "",
+  niche: "",
+  topics: [] as string[],
   voice: "warm-inspirierend",
-  audience: "Frauen 25–40 die an sich arbeiten möchten",
+  audience: "",
   brand_keywords: "",
   brand_avoid: "",
   freq_instagram: 4,
@@ -22,14 +24,7 @@ const DEFAULT_SETTINGS = {
   freq_newsletter: 1,
   auto_plan: true,
   theme: "sand",
-  trusted_sources: [
-    "pubmed.ncbi.nlm.nih.gov",
-    "who.int",
-    "gesundheit.gv.at",
-    "cochrane.org",
-    "derstandard.at",
-    "orf.at",
-  ],
+  trusted_sources: [] as string[],
 };
 
 // Verlässliche Quellen, nach Kategorie gruppiert
@@ -315,16 +310,16 @@ export default function SettingsPage() {
         <div className="grid-2" style={{ gap: "1rem", marginBottom: "1rem" }}>
           <div>
             <label className="label">Name</label>
-            <input className="input" value={s.name} onChange={e => setS(p => ({ ...p, name: e.target.value }))} placeholder="Desi" />
+            <input className="input" value={s.name} onChange={e => setS(p => ({ ...p, name: e.target.value }))} placeholder="Dein Name" />
           </div>
           <div>
             <label className="label">Zielgruppe</label>
-            <input className="input" value={s.audience} onChange={e => setS(p => ({ ...p, audience: e.target.value }))} placeholder="Frauen 25–40..." />
+            <input className="input" value={s.audience} onChange={e => setS(p => ({ ...p, audience: e.target.value }))} placeholder="z. B. Berufstätige, die gesünder leben möchten" />
           </div>
         </div>
         <div>
           <label className="label">Nische / Themenbereich</label>
-          <input className="input" value={s.niche} onChange={e => setS(p => ({ ...p, niche: e.target.value }))} placeholder="Mind, Health, Ästhetik..." />
+          <input className="input" value={s.niche} onChange={e => setS(p => ({ ...p, niche: e.target.value }))} placeholder="z. B. Fitness & Ernährung, Reisen, Finanzen…" />
         </div>
       </div>
 

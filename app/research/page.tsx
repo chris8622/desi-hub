@@ -10,11 +10,8 @@ import { getLS, setLS } from "@/lib/storage";
 type Source = { title: string; url: string; snippet: string; credibility?: { level: string; label: string; color: string } };
 type HistoryItem = { query: string; date: string; summary: string };
 
-const SUGGESTED = [
-  "Rückenschmerzen", "Burnout Erholung", "Hautpflege Routine",
-  "Selbstdisziplin", "Intermittent Fasting", "Morgenroutine",
-  "Hormongesundheit", "Minimalismus",
-];
+// Vorschlags-Chips kommen aus den eigenen Content-Themen (Einstellungen) —
+// keine hardcodierte Themenliste einer bestimmten Person.
 
 // Neueste zuerst, Cap 30, dedupliziert nach query
 function addToHistory(prev: HistoryItem[], query: string, summary: string): HistoryItem[] {
@@ -35,13 +32,15 @@ export default function ResearchPage() {
   const [saved, setSaved] = useState(false);
   const [trustedSources, setTrustedSources] = useState<Set<string>>(new Set());
   const [preferredDomains, setPreferredDomains] = useState<string[]>([]);
+  const [suggested, setSuggested] = useState<string[]>([]);
   const [searchMode, setSearchMode] = useState<"all" | "trusted_only">("all");
   const [rateLimited, setRateLimited] = useState<{ countdown: number; isDaily: boolean } | null>(null);
 
   useEffect(() => {
     setHistory(getLS<HistoryItem[]>("dh_research_history", []));
-    const settings = getLS<{ trusted_sources?: string[] }>("dh_settings", {});
+    const settings = getLS<{ trusted_sources?: string[]; topics?: string[] }>("dh_settings", {});
     setPreferredDomains(settings.trusted_sources || []);
+    setSuggested((settings.topics || []).slice(0, 8));
     const saved = getLS<string[]>("dh_trusted_sources", []);
     setTrustedSources(new Set(saved));
     // Prefill aus Ideen-Pool
@@ -83,6 +82,7 @@ export default function ResearchPage() {
         body: JSON.stringify({
           query: q,
           engine: "standard",
+          niche: getLS<{niche?:string}>("dh_settings",{}).niche || "",
           trustedDomains: getLS<{trusted_sources?:string[]}>("dh_settings",{}).trusted_sources || [],
           searchMode,
         }),
@@ -218,17 +218,19 @@ export default function ResearchPage() {
             </button>
           </div>
 
-          {/* Suggested topics */}
-          <div style={{ marginTop: "0.85rem", display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-            {SUGGESTED.map(topic => (
-              <button key={topic} className="badge badge-muted"
-                onClick={() => { setQuery(topic); runSearch(topic); }}
-                style={{ cursor: "pointer", border: "none", fontSize: "0.8rem", padding: "0.3rem 0.7rem" }}
-                disabled={loading}>
-                {topic}
-              </button>
-            ))}
-          </div>
+          {/* Vorschläge = eigene Content-Themen aus den Einstellungen */}
+          {suggested.length > 0 && (
+            <div style={{ marginTop: "0.85rem", display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
+              {suggested.map(topic => (
+                <button key={topic} className="badge badge-muted"
+                  onClick={() => { setQuery(topic); runSearch(topic); }}
+                  style={{ cursor: "pointer", border: "none", fontSize: "0.8rem", padding: "0.3rem 0.7rem" }}
+                  disabled={loading}>
+                  {topic}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Suchmodus Toggle */}
           {preferredDomains.length > 0 && (

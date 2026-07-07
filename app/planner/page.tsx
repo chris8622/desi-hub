@@ -71,11 +71,12 @@ export default function PlannerPage() {
   }, []);
 
   async function autoFillWeek() {
-    const settings = getLS("dh_settings", {
-      topics: ["Mindset", "Hormongesundheit", "Hautpflege", "Morgenroutine"],
-      voice: "warm-inspirierend", niche: "Mind, Health & Ästhetik",
-      freq_instagram: 4, freq_pinterest: 2, freq_blog: 1, freq_newsletter: 1,
-    });
+    // Defaults MERGEN statt nur als Fallback — gespeicherte Settings ohne
+    // einzelne Frequenz-Keys würden sonst undefined an die API schicken.
+    // Keine hardcodierten Personen-Themen: Themen/Nische kommen aus dem Profil.
+    const defaults = { topics: [] as string[], voice: "warm-inspirierend", niche: "",
+      freq_instagram: 4, freq_pinterest: 2, freq_blog: 1, freq_newsletter: 1 };
+    const settings = { ...defaults, ...getLS<Partial<typeof defaults>>("dh_settings", {}) };
     setAutoLoading(true); setAutoMsg("KI erstellt deinen Wochenplan…");
     try {
       const res = await fetch("/api/autoplan", {

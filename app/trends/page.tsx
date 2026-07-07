@@ -48,16 +48,28 @@ export default function TrendsPage() {
   }, []);
 
   const runTrends = async () => {
-    setLoading(true); setError(""); setResult(null);
+    setError(""); setResult(null);
     const settings = getLS<{ niche?: string }>("dh_settings", {});
-    const useNiche = niche.trim() || settings.niche || "Wellness, Gesundheit, Selbstoptimierung";
+    // Keine hardcodierte Fallback-Nische — sonst kämen Trends für die falsche Zielgruppe
+    const useNiche = niche.trim() || settings.niche?.trim() || "";
+    if (!useNiche) {
+      setError("Bitte gib deine Nische an — oben im Feld oder in den Einstellungen unter Profil.");
+      return;
+    }
+    setLoading(true);
     try {
       const res = await fetch("/api/trends", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
         body: JSON.stringify({ niche: useNiche }),
       });
-      const reader = res.body!.getReader();
+      // Fehlerantworten (400/401/429/503) sind JSON, kein Stream — sauber melden
+      if (!res.ok || !res.body) {
+        let msg = `Fehler ${res.status} — bitte versuche es erneut.`;
+        try { const d = await res.json() as { error?: string }; if (d.error) msg = d.error; } catch {}
+        throw new Error(msg);
+      }
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
       while (true) {
@@ -90,7 +102,8 @@ export default function TrendsPage() {
           } catch {}
         }
       }
-    } catch (e) { setError((e as Error).message); setLoading(false); }
+    } catch (e) { setError((e as Error).message); }
+    finally { setLoading(false); setStatus(""); }
   };
 
   // Trend → Idee in den Pool

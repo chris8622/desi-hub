@@ -131,6 +131,9 @@ export async function POST(req: Request) {
   const body = await readJson<Record<string, unknown>>(req);
   if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });
   const query          = body.query as string;
+  // Nische aus den Einstellungen der Nutzerin — kein hardcodiertes Profil
+  const niche          = ((body.niche as string) || "").trim();
+  const nicheLabel     = niche ? ` (Nische: ${niche})` : "";
   const groqKey        = process.env.GROQ_API_KEY || "";
   const serperKey      = process.env.SERPER_API_KEY || "";
   const perplexityKey  = process.env.PERPLEXITY_API_KEY || "";
@@ -151,7 +154,7 @@ export async function POST(req: Request) {
         if (usePerplexity) {
           send({ type: "status", data: "🔮 Perplexity recherchiert live im Web…" });
           try {
-            const pplxPrompt = `Recherchiere gründlich zum Thema "${query}" für eine deutschsprachige Content Creatorin (Mind, Health, Ästhetik, Selbstoptimierung).
+            const pplxPrompt = `Recherchiere gründlich zum Thema "${query}" für eine:n deutschsprachige:n Content-Creator:in${nicheLabel}.
 
 Erstelle eine fundierte Tiefen-Analyse auf Deutsch. Antworte nur mit HTML (h3, p, ul, li, strong, em). Unterscheide klar zwischen wissenschaftlich belegt, Experten-Meinung und anekdotisch. Struktur:
 <h3>Überblick</h3><h3>Was die Wissenschaft sagt</h3> (mit Evidenz-Grad)<h3>Was Menschen in der Praxis berichten</h3><h3>Häufige Fragen & Missverständnisse</h3><h3>Content-Potenzial mit Substanz</h3> (konkrete Ideen für Instagram, Blog, Newsletter)`;
@@ -285,7 +288,7 @@ Erstelle eine fundierte Tiefen-Analyse auf Deutsch. Antworte nur mit HTML (h3, p
           body: JSON.stringify({
             model: "llama-3.3-70b-versatile",
             messages: [
-              { role: "system", content: `Du bist ein gründlicher Research-Analyst mit wissenschaftlichem Anspruch für eine deutschsprachige Content Creatorin (Themen: Mind, Health, Ästhetik, Selbstoptimierung). Du lieferst KEINE oberflächlichen Zusammenfassungen, sondern eine fundierte Tiefen-Analyse, die echten Mehrwert bietet und auf der die Creatorin verlässlich Content aufbauen kann. Analysiere NUR die bereitgestellten Inhalte. Antworte nur mit HTML (h3, p, ul, li, strong, em — kein anderes HTML).
+              { role: "system", content: `Du bist ein gründlicher Research-Analyst mit wissenschaftlichem Anspruch für eine:n deutschsprachige:n Content-Creator:in${nicheLabel}. Du lieferst KEINE oberflächlichen Zusammenfassungen, sondern eine fundierte Tiefen-Analyse, die echten Mehrwert bietet und auf der die Creator:in verlässlich Content aufbauen kann. Analysiere NUR die bereitgestellten Inhalte. Antworte nur mit HTML (h3, p, ul, li, strong, em — kein anderes HTML).
 
 ABSOLUT WICHTIG — Quellen-Ehrlichkeit & Evidenz-Einordnung:
 - Erfinde NIEMALS Quellen. Zitiere nur was wörtlich in den Inhalten steht, mit echter Domain.

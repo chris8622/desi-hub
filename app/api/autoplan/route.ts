@@ -37,6 +37,17 @@ export async function POST(req: Request) {
   if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });
   const { settings, weekStart } = body;
 
+  // Frequenzen absichern: fehlt ein Wert (undefined), würde distribute()
+  // sonst ALLE bevorzugten Tage belegen ("0 >= undefined" ist false).
+  const freq = (v: unknown, fallback: number) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.max(0, Math.min(7, n)) : fallback;
+  };
+  const freqInstagram  = freq(settings?.freq_instagram, 0);
+  const freqPinterest  = freq(settings?.freq_pinterest, 0);
+  const freqBlog       = freq(settings?.freq_blog, 0);
+  const freqNewsletter = freq(settings?.freq_newsletter, 0);
+
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return Response.json({ error: "KI ist serverseitig nicht konfiguriert." }, { status: 503 });
 
@@ -62,25 +73,25 @@ export async function POST(req: Request) {
   };
 
   // Instagram: Mo, Mi, Fr, Sa (bevorzugt)
-  distribute(settings.freq_instagram, "Instagram", [0, 2, 4, 5, 1, 3, 6]);
+  distribute(freqInstagram, "Instagram", [0, 2, 4, 5, 1, 3, 6]);
   // Pinterest: über die Woche verteilt
-  distribute(settings.freq_pinterest, "Pinterest", [1, 3, 5, 0, 2, 4, 6]);
+  distribute(freqPinterest, "Pinterest", [1, 3, 5, 0, 2, 4, 6]);
   // Blog: Di oder Do
-  distribute(settings.freq_blog, "Blog", [1, 3, 0, 2, 4]);
+  distribute(freqBlog, "Blog", [1, 3, 0, 2, 4]);
   // Newsletter: Do oder Mo
-  distribute(settings.freq_newsletter, "Newsletter", [3, 0, 6, 2, 4]);
+  distribute(freqNewsletter, "Newsletter", [3, 0, 6, 2, 4]);
 
-  // Thema-Vorschläge per KI generieren
-  const topicsStr = settings.topics.slice(0, 6).join(", ");
+  // Thema-Vorschläge per KI generieren (fehlende Angaben neutral behandeln)
+  const topicsStr = Array.isArray(settings?.topics) ? settings.topics.slice(0, 6).join(", ") : "";
+  const nicheStr  = (settings?.niche || "").trim();
+  const voiceStr  = (settings?.voice || "").trim();
   const slotsDesc = slots.map((s, i) => `${i + 1}. ${s.channel} (${s.date})`).join("\n");
 
-  const prompt = `Du bist ein Content-Stratege für ${settings.niche}.
+  const prompt = `Du bist ein Content-Stratege für eine:n deutschsprachige:n Content-Creator:in${nicheStr ? ` (Nische: ${nicheStr})` : ""}.
 
 Erstelle konkrete Titel für diese Content-Slots der Woche:
 ${slotsDesc}
-
-Themen-Pool: ${topicsStr}
-Stil: ${settings.voice}
+${topicsStr ? `\nThemen-Pool: ${topicsStr}` : ""}${voiceStr ? `\nStil: ${voiceStr}` : ""}
 
 Antworte NUR mit einem JSON-Array (kein Markdown, kein Text davor/danach):
 [{"title": "Konkreter Titel für Post 1"}, {"title": "..."}, ...]

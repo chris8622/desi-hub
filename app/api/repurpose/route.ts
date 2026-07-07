@@ -16,12 +16,17 @@ const VOICE_LABELS: Record<string, string> = {
   "sanft-einfühlsam":   "sanft, verständnisvoll, nährend, viel Empathie",
 };
 
+// Keine personenspezifischen Fallbacks — fehlende Angaben werden weggelassen.
 function buildSystemPrompt(bv?: BrandVoice): string {
-  const name     = bv?.name || "Desi";
-  const niche    = bv?.niche || "Mind, Health, Aesthetics, Self-Improvement";
-  const tone     = VOICE_LABELS[bv?.voice || ""] || bv?.voice || "warm, persönlich, inspirierend";
-  const audience = bv?.audience || "Frauen 25–40";
-  let p = `Du bist Content-Assistent für ${name} (Nische: ${niche}, Zielgruppe: ${audience}, Ton: ${tone}).`;
+  const name     = bv?.name?.trim();
+  const niche    = bv?.niche?.trim();
+  const tone     = VOICE_LABELS[bv?.voice || ""] || bv?.voice?.trim() || "warm, persönlich, inspirierend";
+  const audience = bv?.audience?.trim();
+  const parts: string[] = [];
+  if (niche)    parts.push(`Nische: ${niche}`);
+  if (audience) parts.push(`Zielgruppe: ${audience}`);
+  parts.push(`Ton: ${tone}`);
+  let p = `Du bist Content-Assistent für ${name || "eine:n deutschsprachige:n Content-Creator:in"} (${parts.join(", ")}).`;
   if (bv?.brand_keywords?.trim()) p += ` Lieblingsworte: ${bv.brand_keywords}.`;
   if (bv?.brand_avoid?.trim())    p += ` NICHT verwenden: ${bv.brand_avoid}.`;
   p += " Antworte mit validem JSON, ohne Markdown-Codeblöcke.";

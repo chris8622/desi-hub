@@ -108,9 +108,10 @@ function EditorInner() {
         ? `\n\n> **Research-Zusammenfassung:**\n> ${ctx.summary.replace(/<[^>]+>/g," ").replace(/\s{2,}/g," ").trim()}`
         : "";
       if (mode === "newsletter") {
+        const senderName = getLS<{ name?: string }>("dh_settings", {}).name?.trim() || "[Dein Name]";
         setChannel("Newsletter");
         setTitle(`Newsletter: ${ctx.query}`);
-        setContent(`# ${ctx.query}\n\nHallo [Name],\n\n${researchBlock}\n\n## Das nehme ich für dich mit\n\n[Hier deine persönliche Perspektive einfügen]\n\n## Was du jetzt tun kannst\n\n1. \n2. \n3. \n\nHerzlich,\nDesi${sourcesBlock}`);
+        setContent(`# ${ctx.query}\n\nHallo [Name],\n\n${researchBlock}\n\n## Das nehme ich für dich mit\n\n[Hier deine persönliche Perspektive einfügen]\n\n## Was du jetzt tun kannst\n\n1. \n2. \n3. \n\nHerzlich,\n${senderName}${sourcesBlock}`);
       } else {
         setChannel("Blog");
         setTitle(`Blog: ${ctx.query}`);

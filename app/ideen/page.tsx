@@ -25,7 +25,8 @@ const STATUS_CONFIG: Record<Status, { label: string; color: string; bg: string; 
   fertig:       { label: "Fertig",      emoji: "✅", color: "var(--muted)",    bg: "var(--surface2)"        },
 };
 
-const DEFAULT_TAGS = ["Mindset","Hormongesundheit","Hautpflege","Morgenroutine","Selbstdisziplin","Minimalismus","Ernährung","Bewegung","Mental Health","Ästhetik"];
+// Tag-Vorschläge kommen aus den eigenen Content-Themen (Einstellungen) und den
+// bereits vergebenen Tags — keine hardcodierte Themenliste einer bestimmten Person.
 
 // ─── Helpers ─────────────────────────────────────────────
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
@@ -49,15 +50,17 @@ export default function IdeenPage() {
   // Edit Modal
   const [editing, setEditing]   = useState<Idee | null>(null);
 
-  // Available tags (from settings + defaults)
-  const [availTags, setAvailTags] = useState<string[]>(DEFAULT_TAGS);
+  // Verfügbare Tags: eigene Themen (Einstellungen) + bereits vergebene Tags
+  const [availTags, setAvailTags] = useState<string[]>([]);
 
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setIdeen(getLS<Idee[]>("dh_ideenpool", []));
+    const pool = getLS<Idee[]>("dh_ideenpool", []);
+    setIdeen(pool);
     const s = getLS<{ topics?: string[] }>("dh_settings", {});
-    if (s.topics?.length) setAvailTags([...new Set([...DEFAULT_TAGS, ...s.topics])]);
+    const usedTags = pool.flatMap(i => i.tags || []);
+    setAvailTags([...new Set([...(s.topics || []), ...usedTags])]);
     setMounted(true);
   }, []);
 

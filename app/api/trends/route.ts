@@ -51,7 +51,15 @@ export async function POST(req: Request) {
 
   const body = await readJson<Record<string, unknown>>(req);
   if (!body) return new Response(JSON.stringify({ error: "Ungültige Anfrage." }), { status: 400 });
-  const niche   = (body.niche as string) || "Wellness, Gesundheit, Selbstoptimierung";
+  // Keine hardcodierte Fallback-Nische — ohne Angabe wären die Trends
+  // für die falsche Zielgruppe. Client schickt die Nische aus den Einstellungen.
+  const niche = ((body.niche as string) || "").trim();
+  if (!niche) {
+    return new Response(
+      JSON.stringify({ error: "Bitte gib deine Nische an — entweder im Suchfeld oder in den Einstellungen unter Profil." }),
+      { status: 400 },
+    );
+  }
   const groqKey = process.env.GROQ_API_KEY || "";
   const serperKey = process.env.SERPER_API_KEY || "";
 
@@ -91,7 +99,7 @@ export async function POST(req: Request) {
 
         send({ type: "status", data: "🤖 KI analysiert Trend-Vorsprung…" });
 
-        const prompt = `Du bist ein Trend-Analyst für eine deutschsprachige Content Creatorin (Nische: ${niche}).
+        const prompt = `Du bist ein Trend-Analyst für eine:n deutschsprachige:n Content-Creator:in (Nische: ${niche}).
 Analysiere folgende aktuelle Suchergebnisse aus drei Regionen und identifiziere RELEVANTE TRENDS.
 
 === USA (oft 6-12 Monate Vorsprung) ===
@@ -111,7 +119,7 @@ Erstelle eine Trend-Analyse. Antworte NUR mit gültigem JSON (kein Markdown):
       "description": "1-2 Sätze was es ist",
       "origin": "USA"|"China"|"Europa"|"Global",
       "europe_status": "schon_da"|"kommt_bald"|"frueh_dran",
-      "opportunity": "Konkrete Content-Idee für Desi (1 Satz)",
+      "opportunity": "Konkrete Content-Idee für die Creator:in (1 Satz)",
       "heat": 1-5
     }
   ],
@@ -121,7 +129,7 @@ Erstelle eine Trend-Analyse. Antworte NUR mit gültigem JSON (kein Markdown):
 
 Wichtig:
 - 6-8 Trends, sortiert nach Relevanz
-- "frueh_dran" = in USA/China sichtbar, in Europa noch kaum → höchster Wert für Desi
+- "frueh_dran" = in USA/China sichtbar, in Europa noch kaum → höchster Wert für die Creator:in
 - Nur echte Trends aus den Daten, nichts erfinden
 - Alles auf Deutsch, du-Form`;
 

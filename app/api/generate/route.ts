@@ -16,18 +16,23 @@ const VOICE_LABELS: Record<string, string> = {
   "sanft-einfühlsam":    "sanft, verständnisvoll, nährend — ruhige Sprache, viel Empathie",
 };
 
+// Baut den System-Prompt aus der Brand Voice der Nutzerin.
+// WICHTIG: Keine personenspezifischen Fallbacks — fehlt eine Angabe,
+// wird die Zeile weggelassen (neutral), statt ein fremdes Profil anzunehmen.
 function buildSystemPrompt(bv?: BrandVoice): string {
-  const name     = bv?.name || "Desi";
-  const niche    = bv?.niche || "Mind, Health, Aesthetics, Self-Improvement";
-  const tone     = VOICE_LABELS[bv?.voice || ""] || bv?.voice || "warm, persönlich, ehrlich, inspirierend";
-  const audience = bv?.audience || "Frauen 25–40 die an sich arbeiten möchten";
-  const topics   = bv?.topics?.length ? bv.topics.join(", ") : "Mindset, Hormongesundheit, Hautpflege, Morgenroutine";
+  const name     = bv?.name?.trim();
+  const niche    = bv?.niche?.trim();
+  const tone     = VOICE_LABELS[bv?.voice || ""] || bv?.voice?.trim() || "warm, persönlich, ehrlich, inspirierend";
+  const audience = bv?.audience?.trim();
+  const topics   = bv?.topics?.length ? bv.topics.join(", ") : "";
 
-  let prompt = `Du bist Content-Assistent für ${name}, eine deutschsprachige Content Creatorin.
-Ihre Nische: ${niche}.
-Kernthemen: ${topics}.
-Ton: ${tone}.
-Zielgruppe: ${audience}.`;
+  let prompt = name
+    ? `Du bist Content-Assistent für ${name}, eine:n deutschsprachige:n Content-Creator:in.`
+    : `Du bist Content-Assistent für eine:n deutschsprachige:n Content-Creator:in.`;
+  if (niche)    prompt += `\nNische: ${niche}.`;
+  if (topics)   prompt += `\nKernthemen: ${topics}.`;
+  prompt += `\nTon: ${tone}.`;
+  if (audience) prompt += `\nZielgruppe: ${audience}.`;
 
   if (bv?.brand_keywords?.trim()) {
     prompt += `\nLieblingswörter & Phrasen: ${bv.brand_keywords}.`;
