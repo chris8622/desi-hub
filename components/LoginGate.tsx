@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
-import { syncDown, syncUp } from "@/lib/sync";
+import { syncDown, syncUp, flushOnHide } from "@/lib/sync";
 
 // Rolling session: 8 Stunden Inaktivität → Auto-Logout
 const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
@@ -27,10 +27,37 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<"idle"|"syncing"|"synced"|"local">("idle");
+  const [syncStatus, setSyncStatus] = useState<"idle"|"syncing"|"synced"|"local"|"error">("idle");
+  const [syncMessage, setSyncMessage] = useState("");
   const [kvAvailable, setKvAvailable] = useState(false);
   const [conflictNote, setConflictNote] = useState(false);
   const activityThrottle = useRef(0);
+
+  // Live-Sync-Status aus lib/sync (Hintergrund-Uploads beim Tippen)
+  useEffect(() => {
+    const onSync = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { status: typeof syncStatus; message?: string };
+      if (!detail) return;
+      setSyncStatus(detail.status);
+      setSyncMessage(detail.message || "");
+      if (detail.status === "synced") setKvAvailable(true);
+      if (detail.status === "local") setKvAvailable(false);
+    };
+    window.addEventListener("desi-sync", onSync);
+    return () => window.removeEventListener("desi-sync", onSync);
+  }, []);
+
+  // Beim Verlassen/Verstecken der Seite ausstehende Änderungen retten
+  useEffect(() => {
+    if (!authed) return;
+    const onHide = () => { if (document.visibilityState === "hidden") flushOnHide(); };
+    window.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flushOnHide);
+    return () => {
+      window.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flushOnHide);
+    };
+  }, [authed]);
 
   // Nach einem Sync-Konflikt (Reload durch lib/sync) einmalig einen Hinweis zeigen
   useEffect(() => {
@@ -296,6 +323,12 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
               <button onClick={handleManualSync} title="KV nicht verfügbar — lokal gespeichert"
                 style={{ fontSize: "0.72rem", color: "var(--muted)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem", padding: 0 }}>
                 💾 Nur lokal gespeichert
+              </button>
+            )}
+            {syncStatus === "error" && (
+              <button onClick={handleManualSync} title={syncMessage || "Erneut versuchen"}
+                style={{ fontSize: "0.72rem", color: "var(--warm-red)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem", padding: 0, fontWeight: 600 }}>
+                ⚠️ Sync fehlgeschlagen{syncMessage ? ` — ${syncMessage}` : ""} · erneut versuchen
               </button>
             )}
             {/* KV nicht konfiguriert — Hinweis */}

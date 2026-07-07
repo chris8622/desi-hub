@@ -102,7 +102,14 @@ export default function EmailPage() {
       ["Name", "E-Mail", "Hinzugefügt"],
       ...subscribers.map(s => [s.name, s.email, new Date(s.addedAt).toLocaleDateString("de-AT")]),
     ];
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+    // CSV-Zelle sicher kodieren: Formula-Injection entschärfen (führendes
+    // = + - @ Tab CR → mit ' voranstellen), dann Anführungszeichen escapen.
+    const csvCell = (v: string) => {
+      let s = String(v ?? "");
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const csv = rows.map(r => r.map(csvCell).join(",")).join("\r\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);

@@ -1,4 +1,5 @@
 import { authLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
+import { safeEqual, readJson } from "@/lib/server-auth";
 
 export const maxDuration = 10;
 
@@ -77,12 +78,14 @@ export async function POST(req: Request) {
     );
   }
 
-  const { password } = await req.json() as { password?: string };
+  const body = await readJson<{ password?: string }>(req);
+  if (!body) return Response.json({ ok: false, error: "Ungültige Anfrage." }, { status: 400 });
+  const password = body.password || "";
   const correct = process.env.APP_PASSWORD;
   const ua = req.headers.get("user-agent") || "";
   const geo = geoFromHeaders(req);
 
-  if (!correct || password !== correct) {
+  if (!correct || !safeEqual(password, correct)) {
     const cfg = getUpstashConfig();
     if (cfg) {
       const existing = await (kvGet(cfg, LOG_KEY) as Promise<LoginEntry[] | null>);

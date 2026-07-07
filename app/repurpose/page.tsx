@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import LoginGate from "@/components/LoginGate";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { trackTokens } from "@/lib/tokens";
 import type { SavedCaption } from "@/app/captions/page";
 
@@ -267,7 +268,7 @@ export default function RepurposePage() {
                 )}
                 {result.newsletter_body && (
                   <div style={{ fontSize: "0.88rem", lineHeight: 1.7, borderTop: "1px solid var(--border)", paddingTop: "0.75rem" }}
-                    dangerouslySetInnerHTML={{ __html: result.newsletter_body }} />
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(result.newsletter_body) }} />
                 )}
               </div>
             )}

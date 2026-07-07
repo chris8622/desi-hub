@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/server-auth";
+import { requireAuth, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 
 export const maxDuration = 60;
@@ -128,7 +128,8 @@ export async function POST(req: Request) {
     return tooManyRequests(rl.retryAfterSec, "Zu viele KI-Anfragen in kurzer Zeit. Bitte warte einen Moment und versuche es erneut.");
   }
 
-  const body = await req.json();
+  const body = await readJson<Record<string, unknown>>(req);
+  if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });
   const query          = body.query as string;
   const groqKey        = process.env.GROQ_API_KEY || "";
   const serperKey      = process.env.SERPER_API_KEY || "";

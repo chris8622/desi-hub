@@ -11,11 +11,71 @@ mandantenfähigen Produkt. Phasenplan siehe `desi-hub-umsetzungsprompt-opus.md`
 | Phase | Titel | Status |
 |-------|-------|--------|
 | 0 | Sicherheits-Härtung des Bestands | ✅ **abgeschlossen** (2026-07-05) |
+| A-Sec | Sicherheitsrelevante Audit-Lücken | ✅ **abgeschlossen** (2026-07-07) |
 | 1 | Postgres + echte Logins | ⏳ offen |
 | 2 | Entitlements + Admin-Cockpit | ⏳ offen |
 | 3 | Theming + Rechtliches | ⏳ offen |
 | 4 | Publishing + Analytics | ⏳ offen |
 | 5 | Stripe + Ausbau | ⏳ offen (nur Interface vorbereiten) |
+
+Hinweis: A-Sec = der **sicherheitsrelevante Teil** der Audit-Phase A. Die reinen
+Stabilitäts-/UX-Punkte von Phase A (LoginGate ins Layout = A2, Robustheits-Bugs =
+weiße Seite/Spinner/Editor-Dirty aus A4) sind bewusst NICHT enthalten und bleiben
+als Stabilitäts-Arbeit offen (nach dem Sync-Fix kein Sicherheitsthema mehr).
+
+---
+
+## Phase A-Sec — Sicherheitsrelevante Lücken (abgeschlossen 2026-07-07)
+
+Aus dem Tiefen-Audit vorgezogen, damit der Hub übergabe-/hosting-tauglich wird.
+
+**S1 · XSS geschlossen** — `app/repurpose/page.tsx`: der KI-Newsletter (`newsletter_body`)
+wurde per `dangerouslySetInnerHTML` **roh** gerendert → jetzt durch `sanitizeHtml()`
+(`lib/sanitize.ts`, dieselbe Allowlist, die Research nutzt). Editor-Vorschau ist safe
+(escaped HTML zuerst), Research war schon safe. **Verifiziert:** `<script>`, `onerror`,
+`javascript:`-href und `<iframe>` werden neutralisiert.
+
+**S2 · Auth gehärtet** — `lib/server-auth.ts`: Passwort-/Token-Vergleich jetzt
+konstantzeit (`crypto.timingSafeEqual` über SHA-256-Digests, kein Timing-/Längen-Leak)
+statt `!==`. Neuer Helfer `readJson()` fängt kaputtes JSON ab → **400 statt 500** in
+allen 7 Routen (auth, generate, repurpose, autoplan, research, trends; pinterest/pin
+war schon abgesichert). **Verifiziert (curl):** falsch→401, richtig→200, kaputt→400,
+ohne Token→401.
+
+**S3 · CSV-Injection entschärft** — `app/email/page.tsx`: der Abonnenten-Export
+prefixt führende `= + - @` Tab/CR mit `'` (Formula-Injection in Excel/Sheets) und
+escaped Anführungszeichen (`"`→`""`, kein Feld-Ausbruch). **Verifiziert.**
+
+**S4 · Security-Header + CSP** — `next.config.ts`: CSP (default-src 'self';
+img data:/blob:/https:; connect 'self'; frame-ancestors 'none'; object-src 'none';
+base-uri/form-action 'self'; Google Fonts erlaubt), dazu X-Frame-Options DENY,
+X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy, `poweredByHeader:false`.
+`script/style-src` brauchen `'unsafe-inline'` (durchgehende Inline-Styles + Next-Hydration
+ohne Nonce). `'unsafe-eval'`/Websockets nur in **Dev** (HMR); **Prod ist strenger**.
+**Verifiziert:** Header per curl gegen `next start` korrekt; App rendert unter CSP
+fehlerfrei (Fonts laden, keine Violations). **TODO Phase 1:** script-src via Nonce +
+Middleware verschärfen (`'unsafe-inline'` raus).
+
+**S5 · Sync-Datenverlust behoben** — `lib/sync.ts` + `components/LoginGate.tsx`:
+- **Dirty-Flag** (`desi_dirty`): jede Änderung markiert sofort dirty (verifiziert).
+- **flush-before-syncDown**: vor jedem Download werden ausstehende lokale Änderungen
+  erst hochgeladen; schlägt das fehl (offline), wird der Server-Stand NICHT drübergeschrieben
+  (lokal gewinnt) → schließt den Race beim schnellen Seitenwechsel.
+- **Sichtbarer Fehlerstatus**: `syncUp` meldet per Event `desi-sync`; Footer zeigt bei
+  413/500/Netzfehler „⚠️ Sync fehlgeschlagen …" statt weiter „Cloud-Sync aktiv".
+- **Unload-Flush**: `flushOnHide` bei `visibilitychange`/`pagehide` (keepalive) rettet
+  Änderungen beim Tab-Schließen.
+- Konflikt-Fall (409) bleibt „Server gewinnt" (Phase 0); echter Feld-Merge kommt mit
+  der DB in Phase 1.
+
+**Nicht lokal testbar (aktiv auf Vercel):** die volle Sync-Runde (dirty→synced) und
+Rate-Limits brauchen Upstash-KV; lokal greift „nur lokal gespeichert". Client-Logik
+(Dirty-Flag, Flush-Guards) ist per Code + Flag-Lifecycle verifiziert.
+
+**Noch offen fürs Multi-Tenant (Phase-1-Pflicht, NICHT jetzt gelöst):** globaler
+Sync-Key `desi_hub_data_v1`, Login-Log global sichtbar, Pinterest-OAuth-State global,
+Klartext-Passwort-als-Token (löst Auth.js in Phase 1). AVV-Liste für Datenschutz:
+Groq, Serper, Jina, Perplexity, Pinterest, Upstash, Vercel.
 
 ---
 

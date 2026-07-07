@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/server-auth";
+import { requireAuth, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 
 export const maxDuration = 60;
@@ -33,10 +33,9 @@ export async function POST(req: Request) {
     return tooManyRequests(rl.retryAfterSec, "Zu viele KI-Anfragen in kurzer Zeit. Bitte warte einen Moment und versuche es erneut.");
   }
 
-  const { settings, weekStart } = await req.json() as {
-    settings: Settings;
-    weekStart: string; // "YYYY-MM-DD" of Monday
-  };
+  const body = await readJson<{ settings: Settings; weekStart: string }>(req);
+  if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });
+  const { settings, weekStart } = body;
 
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) return Response.json({ error: "KI ist serverseitig nicht konfiguriert." }, { status: 503 });
