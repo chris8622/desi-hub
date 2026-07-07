@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import LoginGate from "@/components/LoginGate";
 import { scheduleSyncUp, syncDown, syncUp, SYNC_KEYS } from "@/lib/sync";
+import { THEMES, applyTheme } from "@/lib/theme";
 
 // Alle Backup-Keys: zentrale Sync-Keys + Instagram-Handle
 const BACKUP_KEYS = [...SYNC_KEYS, "dh_instagram_handle"];
@@ -20,6 +21,7 @@ const DEFAULT_SETTINGS = {
   freq_blog: 1,
   freq_newsletter: 1,
   auto_plan: true,
+  theme: "sand",
   trusted_sources: [
     "pubmed.ncbi.nlm.nih.gov",
     "who.int",
@@ -261,6 +263,35 @@ export default function SettingsPage() {
     setS(p => ({ ...p, topics: p.topics.filter(x => x !== t) }));
   }
 
+  // Theme sofort anwenden UND persistieren (unabhängig vom „Speichern"-Button)
+  function pickTheme(key: string) {
+    applyTheme(key);
+    setS(p => {
+      const next = { ...p, theme: key };
+      try { localStorage.setItem("dh_settings", JSON.stringify(next)); } catch {}
+      scheduleSyncUp(2000);
+      return next;
+    });
+  }
+
+  // Kompletter Reset — für die Übergabe an eine neue Person („neuer Nutzer")
+  async function resetUser() {
+    const ok = window.confirm(
+      "Wirklich ALLES zurücksetzen?\n\nIdeen, Entwürfe, Pläne, Abonnenten, Einstellungen und das Design werden gelöscht. Das kann nicht rückgängig gemacht werden.",
+    );
+    if (!ok) return;
+    try {
+      const keep = new Set(["desi_auth", "desi_auth_token", "desi_session_expires"]);
+      Object.keys(localStorage).forEach(k => {
+        if (!keep.has(k) && (k.startsWith("dh_") || k.startsWith("desi_"))) localStorage.removeItem(k);
+      });
+    } catch {}
+    applyTheme("sand");
+    // Leeren Stand auf den Server schreiben, sonst kommt er beim Reload zurück
+    try { await syncUp(); } catch {}
+    window.location.href = "/";
+  }
+
   if (!mounted) return null;
 
   return (
@@ -294,6 +325,37 @@ export default function SettingsPage() {
         <div>
           <label className="label">Nische / Themenbereich</label>
           <input className="input" value={s.niche} onChange={e => setS(p => ({ ...p, niche: e.target.value }))} placeholder="Mind, Health, Ästhetik..." />
+        </div>
+      </div>
+
+      {/* Design / Theme */}
+      <div className="card" style={{ marginBottom: "1.25rem" }}>
+        <h3 style={{ marginBottom: "0.4rem" }}>🎨 Design</h3>
+        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1.25rem" }}>
+          Wähle deine Farbwelt. Die Änderung ist sofort sichtbar und wird automatisch gespeichert.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: "0.75rem" }}>
+          {THEMES.map(t => {
+            const active = (s.theme || "sand") === t.key;
+            return (
+              <button key={t.key} onClick={() => pickTheme(t.key)}
+                style={{
+                  textAlign: "left", cursor: "pointer", padding: "0.75rem",
+                  borderRadius: "var(--radius-sm)", background: "var(--surface)",
+                  border: active ? "2px solid var(--accent)" : "1px solid var(--border)",
+                  display: "flex", flexDirection: "column", gap: "0.5rem",
+                }}>
+                <div style={{ display: "flex", gap: "0.3rem", alignItems: "center" }}>
+                  <span style={{ width: 26, height: 26, borderRadius: "50%", background: t.bg, border: "1px solid var(--border)", flexShrink: 0 }} />
+                  <span style={{ width: 26, height: 26, borderRadius: "50%", background: t.accent, flexShrink: 0 }} />
+                  {t.dark && <span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>🌙</span>}
+                </div>
+                <span style={{ fontSize: "0.82rem", fontWeight: active ? 700 : 500, color: active ? "var(--accent2)" : "var(--text)" }}>
+                  {t.label}{active ? " ✓" : ""}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -681,6 +743,23 @@ export default function SettingsPage() {
       <button className="btn btn-primary" onClick={save} style={{ width: "100%", justifyContent: "center", padding: "0.85rem" }}>
         {saved ? "✓ Gespeichert!" : "Einstellungen speichern"}
       </button>
+
+      {/* Zurücksetzen — Gefahrenzone */}
+      <div className="card" style={{ marginTop: "2rem", marginBottom: "1.25rem", border: "1px solid rgba(192,72,60,0.35)" }}>
+        <h3 style={{ marginBottom: "0.4rem", color: "var(--warm-red)" }}>⚠️ Zurücksetzen</h3>
+        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1rem" }}>
+          Löscht alle Inhalte, Einstellungen und das Design und startet frisch —
+          z. B. um den Workspace an eine andere Person zu übergeben. Kann nicht rückgängig gemacht werden.
+        </p>
+        <button onClick={resetUser}
+          style={{
+            background: "var(--warm-red)", color: "white", border: "none",
+            borderRadius: "var(--radius-sm)", padding: "0.7rem 1.1rem",
+            fontSize: "0.85rem", fontWeight: 600, cursor: "pointer",
+          }}>
+          Alles zurücksetzen
+        </button>
+      </div>
     </div>
     </LoginGate>
   );

@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const [lastResearch, setLastResearch] = useState<string>("—");
   const [today, setToday] = useState("");
   const [greeting, setGreeting] = useState("Guten Tag");
+  const [name, setName] = useState("");
   const [earlyTrends, setEarlyTrends] = useState<Trend[]>([]);
   const [trendsDate, setTrendsDate] = useState("");
   const [myWhy, setMyWhy] = useState("");
@@ -40,6 +41,9 @@ export default function DashboardPage() {
     if (history.length > 0) {
       setLastResearch(new Date(history[history.length - 1].date).toLocaleDateString("de-AT"));
     }
+
+    // Name aus den Einstellungen (personalisierter Gruß)
+    setName(getLS<{ name?: string }>("dh_settings", {}).name?.trim() || "");
 
     // Time-based greeting
     const now = new Date();
@@ -102,7 +106,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div style={{ marginBottom: "2rem" }}>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: "0.25rem" }}>
-          {greeting}, Desi 🌿
+          {greeting}{name ? `, ${name}` : ""} 🌿
         </h1>
         <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>{today}</p>
       </div>

@@ -1,4 +1,4 @@
-/* ─── Desi Hub — Design System (Erdtöne) ─── */
+/* ─── Contentraum — Design System (Standard: Sand/Erdtöne) ─── */
 :root {
   --bg:           #F7F3EE;
   --surface:      #FFFFFF;
@@ -22,6 +22,35 @@
   --radius-sm:    8px;
   --shadow:       0 1px 3px rgba(44,32,22,0.08), 0 1px 2px rgba(44,32,22,0.04);
   --shadow-md:    0 4px 12px rgba(44,32,22,0.1), 0 2px 4px rgba(44,32,22,0.06);
+}
+
+/* ─── Themes (personalisierbar) — via [data-theme] am <html> umgeschaltet ─── */
+/* Helle Themes: verschieben Akzent + Hintergrund-Tönung, Neutraltöne bleiben. */
+:root[data-theme="terrakotta"] {
+  --bg:#F6EFE7; --surface2:#EFE3D6;
+  --accent:#C0552F; --accent2:#A5461F; --accent-light:#F6E3D9; --accent-hover:#D06A44;
+}
+:root[data-theme="salbei"] {
+  --bg:#F0F3ED; --surface2:#E5EBDF;
+  --accent:#5E8466; --accent2:#4C6E53; --accent-light:#E3EEE3; --accent-hover:#6F9977;
+}
+:root[data-theme="rose"] {
+  --bg:#F9F0EF; --surface2:#F1E2E2;
+  --accent:#B56576; --accent2:#9E4F62; --accent-light:#F6E4E8; --accent-hover:#C67C8B;
+}
+:root[data-theme="ozean"] {
+  --bg:#EDF2F3; --surface2:#DFE9EB;
+  --accent:#3D7A87; --accent2:#2E626E; --accent-light:#DBECEF; --accent-hover:#4E8E9C;
+}
+/* Dunkles Theme: kompletter Neutral-Satz + kontraststarke Akzente. */
+:root[data-theme="nacht"] {
+  --bg:#1A1613; --surface:#242019; --surface2:#2E2921; --border:#3A342B; --border-hover:#4C4437;
+  --text:#F1EAE0; --muted:#A89C8C;
+  --accent:#D8875F; --accent2:#C4704A; --accent-light:#33261E; --accent-hover:#E39B73;
+  --sage:#8FB395; --sage-light:#232E24; --gold:#D2AE6A; --gold-light:#332B18;
+  --warm-red:#E27568; --warm-red-light:#38211E;
+  --shadow:0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:0 4px 12px rgba(0,0,0,0.45), 0 2px 4px rgba(0,0,0,0.3);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

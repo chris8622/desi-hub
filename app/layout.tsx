@@ -16,6 +16,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="de">
       <head>
+        {/* Theme vor dem ersten Paint setzen (kein Flash), gilt auch für das dunkle Theme */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var s=JSON.parse(localStorage.getItem('dh_settings')||'{}');if(s&&s.theme&&s.theme!=='sand'){document.documentElement.setAttribute('data-theme',s.theme);}}catch(e){}})();",
+          }}
+        />
         <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body>{children}</body>
