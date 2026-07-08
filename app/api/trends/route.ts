@@ -1,5 +1,6 @@
 import { requireAuth, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
+import { chat, extractJson, pickModel } from "@/lib/llm";
 
 export const maxDuration = 60;
 
@@ -60,10 +61,8 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  const groqKey = process.env.GROQ_API_KEY || "";
   const serperKey = process.env.SERPER_API_KEY || "";
-
-  if (!groqKey) return new Response(JSON.stringify({ error: "KI ist serverseitig nicht konfiguriert." }), { status: 503 });
+  const { provider, model } = pickModel(body);
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -133,25 +132,19 @@ Wichtig:
 - Nur echte Trends aus den Daten, nichts erfinden
 - Alles auf Deutsch, du-Form`;
 
-        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [{ role: "user", content: prompt }],
-            temperature: 0.4,
-            max_tokens: 2000,
-            response_format: { type: "json_object" },
-          }),
-          signal: AbortSignal.timeout(40000),
-        });
-
         let result: unknown = { trends: [], early_signals: [], summary: "" };
         let trendTokens = 0;
-        if (res.ok) {
-          const d = await res.json();
-          trendTokens = d.usage?.total_tokens || 0;
-          try { result = JSON.parse(d.choices?.[0]?.message?.content || "{}"); } catch {}
+        try {
+          const { text, tokens } = await chat({
+            provider, model, user: prompt,
+            temperature: 0.4, maxTokens: 2000, json: true, timeoutMs: 40000,
+          });
+          trendTokens = tokens;
+          try { result = extractJson(text); } catch {}
+        } catch (e) {
+          send({ type: "error", data: (e as Error).message });
+          controller.close();
+          return;
         }
 
         // Rohquellen mitschicken

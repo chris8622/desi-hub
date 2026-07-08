@@ -4,6 +4,7 @@ import { scheduleSyncUp } from "@/lib/sync";
 import Link from "next/link";
 import { getLS, setLS } from "@/lib/storage";
 import { apiFetch, errorMessage } from "@/lib/api";
+import { getAiChoice } from "@/lib/aichoice";
 import PostPaket from "@/components/PostPaket";
 import type { PlannerItem, Draft } from "@/lib/types";
 import { uid } from "@/lib/id";
@@ -82,7 +83,7 @@ export default function PlannerPage() {
     try {
       const data = await apiFetch<{ plan?: PlannerItem[] }>("/api/autoplan", {
         method: "POST",
-        body: { settings, weekStart: formatDate(weekStart) },
+        body: { settings, weekStart: formatDate(weekStart), ...getAiChoice() },
       });
       // Nur neue Slots hinzufügen (bestehende behalten).
       // WICHTIG: frisch aus localStorage lesen — der `items`-State kann hier

@@ -1,5 +1,6 @@
 import { requireAuth, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
+import { chat, extractJson, pickModel } from "@/lib/llm";
 
 export const maxDuration = 60;
 
@@ -33,9 +34,10 @@ export async function POST(req: Request) {
     return tooManyRequests(rl.retryAfterSec, "Zu viele KI-Anfragen in kurzer Zeit. Bitte warte einen Moment und versuche es erneut.");
   }
 
-  const body = await readJson<{ settings: Settings; weekStart: string }>(req);
+  const body = await readJson<{ settings: Settings; weekStart: string; provider?: string; model?: string }>(req);
   if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });
   const { settings, weekStart } = body;
+  const { provider, model } = pickModel(body);
 
   // Frequenzen absichern: fehlt ein Wert (undefined), würde distribute()
   // sonst ALLE bevorzugten Tage belegen ("0 >= undefined" ist false).
@@ -47,9 +49,6 @@ export async function POST(req: Request) {
   const freqPinterest  = freq(settings?.freq_pinterest, 0);
   const freqBlog       = freq(settings?.freq_blog, 0);
   const freqNewsletter = freq(settings?.freq_newsletter, 0);
-
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) return Response.json({ error: "KI ist serverseitig nicht konfiguriert." }, { status: 503 });
 
   // Wochentage berechnen (Mo–So) — lokale Datumsberechnung ohne Timezone-Shift
   const [y, m, d] = weekStart.split("-").map(Number);
@@ -106,26 +105,13 @@ Regeln:
 - Variiere die Themen über die Woche`;
 
   try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 500,
-        temperature: 0.8,
-      }),
-      signal: AbortSignal.timeout(20000),
+    const { text } = await chat({
+      provider, model, user: prompt,
+      temperature: 0.8, maxTokens: 500, timeoutMs: 25000,
     });
 
-    const data = await res.json() as { choices?: { message?: { content?: string } }[] };
-    const raw = data.choices?.[0]?.message?.content?.trim() ?? "[]";
-
     let titles: { title: string }[] = [];
-    try {
-      const jsonMatch = raw.match(/\[[\s\S]*\]/);
-      titles = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
-    } catch { titles = []; }
+    try { titles = extractJson<{ title: string }[]>(text); } catch { titles = []; }
 
     const plan: PlanEntry[] = slots.map((slot, i) => ({
       id: `auto-${Date.now()}-${i}`,
@@ -138,6 +124,7 @@ Regeln:
 
     return Response.json({ plan });
   } catch (err) {
-    return Response.json({ error: (err as Error).message }, { status: 500 });
+    const msg = (err as Error).message;
+    return Response.json({ error: msg }, { status: /nicht konfiguriert/.test(msg) ? 503 : 500 });
   }
 }

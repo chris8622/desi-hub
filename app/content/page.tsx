@@ -11,6 +11,7 @@ import type { PlannerItem, Slide, CarouselResult, SavedCarousel, SavedPin } from
 import { OPEN_CAROUSEL_KEY, OPEN_PIN_KEY } from "@/lib/types";
 import { uid } from "@/lib/id";
 import { getBrandVoice } from "@/lib/brandvoice";
+import { getAiChoice } from "@/lib/aichoice";
 import HashtagBar from "@/components/HashtagBar";
 
 type Idea = { title: string; type: "instagram" | "blog" | "newsletter"; hook: string; angle: string };
@@ -515,7 +516,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     try {
       const data = await apiFetch<CarouselResult & { _tokens?: number }>("/api/generate", {
         method: "POST",
-        body: { type: "carousel", topic, context: researchContext || undefined, brandVoice: getBrandVoice() },
+        body: { type: "carousel", topic, context: researchContext || undefined, brandVoice: getBrandVoice(), ...getAiChoice() },
       });
       trackTokens(data._tokens || 0);
       // KI-Antwort validieren — eine unerwartete Struktur würde sonst beim
@@ -569,7 +570,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     try {
       const data = await apiFetch<{ ideas?: Idea[]; _tokens?: number }>("/api/generate", {
         method: "POST",
-        body: { type: "ideas", topic: ideaTopic, context: researchContext || undefined, brandVoice: getBrandVoice() },
+        body: { type: "ideas", topic: ideaTopic, context: researchContext || undefined, brandVoice: getBrandVoice(), ...getAiChoice() },
       });
       trackTokens(data._tokens || 0);
       setIdeas(data.ideas || []);
@@ -587,7 +588,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     try {
       const data = await apiFetch<{ headline?: string; title?: string; description?: string; hashtags?: string[]; _tokens?: number }>(
         "/api/generate",
-        { method: "POST", body: { type: "pinterest", topic: pinTopic, context: researchContext || undefined, brandVoice: getBrandVoice() } },
+        { method: "POST", body: { type: "pinterest", topic: pinTopic, context: researchContext || undefined, brandVoice: getBrandVoice(), ...getAiChoice() } },
       );
       trackTokens(data._tokens || 0);
       setPinHeadline(data.headline || "");

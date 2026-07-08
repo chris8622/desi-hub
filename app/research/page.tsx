@@ -7,6 +7,7 @@ import { scheduleSyncUp } from "@/lib/sync";
 import { getLS, setLS } from "@/lib/storage";
 import { apiStream, errorMessage } from "@/lib/api";
 import { uid } from "@/lib/id";
+import { getAiChoice, getResearchEngine } from "@/lib/aichoice";
 
 type Source = { title: string; url: string; snippet: string; credibility?: { level: string; label: string; color: string } };
 // Quellen gehören zur History — gerade in der Health-Nische (Belegpflicht)
@@ -87,7 +88,8 @@ export default function ResearchPage() {
         method: "POST",
         body: {
           query: q,
-          engine: "standard",
+          ...getAiChoice(),
+          engine: getResearchEngine(),
           niche: getLS<{niche?:string}>("dh_settings",{}).niche || "",
           trustedDomains: getLS<{trusted_sources?:string[]}>("dh_settings",{}).trusted_sources || [],
           searchMode,

@@ -1,5 +1,6 @@
 import { requireAuth, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
+import { chat, pickModel } from "@/lib/llm";
 
 export const maxDuration = 60;
 
@@ -134,7 +135,6 @@ export async function POST(req: Request) {
   // Nische aus den Einstellungen der Nutzerin — kein hardcodiertes Profil
   const niche          = ((body.niche as string) || "").trim();
   const nicheLabel     = niche ? ` (Nische: ${niche})` : "";
-  const groqKey        = process.env.GROQ_API_KEY || "";
   const serperKey      = process.env.SERPER_API_KEY || "";
   const perplexityKey  = process.env.PERPLEXITY_API_KEY || "";
   const engine         = (body.engine as string | undefined) || "standard";
@@ -142,6 +142,7 @@ export async function POST(req: Request) {
   const searchMode     = (body.searchMode as string | undefined) || "all";
   const trustedOnly    = searchMode === "trusted_only" && trustedDomains.length > 0;
   const usePerplexity  = engine === "perplexity" && perplexityKey;
+  const { provider, model } = pickModel(body);
 
   const encoder = new TextEncoder();
   const stream  = new ReadableStream({
@@ -281,14 +282,8 @@ Erstelle eine fundierte Tiefen-Analyse auf Deutsch. Antworte nur mit HTML (h3, p
           .join("\n\n---\n\n")
           .slice(0, 19000); // ~4800 Tokens — passt mit 3500 Output unter Groq Free-Limit (12k TPM)
 
-        // ── 4. Groq: Zusammenfassung ────────────────────────
-        const summaryRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-              { role: "system", content: `Du bist ein gründlicher Research-Analyst mit wissenschaftlichem Anspruch für eine:n deutschsprachige:n Content-Creator:in${nicheLabel}. Du lieferst KEINE oberflächlichen Zusammenfassungen, sondern eine fundierte Tiefen-Analyse, die echten Mehrwert bietet und auf der die Creator:in verlässlich Content aufbauen kann. Analysiere NUR die bereitgestellten Inhalte. Antworte nur mit HTML (h3, p, ul, li, strong, em — kein anderes HTML).
+        // ── 4. Zusammenfassung per gewähltem Text-Modell ────
+        const summarySystem = `Du bist ein gründlicher Research-Analyst mit wissenschaftlichem Anspruch für eine:n deutschsprachige:n Content-Creator:in${nicheLabel}. Du lieferst KEINE oberflächlichen Zusammenfassungen, sondern eine fundierte Tiefen-Analyse, die echten Mehrwert bietet und auf der die Creator:in verlässlich Content aufbauen kann. Analysiere NUR die bereitgestellten Inhalte. Antworte nur mit HTML (h3, p, ul, li, strong, em — kein anderes HTML).
 
 ABSOLUT WICHTIG — Quellen-Ehrlichkeit & Evidenz-Einordnung:
 - Erfinde NIEMALS Quellen. Zitiere nur was wörtlich in den Inhalten steht, mit echter Domain.
@@ -312,40 +307,28 @@ Struktur (gehe in die TIEFE, sei konkret, nenne Mechanismen und Details):
 
 6. <h3>Content-Potenzial mit Substanz</h3> — ul/li: konkrete, fundierte Content-Ideen (Instagram/Blog/Newsletter) — KEINE Floskeln, sondern Ideen die auf den Erkenntnissen aufbauen und einen klaren Mehrwert/Hook haben.
 
-Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als drei oberflächliche.` },
-              { role: "user", content: `Research-Thema: "${query}"\n\nGefundene Inhalte (jede Quelle mit ihrer Domain — achte auf den Quellentyp in [Klammern]):\n\n${context}` },
-            ],
-            temperature: 0.35,
-            max_tokens: 3500,
-          }),
-          signal: AbortSignal.timeout(45000),
-        });
+Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als drei oberflächliche.`;
+        const summaryUser = `Research-Thema: "${query}"\n\nGefundene Inhalte (jede Quelle mit ihrer Domain — achte auf den Quellentyp in [Klammern]):\n\n${context}`;
 
-        // Ergebnisse auswerten
-        let summary = !groqKey
-          ? `<p style="color:var(--gold)">⚠️ <strong>Kein Groq API Key hinterlegt</strong> — bitte in den Einstellungen eintragen.</p>`
-          : "<p>Zusammenfassung konnte nicht erstellt werden. Bitte versuche es erneut.</p>";
-
+        let summary = "<p>Zusammenfassung konnte nicht erstellt werden. Bitte versuche es erneut.</p>";
         let summaryTokens = 0;
         try {
-          const d = await summaryRes.json();
-          if (summaryRes.ok) {
-            summary = d.choices?.[0]?.message?.content || summary;
-            summaryTokens = d.usage?.total_tokens || 0;
-          } else {
-            const errMsg = d?.error?.message || JSON.stringify(d);
-            if (summaryRes.status === 429) {
-              const waitMatch = errMsg.match(/try again in ([\d.]+)s/i);
-              const retryAfter = waitMatch ? Math.ceil(parseFloat(waitMatch[1])) : 60;
-              const isDaily = /per day|TPD/i.test(errMsg);
-              send({ type: "rate_limit", data: { retryAfter, isDaily } });
-              return; // kein result-Event senden
-            } else {
-              summary = `<p style="color:var(--warm-red)">⚠️ Analyse fehlgeschlagen (${summaryRes.status}). Bitte versuche es erneut.</p>`;
-            }
+          const { text, tokens } = await chat({
+            provider, model,
+            system: summarySystem, user: summaryUser,
+            temperature: 0.35, maxTokens: 3500, timeoutMs: 45000,
+          });
+          if (text) summary = text;
+          summaryTokens = tokens;
+        } catch (e) {
+          const m = (e as Error).message;
+          // Rate-Limit → Client-Countdown (Auto-Retry); sonst Fehler anzeigen
+          const wait = m.match(/(\d+(?:\.\d+)?)\s*s/i);
+          if (/rate limit|429|too many/i.test(m)) {
+            send({ type: "rate_limit", data: { retryAfter: wait ? Math.ceil(parseFloat(wait[1])) : 60, isDaily: /per day|TPD/i.test(m) } });
+            return;
           }
-        } catch {
-          summary = `<p style="color:var(--warm-red)">⚠️ Verbindungsfehler zu Groq.</p>`;
+          summary = `<p style="color:var(--warm-red)">⚠️ ${m}</p>`;
         }
 
         // hasContent-Flag pro Quelle ergänzen

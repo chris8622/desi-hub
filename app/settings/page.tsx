@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { scheduleSyncUp, syncDown, syncUp, SYNC_KEYS } from "@/lib/sync";
 import { THEMES, applyTheme } from "@/lib/theme";
+import { TEXT_MODELS, RESEARCH_ENGINES } from "@/lib/llm";
 import { apiFetch, errorMessage } from "@/lib/api";
 
 // Backup umfasst genau die synchronisierten Keys
@@ -24,6 +25,9 @@ const DEFAULT_SETTINGS = {
   freq_newsletter: 1,
   auto_plan: true,
   theme: "sand",
+  ai_provider: "groq",
+  ai_model: "llama-3.3-70b-versatile",
+  research_engine: "standard",
   trusted_sources: [] as string[],
 };
 
@@ -347,6 +351,37 @@ export default function SettingsPage() {
             );
           })}
         </div>
+      </div>
+
+      {/* KI-Modell */}
+      <div className="card" style={{ marginBottom: "1.25rem" }}>
+        <h3 style={{ marginBottom: "0.4rem" }}>🤖 KI-Modell</h3>
+        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1.25rem" }}>
+          Welche KI deine Texte schreibt. Ein Modell muss serverseitig konfiguriert sein (Key) — sonst kommt eine klare Fehlermeldung.
+        </p>
+
+        <label className="label">Text-Generierung (Karussell, Ideen, Pinterest, Blog, Newsletter …)</label>
+        <select className="select" value={s.ai_model}
+          onChange={e => {
+            const m = TEXT_MODELS.find(t => t.model === e.target.value);
+            setS(p => ({ ...p, ai_model: e.target.value, ai_provider: m?.provider || p.ai_provider }));
+          }}>
+          {TEXT_MODELS.map(t => (
+            <option key={`${t.provider}:${t.model}`} value={t.model}>{t.label}</option>
+          ))}
+        </select>
+
+        <label className="label" style={{ marginTop: "1.25rem" }}>Research-Modus</label>
+        <select className="select" value={s.research_engine}
+          onChange={e => setS(p => ({ ...p, research_engine: e.target.value }))}>
+          {RESEARCH_ENGINES.map(en => (
+            <option key={en.id} value={en.id}>{en.label}</option>
+          ))}
+        </select>
+
+        <p style={{ fontSize: "0.73rem", color: "var(--muted)", marginTop: "0.85rem" }}>
+          Groq ist günstig &amp; schnell · Claude/GPT-4o liefern die feinste deutsche Prosa · Perplexity recherchiert live mit echten Quellen. Änderungen mit „Speichern" unten übernehmen.
+        </p>
       </div>
 
       {/* Brand Voice */}

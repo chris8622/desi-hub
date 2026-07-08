@@ -5,6 +5,7 @@ import { scheduleSyncUp } from "@/lib/sync";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { apiFetch, errorMessage } from "@/lib/api";
 import { trackTokens } from "@/lib/tokens";
+import { getAiChoice } from "@/lib/aichoice";
 import type { Draft, SavedCaption } from "@/lib/types";
 import { uid } from "@/lib/id";
 
@@ -83,7 +84,7 @@ export default function RepurposePage() {
       const settings = getLS<Record<string, unknown>>("dh_settings", {});
       const data = await apiFetch<RepurposeResult>("/api/repurpose", {
         method: "POST",
-        body: { sourceText: text.slice(0, 6000), formats, brandVoice: settings },
+        body: { sourceText: text.slice(0, 6000), formats, brandVoice: settings, ...getAiChoice() },
       });
       trackTokens(data._tokens || 0);
       setResult(data);

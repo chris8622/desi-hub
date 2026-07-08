@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { getLS, setLS } from "@/lib/storage";
 import { apiFetch, errorMessage } from "@/lib/api";
 import { getBrandVoice } from "@/lib/brandvoice";
+import { getAiChoice } from "@/lib/aichoice";
 import { trackTokens } from "@/lib/tokens";
 import type { PlannerItem, Draft } from "@/lib/types";
 
@@ -224,7 +225,7 @@ function EditorInner() {
     try {
       const data = await apiFetch<BlogResult>("/api/generate", {
         method: "POST",
-        body: { type: "blog", topic, brandVoice: getBrandVoice() },
+        body: { type: "blog", topic, brandVoice: getBrandVoice(), ...getAiChoice() },
         timeoutMs: 90_000,
       });
       trackTokens(data._tokens || 0);

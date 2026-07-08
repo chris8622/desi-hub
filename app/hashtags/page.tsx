@@ -7,6 +7,7 @@ import { apiFetch, errorMessage } from "@/lib/api";
 import { uid } from "@/lib/id";
 import type { HashtagSet } from "@/lib/types";
 import { getBrandVoice } from "@/lib/brandvoice";
+import { getAiChoice } from "@/lib/aichoice";
 
 
 const EMOJIS = ["#️⃣", "🌿", "🌸", "💪", "✨", "🧘", "🍋", "🌙", "🔥", "💡", "🎯", "🌺"];
@@ -69,7 +70,7 @@ export default function HashtagsPage() {
       const settings = getBrandVoice();
       const data = await apiFetch<{ hashtags?: string[]; _tokens?: number }>("/api/generate", {
         method: "POST",
-        body: { type: "hashtags", topic: suggestTopic, brandVoice: settings },
+        body: { type: "hashtags", topic: suggestTopic, brandVoice: settings, ...getAiChoice() },
       });
       trackTokens(data._tokens || 0);
       if (data.hashtags?.length) {

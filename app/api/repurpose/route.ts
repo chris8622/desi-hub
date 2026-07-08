@@ -1,5 +1,6 @@
 import { requireAuth, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
+import { chat, extractJson, pickModel } from "@/lib/llm";
 
 export const maxDuration = 60;
 
@@ -42,12 +43,11 @@ export async function POST(req: Request) {
     return tooManyRequests(rl.retryAfterSec, "Zu viele KI-Anfragen in kurzer Zeit. Bitte warte einen Moment und versuche es erneut.");
   }
 
-  const body = await readJson<{ sourceText: string; formats: string[]; brandVoice?: BrandVoice }>(req);
+  const body = await readJson<{ sourceText: string; formats: string[]; brandVoice?: BrandVoice; provider?: string; model?: string }>(req);
   if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });
   const { sourceText, formats, brandVoice } = body;
+  const { provider, model } = pickModel(body);
 
-  const groqKey = process.env.GROQ_API_KEY || "";
-  if (!groqKey) return Response.json({ error: "KI ist serverseitig nicht konfiguriert." }, { status: 503 });
   if (!sourceText?.trim()) return Response.json({ error: "Kein Quelltext." }, { status: 400 });
   if (!formats?.length) return Response.json({ error: "Kein Format gewählt." }, { status: 400 });
 
@@ -80,35 +80,17 @@ Antworte mit JSON:
   ${selectedInstructions}
 }`;
 
-  const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${groqKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: buildSystemPrompt(brandVoice) },
-        { role: "user",   content: prompt },
-      ],
-      temperature: 0.7,
-      max_tokens: 3000,
-      response_format: { type: "json_object" },
-    }),
-    signal: AbortSignal.timeout(50000),
-  });
-
-  if (!groqRes.ok) {
-    const err = await groqRes.text();
-    return Response.json({ error: `Groq-Fehler: ${err}` }, { status: 500 });
-  }
-
-  const data = await groqRes.json() as { choices: { message: { content: string } }[]; usage?: { total_tokens?: number } };
-  const content = data.choices?.[0]?.message?.content || "{}";
-
   try {
-    const result = JSON.parse(content);
-    result._tokens = data.usage?.total_tokens || 0;
+    const { text, tokens } = await chat({
+      provider, model,
+      system: buildSystemPrompt(brandVoice), user: prompt,
+      temperature: 0.7, maxTokens: 3000, json: true,
+    });
+    const result = extractJson<Record<string, unknown>>(text);
+    result._tokens = tokens;
     return Response.json(result);
-  } catch {
-    return Response.json({ error: "Antwort konnte nicht verarbeitet werden", raw: content }, { status: 500 });
+  } catch (e) {
+    const msg = (e as Error).message;
+    return Response.json({ error: msg }, { status: /nicht konfiguriert/.test(msg) ? 503 : 500 });
   }
 }

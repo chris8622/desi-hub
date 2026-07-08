@@ -5,6 +5,7 @@ import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
 import { getLS, setLS } from "@/lib/storage";
 import { apiStream, errorMessage } from "@/lib/api";
+import { getAiChoice } from "@/lib/aichoice";
 import { uid } from "@/lib/id";
 
 type Trend = {
@@ -60,7 +61,7 @@ export default function TrendsPage() {
     setLoading(true);
     try {
       // apiStream prüft res.ok (Fehlerantworten sind JSON, kein Stream)
-      const reader = await apiStream("/api/trends", { method: "POST", body: { niche: useNiche } });
+      const reader = await apiStream("/api/trends", { method: "POST", body: { niche: useNiche, ...getAiChoice() } });
       const decoder = new TextDecoder();
       let buffer = "";
       while (true) {
