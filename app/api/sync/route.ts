@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/server-auth";
+import { guardFeature } from "@/lib/flags";
 
 export const maxDuration = 30;
 
@@ -119,6 +120,10 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const authError = requireAuth(req);
   if (authError) return authError;
+
+  // Nur-Lese-/Sperr-Status blockt jeden Schreibvorgang (Admin-Flags)
+  const featureBlock = await guardFeature({ write: true });
+  if (featureBlock) return featureBlock;
 
   const cfg = getUpstashConfig();
   if (!cfg) return Response.json({ available: false, saved: false, reason: "KV not configured" });

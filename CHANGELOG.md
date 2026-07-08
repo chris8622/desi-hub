@@ -10,13 +10,18 @@ Der technische Detailstand der SaaS-Migration liegt in `MIGRATION.md`.
 ## [Unreleased]
 
 ### Hinzugefügt
+- **Admin-Konsole (Stufe 1)** — geschützte `/admin`-Seite mit eigenem Betreiber-Passwort
+  (getrennt vom Kunden-Login). Module pro Instanz freischalten/sperren, Instanz-Status
+  (Aktiv / Nur-Lese / Gesperrt), KI-Kill-Switch + Monatslimit, Ankündigungs-Banner,
+  KI-Verbrauchs-Übersicht, Daten leeren und Backups einspielen (jeweils mit automatischem
+  Undo-Snapshot), Audit-Log. Die Steuerung greift ohne Deploy (Remote-Flags in KV).
 - **Release-Prozess** — CI-Gate (GitHub Action: Typecheck + Build), `dev`-Branch als
   Integrationszweig, Smoke- und Env-Var-Checklisten in `RELEASE.md`. Ab jetzt läuft jede
   Weiterentwicklung über diesen Weg; `main` bleibt immer lauffähig.
 
-### Geplant (Nächstes)
-- Stufe-1-Admin-Konsole: Remote-Flags in KV, `requireFeature()`, geschützte `/admin`-Seite
-  (Flags, Status, Banner, KI-Verbrauch, Daten-Reset mit Backup, Ein-Klick-Restore).
+### Geändert
+- Gesperrte Module verschwinden aus der Seitenleiste; ein Ankündigungs-/Status-Banner
+  erscheint bei Bedarf über dem Inhalt.
 
 ## [0.1.0] — 2026-07-07
 

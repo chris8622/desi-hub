@@ -19,8 +19,8 @@ mandantenfähigen Produkt. Phasenplan siehe `desi-hub-umsetzungsprompt-opus.md`
 | C2/C3 | Hashtag-Bank im Flow + Brand Voice überall | ✅ **abgeschlossen** (2026-07-07) |
 | C4 | Brachliegende KI (Editor-Artikel, Research→Ideenpool) | ✅ **abgeschlossen** (2026-07-07) |
 | Multi-KI | Provider-Layer (5 Anbieter) + Modell-Wähler | ✅ **abgeschlossen** (2026-07-07) |
-| Release | Release-Prozess (dev-Branch, CI-Gate, RELEASE/CHANGELOG) | 🟡 **eingerichtet** (2026-07-08) — Workflow-Push offen (Token-Scope) |
-| Admin-1 | Stufe-1-Admin-Konsole (KV-Flags, /admin) | ⏳ offen (nächstes Feature) |
+| Release | Release-Prozess (dev-Branch, CI-Gate, RELEASE/CHANGELOG) | ✅ **abgeschlossen** (2026-07-08) |
+| Admin-1 | Stufe-1-Admin-Konsole (KV-Flags, /admin) | ✅ **abgeschlossen** (2026-07-08, auf `dev`) |
 | 1 | Postgres + echte Logins | ⏳ offen |
 | 2 | Entitlements + Admin-Cockpit | ⏳ offen |
 | 3 | Theming + Rechtliches | ⏳ offen |
@@ -269,6 +269,48 @@ Schritt 1 des Admin-/Release-Plans (`~/Desktop/contentraum-admin-release-plan.ht
 2. **Test-Upstash-Store** anlegen + im Vercel-**Preview**-Environment die `KV_*`-Vars
    darauf zeigen lassen (Production unberührt) — ~15 Min, Schritte in `RELEASE.md`.
 3. **Branch-Protection** auf `main`: Merge nur bei grünem Check „Typecheck + Build".
+
+## Admin-Konsole Stufe 1 (abgeschlossen 2026-07-08, Branch `dev`)
+
+Erstes Feature über den neuen Release-Prozess. Brücke-jetzt/Vollausbau-Phase-2 aus
+`~/Desktop/contentraum-admin-release-plan.html`. **Nichts doppelt gebaut:** dieselbe
+`guardFeature()`-Schnittstelle liest Phase 2 später aus Postgres statt KV.
+
+**Neue Bausteine**
+- `lib/kv.ts` — gemeinsame Upstash-REST-Schicht (getKvConfig/kvGet/kvSet/kvDel),
+  zentralisiert das bisher duplizierte KV-Muster.
+- `lib/flags.ts` — Flag-Modell `admin_flags_v1` (Module, `ai.enabled`+`monthlyLimit`,
+  `status` active/readonly/locked, `banner`), `getFlags()` (30 s Cache, **fail-open**),
+  `normalizeFlags()`, `guardFeature({module,ai,write})` → 403, serverseitiger
+  KI-Zähler (`admin_ai_usage_<YYYY-MM>` via INCR).
+- `lib/admin.ts` — `requireAdmin()` (eigenes **ADMIN_PASSWORD**, `x-admin-token`,
+  Konstantzeit, **fail-closed**) + Audit-Log (`admin_audit_log_v1`, letzte 200).
+- Routen: `/api/flags` (Kunde, UX), `/api/admin/flags` (GET/POST), `/api/admin/status`,
+  `/api/admin/data` (reset/restore + Undo-Snapshot `desi_hub_backup_pre_action`),
+  `/api/admin/audit`.
+- `app/admin/page.tsx` — geschützte Konsole (eigener Login → Übersicht, Steuerung,
+  Daten, Audit). Läuft via Sonderfall in `LoginGate` am Kunden-Login vorbei.
+- Enforcement verdrahtet: Sync-POST (write-Guard), alle 5 KI-Routen (ai-Guard +
+  Modul-Guard bei research/trends/repurpose/autoplan, generate nur ai-Guard weil geteilt)
+  + Verbrauchszählung.
+- Client: Sidebar blendet gesperrte Module aus; Banner/Status-Streifen über dem Inhalt.
+
+**Verifiziert (End-to-End gegen Mock-Upstash, echte Routen):** Admin-Auth 401/200;
+Flags-POST persistiert; `locked`→Sync-POST 403; `ai.enabled=false`→generate 403;
+Modul aus→research 403; `monthlyLimit=1`→2. Aufruf 403 (`aiUsage` zählt); Reset+Undo-
+Restore; Audit-Log füllt sich; `/admin`-UI (Login→Save→„Flags gespeichert."); Kunden-
+Sidebar verliert gesperrte Module, Banner + Nur-Lese-Streifen erscheinen; keine
+Konsolen-Fehler; Build grün.
+
+**⚠️ Offen (Christian):**
+1. **`ADMIN_PASSWORD` je Vercel-Projekt setzen** — langes, eigenes Passwort, NIE gleich
+   `APP_PASSWORD`. Fehlt es, ist `/admin` komplett gesperrt (fail-closed).
+2. KV-abhängige Persistenz greift wie immer nur mit gesetztem `KV_REST_API_URL/TOKEN`
+   (auf Vercel vorhanden; lokal fail-open).
+
+**Kleine bewusste Grenze (Stufe 1):** Das Ausblenden gesperrter Module ist UX in der
+Sidebar; Deep-Links/Dashboard-Schnellstart bleiben sichtbar, aber die zugehörigen
+KI-/Schreib-APIs sind serverseitig geblockt. Feiner Client-Guard kommt mit Phase 2.
 
 ## Nächster Schritt: Phase 1
 Neon Postgres (Frankfurt) + Drizzle-Schema (`tenants/users/entitlements/usage/items`),

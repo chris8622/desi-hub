@@ -1,7 +1,11 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { syncDown, syncUp, flushOnHide } from "@/lib/sync";
+import { apiFetch } from "@/lib/api";
+
+type ClientFlags = { modules: Record<string, boolean>; banner: string; status: string };
 
 // Rolling session: 8 Stunden Inaktivität → Auto-Logout
 const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
@@ -31,7 +35,9 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   const [syncMessage, setSyncMessage] = useState("");
   const [kvAvailable, setKvAvailable] = useState(false);
   const [conflictNote, setConflictNote] = useState(false);
+  const [flags, setFlags] = useState<ClientFlags | null>(null);
   const activityThrottle = useRef(0);
+  const pathname = usePathname();
 
   // Live-Sync-Status aus lib/sync (Hintergrund-Uploads beim Tippen)
   useEffect(() => {
@@ -69,6 +75,12 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
       }
     } catch {}
   }, []);
+
+  // Feature-Flags laden, sobald eingeloggt (Module ausblenden + Banner)
+  useEffect(() => {
+    if (authed !== true) return;
+    apiFetch<ClientFlags>("/api/flags").then(setFlags).catch(() => {});
+  }, [authed]);
 
   // Aktivität tracken — refresht die Session (gedrosselt auf 1× pro Minute)
   const onActivity = useCallback(() => {
@@ -185,6 +197,10 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
     window.location.reload();
   };
 
+  // Die Admin-Konsole läuft an diesem Kunden-Login vorbei — sie hat ihren
+  // eigenen Admin-Login (ADMIN_PASSWORD) direkt in der Seite.
+  if (pathname?.startsWith("/admin")) return <>{children}</>;
+
   if (authed === null) {
     return (
       <div style={{
@@ -288,7 +304,11 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
         className={sidebarOpen ? "sidebar-overlay visible" : "sidebar-overlay"}
         onClick={() => setSidebarOpen(false)}
       />
-      <Sidebar onLogout={handleLogout} open={sidebarOpen} />
+      <Sidebar
+        onLogout={handleLogout}
+        open={sidebarOpen}
+        hidden={flags ? Object.keys(flags.modules).filter(k => !flags.modules[k]) : []}
+      />
       <div className="main-wrapper">
         {/* Mobile sticky header */}
         <div className="mobile-topbar">
@@ -303,6 +323,27 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
           <div style={{ width: 40 }} />
         </div>
         <main className="main-content">
+        {flags && (flags.banner || flags.status !== "active") && (
+          <div style={{
+            marginBottom: "1.5rem",
+            padding: "0.85rem 1.1rem",
+            borderRadius: "var(--radius-sm)",
+            border: "1px solid var(--border)",
+            borderLeft: `3px solid ${flags.status === "locked" ? "var(--warm-red)" : flags.status === "readonly" ? "var(--gold)" : "var(--accent)"}`,
+            background: flags.status === "locked" ? "var(--warm-red-light)" : flags.status === "readonly" ? "var(--gold-light)" : "var(--accent-light)",
+            fontSize: "0.85rem", color: "var(--text)",
+            display: "flex", alignItems: "center", gap: "0.6rem",
+          }}>
+            <span style={{ fontSize: "1.05rem", flexShrink: 0 }}>
+              {flags.status === "locked" ? "🔒" : flags.status === "readonly" ? "👁️" : "📣"}
+            </span>
+            <span>
+              {flags.status === "locked" && <strong>Instanz gesperrt. </strong>}
+              {flags.status === "readonly" && <strong>Nur-Lese-Modus — Änderungen sind derzeit deaktiviert. </strong>}
+              {flags.banner}
+            </span>
+          </div>
+        )}
         {children}
         <footer style={{ marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
           {/* Sync-Status */}

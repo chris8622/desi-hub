@@ -1,6 +1,7 @@
 import { requireAuth, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 import { chat, pickModel } from "@/lib/llm";
+import { guardFeature, incrAiUsage } from "@/lib/flags";
 
 export const maxDuration = 60;
 
@@ -128,6 +129,10 @@ export async function POST(req: Request) {
   if (!rl.ok) {
     return tooManyRequests(rl.retryAfterSec, "Zu viele KI-Anfragen in kurzer Zeit. Bitte warte einen Moment und versuche es erneut.");
   }
+
+  const featureBlock = await guardFeature({ ai: true, module: "research" });
+  if (featureBlock) return featureBlock;
+  await incrAiUsage();
 
   const body = await readJson<Record<string, unknown>>(req);
   if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });

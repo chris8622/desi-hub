@@ -144,8 +144,12 @@ function LoginLogModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function Sidebar({ onLogout, open }: { onLogout: () => void; open?: boolean }) {
+export default function Sidebar({ onLogout, open, hidden }: { onLogout: () => void; open?: boolean; hidden?: string[] }) {
   const path = usePathname();
+  // Modul-Schlüssel = href ohne führenden Slash; Dashboard ("/") + Einstellungen
+  // ("/settings") sind immer sichtbar. Vom Admin gesperrte Module fliegen raus.
+  const hiddenSet = new Set(hidden || []);
+  const nav = NAV.filter(item => !hiddenSet.has(item.href.replace(/^\//, "")));
   const [showLog, setShowLog] = useState(false);
   const clickCount = useRef(0);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -186,7 +190,7 @@ export default function Sidebar({ onLogout, open }: { onLogout: () => void; open
 
         {/* Navigation */}
         <nav style={{ flex: 1, padding: "0 0.75rem", display: "flex", flexDirection: "column", gap: "0.15rem" }}>
-          {NAV.map(item => {
+          {nav.map(item => {
             const active = path === item.href;
             return (
               <Link key={item.href} href={item.href} style={{
