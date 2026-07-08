@@ -359,8 +359,23 @@ Setup-Guide für Christian: `~/Desktop/contentraum-phase1-setup.html`. Neon-Proj
   Neon — GET leer → POST → GET zurück (Daten real in DB) → Konflikt 409; Import aus
   Mock-KV → Postgres geschrieben, KV unberührt, kein Re-Import nach Änderung.
 
-**Increment 3c — Entitlements + Admin → Postgres (offen, NÄCHSTES)**
-`entitlements`/Verbrauch KV→Postgres pro Tenant (guardFeature-Quelle), Admin-Konsole
-multi-tenant (Tenant-Liste, Daten-Reset/Restore gegen Postgres-Workspace + Backups).
-Danach: Medien → Vercel Blob, Magic-Link/Reset via Resend.
-Hinweis: bis 3c operieren die Admin-Daten-Aktionen noch auf dem (eingefrorenen) KV-Blob.
+**Increment 3c — Entitlements + Admin → Postgres ✅ (2026-07-08)**
+- `lib/flags.ts` liest/schreibt jetzt die `entitlements`-Tabelle (+ `tenants.status`)
+  pro Tenant, 30-s-Cache pro Tenant. `guardFeature(tenantId, opts)` — Signatur um
+  tenantId erweitert (Phase-2-fertig). Verbrauch → `usage`-Tabelle (INCR pro Tenant/Monat).
+- Alle KI-Routen + Sync nutzen jetzt `getSessionContext` → `guardFeature(ctx.tenantId,…)`.
+  Kunden-`/api/flags` liest `getEntitlements(session.tenantId)`.
+- Admin-Konsole **multi-tenant**: neue `/api/admin/tenants` (Liste), `flags`/`status`/`data`
+  nehmen `tenantId`. `app/admin` hat einen Mandanten-Wähler.
+- Neue Tabelle `workspace_backups` (On-Demand-Undo-Snapshots, letzte 20/Tenant).
+  Daten-Reset/Restore laufen gegen den Postgres-Workspace (Undo „vor Leeren/Einspielen").
+- **Audit-Log bleibt KV** (`admin_audit_log_v1`) — funktioniert auf Vercel; lokal ohne KV
+  leer. Später optional nach Postgres.
+- Verifiziert gegen Neon: Entitlements set/get persistiert (entitlements+tenant.status);
+  Kunde: research aus→403, readonly→Sync 403, Banner; KI-Limit 2 → 3. Aufruf 403,
+  `usage.ai_calls=2`; Admin-UI Mandanten-Wähler + Reset→Backup→Restore→Undo; keine
+  Konsolen-Fehler; npm run ci grün.
+
+**Increment 3d — Kür (offen)**: Medien → Vercel Blob (`BLOB_READ_WRITE_TOKEN`),
+Magic-Link/Reset via Resend, Registrierung/Selbstanlage neuer Mandanten, Login-Log via
+NextAuth-Event. Damit ist der **Multi-Tenant-Kern von Phase 1 komplett**.

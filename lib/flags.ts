@@ -1,19 +1,16 @@
-// ─── Remote-Feature-Flags (Stufe-1-Admin-Konsole) ────────
-// Ein Flags-Objekt pro Instanz in Upstash-KV (admin_flags_v1), das der Server
-// bei jedem Request liest (30 s gecacht). Damit lassen sich Module freischalten/
-// sperren, die KI drosseln und die Instanz in Nur-Lese-/Sperr-Status setzen —
-// OHNE Deploy. Phase 2 liest dieselbe Struktur später pro Tenant aus Postgres;
-// die guardFeature()-Schnittstelle bleibt identisch (nur die Quelle wechselt).
+// ─── Entitlements / Feature-Flags (Postgres, pro Tenant) ─
+// Quelle ist jetzt die entitlements-Tabelle (+ tenants.status), nicht mehr der
+// globale KV-Key. Die guardFeature()-Schnittstelle bleibt bewusst gleich (nur
+// mit tenantId erweitert) — Phase-2-Vorbereitung ist damit erfüllt.
 //
-// FAIL-OPEN: Ohne KV oder bei Lesefehler gelten die Default-Flags (alles an) —
-// eine kaputte KV-Verbindung darf die Kundin nie aussperren.
+// FAIL-OPEN: Bei DB-Fehler gelten die Default-Flags (alles an) — eine kaputte
+// Verbindung darf die Kundin nie aussperren.
 
-import { getKvConfig, kvGet, kvSet } from "./kv";
-
-export const FLAGS_KEY = "admin_flags_v1";
+import { and, eq, sql } from "drizzle-orm";
+import { db } from "./db";
+import { tenants, entitlements, usage } from "./db/schema";
 
 // Modul-Schlüssel = Sidebar-href ohne führenden Slash.
-// Dashboard ("/") und Einstellungen ("/settings") sind immer aktiv.
 export const MODULE_KEYS = [
   "ideen", "research", "trends", "content", "editor", "repurpose",
   "hashtags", "captions", "vision", "planner", "email", "analytics",
@@ -45,7 +42,7 @@ export const DEFAULT_FLAGS: AdminFlags = {
   updatedAt: 0,
 };
 
-// Eingehende (untrusted) Flags in ein sauberes AdminFlags-Objekt normalisieren.
+// Untrusted-Eingabe → sauberes AdminFlags-Objekt.
 export function normalizeFlags(raw: unknown): AdminFlags {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const modulesIn = (r.modules && typeof r.modules === "object" ? r.modules : {}) as Record<string, unknown>;
@@ -73,90 +70,126 @@ export function moduleEnabled(flags: AdminFlags, key: ModuleKey): boolean {
   return flags.modules[key] !== false;
 }
 
-// 30-Sekunden-In-Memory-Cache (pro Serverless-Instanz). Genug, um Lastspitzen
-// abzufedern, kurz genug, dass Änderungen zeitnah greifen.
-let cache: { flags: AdminFlags; at: number } | null = null;
+// 30-Sekunden-Cache pro Tenant (Lastspitzen abfedern, Änderungen zeitnah wirksam).
+const cache = new Map<string, { flags: AdminFlags; at: number }>();
 const CACHE_MS = 30_000;
 
-export async function getFlags(): Promise<AdminFlags> {
+export async function getEntitlements(tenantId: string): Promise<AdminFlags> {
   const now = Date.now();
-  if (cache && now - cache.at < CACHE_MS) return cache.flags;
+  const c = cache.get(tenantId);
+  if (c && now - c.at < CACHE_MS) return c.flags;
 
-  const cfg = getKvConfig();
-  if (!cfg) {
-    cache = { flags: DEFAULT_FLAGS, at: now };
-    return DEFAULT_FLAGS;
-  }
   try {
-    const raw = await kvGet(cfg, FLAGS_KEY);
-    const flags = raw ? normalizeFlags(raw) : DEFAULT_FLAGS;
-    cache = { flags, at: now };
+    const rows = await db
+      .select({
+        status: tenants.status,
+        modules: entitlements.modules,
+        aiEnabled: entitlements.aiEnabled,
+        aiMonthlyLimit: entitlements.aiMonthlyLimit,
+        banner: entitlements.banner,
+        updatedAt: entitlements.updatedAt,
+      })
+      .from(tenants)
+      .leftJoin(entitlements, eq(entitlements.tenantId, tenants.id))
+      .where(eq(tenants.id, tenantId))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return DEFAULT_FLAGS;
+
+    const flags: AdminFlags = {
+      modules: (row.modules as Partial<Record<ModuleKey, boolean>>) ?? {},
+      ai: { enabled: row.aiEnabled ?? true, monthlyLimit: row.aiMonthlyLimit ?? 0 },
+      status: (row.status as AdminStatus) ?? "active",
+      banner: row.banner ?? "",
+      updatedAt: row.updatedAt ? new Date(row.updatedAt).getTime() : 0,
+    };
+    cache.set(tenantId, { flags, at: now });
     return flags;
   } catch {
-    // KV nicht erreichbar → fail-open mit Defaults, nicht aussperren
-    return DEFAULT_FLAGS;
+    return DEFAULT_FLAGS; // fail-open
   }
 }
 
-export function invalidateFlagsCache(): void {
-  cache = null;
+export async function setEntitlements(tenantId: string, flags: AdminFlags): Promise<void> {
+  const now = new Date();
+  await db.update(tenants).set({ status: flags.status }).where(eq(tenants.id, tenantId));
+  await db
+    .insert(entitlements)
+    .values({
+      tenantId,
+      modules: flags.modules,
+      aiEnabled: flags.ai.enabled,
+      aiMonthlyLimit: flags.ai.monthlyLimit,
+      banner: flags.banner,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: entitlements.tenantId,
+      set: {
+        modules: flags.modules,
+        aiEnabled: flags.ai.enabled,
+        aiMonthlyLimit: flags.ai.monthlyLimit,
+        banner: flags.banner,
+        updatedAt: now,
+      },
+    });
+  cache.delete(tenantId);
 }
 
-export async function setFlags(next: AdminFlags): Promise<void> {
-  const cfg = getKvConfig();
-  if (!cfg) throw new Error("KV nicht konfiguriert — Flags können nicht gespeichert werden.");
-  await kvSet(cfg, FLAGS_KEY, next);
-  invalidateFlagsCache();
+export type TenantRow = { id: string; slug: string; name: string; plan: string; status: string };
+export async function listTenants(): Promise<TenantRow[]> {
+  try {
+    return await db
+      .select({ id: tenants.id, slug: tenants.slug, name: tenants.name, plan: tenants.plan, status: tenants.status })
+      .from(tenants)
+      .orderBy(tenants.createdAt);
+  } catch {
+    return [];
+  }
 }
 
-// ── Serverseitiger KI-Verbrauch (pro Monat) ──────────────
-// Getrennt vom clientseitigen dh_token_usage (das nur im Browser der Kundin liegt).
-// Dieser Zähler ist die Grundlage für Monatslimit + Admin-Anzeige.
+// ── KI-Verbrauch pro Tenant/Monat (Postgres) ─────────────
 export function usageMonth(): string {
   return new Date().toISOString().slice(0, 7); // YYYY-MM
 }
-function usageKey(month = usageMonth()): string {
-  return `admin_ai_usage_${month}`;
-}
 
-export async function getAiUsage(month = usageMonth()): Promise<number> {
-  const cfg = getKvConfig();
-  if (!cfg) return 0;
+export async function getAiUsage(tenantId: string, month = usageMonth()): Promise<number> {
   try {
-    const raw = await kvGet(cfg, usageKey(month));
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : 0;
+    const rows = await db
+      .select({ aiCalls: usage.aiCalls })
+      .from(usage)
+      .where(and(eq(usage.tenantId, tenantId), eq(usage.month, month)))
+      .limit(1);
+    return rows[0]?.aiCalls ?? 0;
   } catch {
     return 0;
   }
 }
 
-export async function incrAiUsage(): Promise<void> {
-  const cfg = getKvConfig();
-  if (!cfg) return;
+export async function incrAiUsage(tenantId: string): Promise<void> {
+  const month = usageMonth();
   try {
-    // Atomarer Zähler via Upstash INCR
-    await fetch(`${cfg.url}/incr/${encodeURIComponent(usageKey())}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${cfg.token}` },
-      signal: AbortSignal.timeout(5000),
-    });
+    await db
+      .insert(usage)
+      .values({ tenantId, month, aiCalls: 1 })
+      .onConflictDoUpdate({
+        target: [usage.tenantId, usage.month],
+        set: { aiCalls: sql`${usage.aiCalls} + 1` },
+      });
   } catch { /* Zählen ist Best-Effort, darf die KI-Antwort nie blockieren */ }
 }
 
 // ── Enforcement ──────────────────────────────────────────
-// Nach requireAuth aufrufen. Gibt eine fertige 403-Response zurück, wenn die
-// Aktion durch Flags gesperrt ist, sonst null.
+// Nach dem Auth-Check aufrufen, mit der tenantId aus der Session.
 function blocked(reason: string, message: string): Response {
   return Response.json({ error: message, blocked: true, reason }, { status: 403 });
 }
 
-export async function guardFeature(opts: {
-  module?: ModuleKey;
-  ai?: boolean;
-  write?: boolean;
-}): Promise<Response | null> {
-  const flags = await getFlags();
+export async function guardFeature(
+  tenantId: string,
+  opts: { module?: ModuleKey; ai?: boolean; write?: boolean },
+): Promise<Response | null> {
+  const flags = await getEntitlements(tenantId);
 
   if (flags.status === "locked") {
     return blocked("locked", "Diese Instanz ist derzeit gesperrt. Bitte wende dich an den Betreiber.");
@@ -172,7 +205,7 @@ export async function guardFeature(opts: {
       return blocked("ai_disabled", "Die KI-Funktionen sind derzeit deaktiviert.");
     }
     if (flags.ai.monthlyLimit > 0) {
-      const used = await getAiUsage();
+      const used = await getAiUsage(tenantId);
       if (used >= flags.ai.monthlyLimit) {
         return blocked("ai_limit", "Das KI-Kontingent für diesen Monat ist aufgebraucht.");
       }

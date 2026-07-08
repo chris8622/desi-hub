@@ -49,3 +49,12 @@ export const workspaces = pgTable("workspaces", {
   data: jsonb("data").notNull().default(sql`'{}'::jsonb`),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// On-Demand-Snapshots für die Admin-Konsole (Undo vor Reset/Restore).
+export const workspaceBackups = pgTable("workspace_backups", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  data: jsonb("data").notNull().default(sql`'{}'::jsonb`),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

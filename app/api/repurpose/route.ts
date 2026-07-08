@@ -1,4 +1,4 @@
-import { requireAuth, readJson } from "@/lib/server-auth";
+import { getSessionContext, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 import { chat, extractJson, pickModel } from "@/lib/llm";
 import { guardFeature, incrAiUsage } from "@/lib/flags";
@@ -36,17 +36,17 @@ function buildSystemPrompt(bv?: BrandVoice): string {
 }
 
 export async function POST(req: Request) {
-  const authError = await requireAuth(req);
-  if (authError) return authError;
+  const ctx = await getSessionContext();
+  if (ctx instanceof Response) return ctx;
 
   const rl = await checkRateLimit(aiLimiter, getClientIp(req));
   if (!rl.ok) {
     return tooManyRequests(rl.retryAfterSec, "Zu viele KI-Anfragen in kurzer Zeit. Bitte warte einen Moment und versuche es erneut.");
   }
 
-  const featureBlock = await guardFeature({ ai: true, module: "repurpose" });
+  const featureBlock = await guardFeature(ctx.tenantId, { ai: true, module: "repurpose" });
   if (featureBlock) return featureBlock;
-  await incrAiUsage();
+  await incrAiUsage(ctx.tenantId);
 
   const body = await readJson<{ sourceText: string; formats: string[]; brandVoice?: BrandVoice; provider?: string; model?: string }>(req);
   if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });

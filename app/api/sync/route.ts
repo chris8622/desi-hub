@@ -66,7 +66,7 @@ export async function POST(req: Request) {
   if (ctx instanceof Response) return ctx;
 
   // Nur-Lese-/Sperr-Status blockt jeden Schreibvorgang (Admin-Flags)
-  const featureBlock = await guardFeature({ write: true });
+  const featureBlock = await guardFeature(ctx.tenantId, { write: true });
   if (featureBlock) return featureBlock;
 
   // Payload-Größe begrenzen (schützt vor versehentlich riesigen Blobs)

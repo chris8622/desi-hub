@@ -1,10 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 
-// ─── Admin-Konsole (Stufe 1) ─────────────────────────────
-// Eigener Admin-Login (ADMIN_PASSWORD, NICHT das Kunden-Passwort). Läuft dank
-// Sonderfall in LoginGate am Kunden-Login vorbei. Der Token liegt nur in
-// sessionStorage (endet mit dem Tab) und geht als x-admin-token an die API.
+// ─── Admin-Konsole (Stufe 1, multi-tenant) ───────────────
+// Eigener Admin-Login (ADMIN_PASSWORD). Wählt einen Mandanten und steuert dessen
+// Entitlements/Daten in Postgres. Läuft via LoginGate-Bypass am Kunden-Login vorbei.
 
 const TOKEN_KEY = "dh_admin_token";
 
@@ -24,21 +23,15 @@ type Flags = {
   banner: string;
   updatedAt: number;
 };
-
-type Status = {
-  kvAvailable: boolean; month: string; aiUsage: number;
-  backups: string[]; loginCount: number; lastLogin: number | null; dataBytes: number;
-};
-
+type Tenant = { id: string; slug: string; name: string; plan: string; status: string };
+type Backup = { id: string; label: string; createdAt: number };
+type Status = { month: string; aiUsage: number; dataBytes: number; updatedAt: number; backups: Backup[] };
 type AuditEntry = { ts: number; action: string; detail: string; ip: string };
 
 async function adminFetch<T>(path: string, token: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method: body ? "POST" : "GET",
-    headers: {
-      "x-admin-token": token,
-      ...(body ? { "Content-Type": "application/json" } : {}),
-    },
+    headers: { "x-admin-token": token, ...(body ? { "Content-Type": "application/json" } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
@@ -54,6 +47,7 @@ function fmtBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
 }
 function fmtTs(ts: number): string {
+  if (!ts) return "–";
   return new Date(ts).toLocaleString("de-AT", {
     day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
@@ -68,23 +62,36 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState("");
   const [checking, setChecking] = useState(true);
 
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [selected, setSelected] = useState<string>("");
   const [flags, setFlags] = useState<Flags | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
-  const [restoreDate, setRestoreDate] = useState("");
+  const [restoreId, setRestoreId] = useState("");
 
-  const loadAll = useCallback(async (t: string) => {
-    const [f, s, a] = await Promise.all([
-      adminFetch<{ flags: Flags }>("/api/admin/flags", t),
-      adminFetch<Status>("/api/admin/status", t),
-      adminFetch<{ entries: AuditEntry[] }>("/api/admin/audit", t),
+  const loadForTenant = useCallback(async (t: string, tenantId: string) => {
+    const [f, s] = await Promise.all([
+      adminFetch<{ flags: Flags }>(`/api/admin/flags?tenantId=${tenantId}`, t),
+      adminFetch<Status>(`/api/admin/status?tenantId=${tenantId}`, t),
     ]);
     setFlags(f.flags);
     setStatus(s);
-    setAudit(a.entries || []);
+    setRestoreId("");
   }, []);
+
+  const loadAll = useCallback(async (t: string, keepTenant?: string) => {
+    const [tl, a] = await Promise.all([
+      adminFetch<{ tenants: Tenant[] }>("/api/admin/tenants", t),
+      adminFetch<{ entries: AuditEntry[] }>("/api/admin/audit", t),
+    ]);
+    setTenants(tl.tenants || []);
+    setAudit(a.entries || []);
+    const tenantId = keepTenant || tl.tenants?.[0]?.id || "";
+    setSelected(tenantId);
+    if (tenantId) await loadForTenant(t, tenantId);
+  }, [loadForTenant]);
 
   const validate = useCallback(async (t: string) => {
     try {
@@ -123,7 +130,7 @@ export default function AdminPage() {
 
   const logout = () => {
     try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
-    setToken(null); setFlags(null); setStatus(null); setAudit([]);
+    setToken(null); setFlags(null); setStatus(null); setAudit([]); setTenants([]); setSelected("");
   };
 
   const flash = (kind: "ok" | "err", text: string) => {
@@ -131,18 +138,26 @@ export default function AdminPage() {
     setTimeout(() => setMsg(null), 4000);
   };
 
+  const onSelectTenant = async (tenantId: string) => {
+    if (!token) return;
+    setSelected(tenantId);
+    setFlags(null); setStatus(null);
+    try { await loadForTenant(token, tenantId); }
+    catch (err) { flash("err", (err as Error).message); }
+  };
+
   const saveFlags = async () => {
-    if (!flags || !token) return;
+    if (!flags || !token || !selected) return;
     setSaving(true);
     try {
-      // Alle Module explizit als true/false senden (klar & normalisierbar)
       const modules: Record<string, boolean> = {};
       for (const m of MODULES) modules[m.key] = flags.modules[m.key] !== false;
       const payload: Flags = { ...flags, modules };
-      const r = await adminFetch<{ flags: Flags }>("/api/admin/flags", token, { flags: payload });
+      const r = await adminFetch<{ flags: Flags }>("/api/admin/flags", token, { tenantId: selected, flags: payload });
       setFlags(r.flags);
-      await loadAll(token);
-      flash("ok", "Flags gespeichert.");
+      await loadForTenant(token, selected);
+      await loadAll(token, selected).catch(() => {}); // Audit + Tenant-Status auffrischen
+      flash("ok", "Entitlements gespeichert.");
     } catch (err) {
       flash("err", (err as Error).message);
     } finally {
@@ -150,17 +165,18 @@ export default function AdminPage() {
     }
   };
 
-  const doData = async (action: "reset" | "restore", date?: string) => {
-    if (!token) return;
+  const doData = async (action: "reset" | "restore", backupId?: string) => {
+    if (!token || !selected) return;
     const confirmText = action === "reset"
-      ? "Wirklich ALLE Server-Daten dieser Instanz leeren? Ein Undo-Snapshot wird vorher gesichert."
-      : `Backup „${date}" einspielen? Der aktuelle Stand wird vorher als Undo-Snapshot gesichert.`;
+      ? "Wirklich ALLE Daten dieses Mandanten leeren? Ein Undo-Snapshot wird vorher gesichert."
+      : "Dieses Backup einspielen? Der aktuelle Stand wird vorher als Undo-Snapshot gesichert.";
     if (!window.confirm(confirmText)) return;
     setSaving(true);
     try {
-      await adminFetch("/api/admin/data", token, { action, date });
-      await loadAll(token);
-      flash("ok", action === "reset" ? "Daten geleert (Undo gesichert)." : `Backup ${date} eingespielt.`);
+      await adminFetch("/api/admin/data", token, { tenantId: selected, action, backupId });
+      await loadForTenant(token, selected);
+      await loadAll(token, selected).catch(() => {});
+      flash("ok", action === "reset" ? "Daten geleert (Undo gesichert)." : "Backup eingespielt.");
     } catch (err) {
       flash("err", (err as Error).message);
     } finally {
@@ -174,12 +190,8 @@ export default function AdminPage() {
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)", padding: "1.5rem" }}>
         <div className="card" style={{ width: "100%", maxWidth: 420, padding: "2.5rem 2rem", textAlign: "center" }}>
           <div style={{ width: 48, height: 4, borderRadius: 2, background: "var(--accent)", margin: "0 auto 1.5rem" }} />
-          <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "1.8rem", color: "var(--accent)", marginBottom: "0.35rem" }}>
-            Admin-Konsole
-          </h1>
-          <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginBottom: "2rem" }}>
-            Betreiber-Zugang · Contentraum
-          </p>
+          <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "1.8rem", color: "var(--accent)", marginBottom: "0.35rem" }}>Admin-Konsole</h1>
+          <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginBottom: "2rem" }}>Betreiber-Zugang · Contentraum</p>
           <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div style={{ textAlign: "left" }}>
               <label className="label" htmlFor="admin-pw">Admin-Passwort</label>
@@ -191,13 +203,13 @@ export default function AdminPage() {
               {checking ? "Prüfe…" : "Anmelden"}
             </button>
           </form>
-          <p style={{ color: "var(--border)", fontSize: "0.7rem", marginTop: "2rem" }}>
-            Getrennt vom Kunden-Login · nur für den Betreiber
-          </p>
+          <p style={{ color: "var(--border)", fontSize: "0.7rem", marginTop: "2rem" }}>Getrennt vom Kunden-Login · nur für den Betreiber</p>
         </div>
       </div>
     );
   }
+
+  const currentTenant = tenants.find(t => t.id === selected);
 
   // ── Konsole ────────────────────────────────────────────
   return (
@@ -207,31 +219,37 @@ export default function AdminPage() {
         <button onClick={logout} className="btn btn-ghost btn-sm">Abmelden</button>
       </div>
       <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginBottom: "1.5rem" }}>
-        Betreiber-Steuerung dieser Instanz · Änderungen greifen ohne Deploy (max. 30 s Cache).
+        Betreiber-Steuerung · Entitlements & Daten liegen in Postgres · greift ohne Deploy (max. 30 s Cache).
       </p>
 
       {msg && (
-        <div className={`alert ${msg.kind === "ok" ? "alert-success" : "alert-error"}`} style={{ marginBottom: "1.25rem" }}>
-          {msg.text}
-        </div>
+        <div className={`alert ${msg.kind === "ok" ? "alert-success" : "alert-error"}`} style={{ marginBottom: "1.25rem" }}>{msg.text}</div>
       )}
 
-      {!status?.kvAvailable && (
-        <div className="alert alert-error" style={{ marginBottom: "1.25rem" }}>
-          ⚠️ KV ist für diese Instanz nicht konfiguriert — Flags und Backups sind ohne Upstash wirkungslos.
-        </div>
+      {/* Mandanten-Auswahl */}
+      <section className="card" style={{ marginBottom: "1.25rem" }}>
+        <label className="label" htmlFor="tenant">Mandant ({tenants.length})</label>
+        <select id="tenant" className="select" value={selected} onChange={e => onSelectTenant(e.target.value)} style={{ width: "100%" }}>
+          {tenants.length === 0 && <option value="">— kein Mandant —</option>}
+          {tenants.map(t => (
+            <option key={t.id} value={t.id}>{t.name} ({t.slug}) · {t.plan} · {t.status}</option>
+          ))}
+        </select>
+      </section>
+
+      {!selected && (
+        <div className="alert alert-error">Kein Mandant vorhanden. Lege zuerst einen an (Seed / Registrierung).</div>
       )}
 
       {/* Status-Übersicht */}
       {status && (
         <section className="card" style={{ marginBottom: "1.25rem" }}>
-          <h3 style={{ marginBottom: "0.85rem" }}>📊 Übersicht</h3>
+          <h3 style={{ marginBottom: "0.85rem" }}>📊 Übersicht{currentTenant ? ` — ${currentTenant.name}` : ""}</h3>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.85rem" }}>
             {[
               { l: `KI-Aufrufe (${status.month})`, v: String(status.aiUsage) },
-              { l: "Anmeldungen (Log)", v: String(status.loginCount) },
-              { l: "Letzte Anmeldung", v: status.lastLogin ? fmtTs(status.lastLogin) : "–" },
               { l: "Datengröße", v: fmtBytes(status.dataBytes) },
+              { l: "Zuletzt geändert", v: fmtTs(status.updatedAt) },
               { l: "Backups", v: String(status.backups.length) },
             ].map((s, i) => (
               <div key={i} style={{ padding: "0.75rem 0.9rem", background: "var(--surface2)", borderRadius: "var(--radius-sm)" }}>
@@ -244,11 +262,10 @@ export default function AdminPage() {
       )}
 
       {/* Flags-Editor */}
-      {flags && (
+      {flags && selected && (
         <section className="card" style={{ marginBottom: "1.25rem" }}>
           <h3 style={{ marginBottom: "1rem" }}>🎛️ Steuerung</h3>
 
-          {/* Status */}
           <div style={{ marginBottom: "1.25rem" }}>
             <label className="label">Instanz-Status</label>
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -256,19 +273,13 @@ export default function AdminPage() {
                 { v: "active", l: "Aktiv", d: "Voller Zugriff" },
                 { v: "readonly", l: "Nur-Lese", d: "Keine Änderungen / kein Sync-Upload" },
                 { v: "locked", l: "Gesperrt", d: "Nur Login + Export" },
-              ] as const).map(o => {
-                const on = flags.status === o.v;
-                return (
-                  <button key={o.v} onClick={() => setFlags({ ...flags, status: o.v })} title={o.d}
-                    className={`btn btn-sm ${on ? "btn-primary" : "btn-secondary"}`}>
-                    {o.l}
-                  </button>
-                );
-              })}
+              ] as const).map(o => (
+                <button key={o.v} onClick={() => setFlags({ ...flags, status: o.v })} title={o.d}
+                  className={`btn btn-sm ${flags.status === o.v ? "btn-primary" : "btn-secondary"}`}>{o.l}</button>
+              ))}
             </div>
           </div>
 
-          {/* KI */}
           <div style={{ marginBottom: "1.25rem" }}>
             <label className="label">KI-Funktionen</label>
             <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
@@ -286,15 +297,13 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Module */}
           <div style={{ marginBottom: "1.25rem" }}>
             <label className="label">Module (aktiv = freigeschaltet)</label>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.4rem" }}>
               {MODULES.map(m => {
                 const on = flags.modules[m.key] !== false;
                 return (
-                  <button key={m.key}
-                    onClick={() => setFlags({ ...flags, modules: { ...flags.modules, [m.key]: !on } })}
+                  <button key={m.key} onClick={() => setFlags({ ...flags, modules: { ...flags.modules, [m.key]: !on } })}
                     className="btn btn-sm"
                     style={{
                       justifyContent: "flex-start",
@@ -309,7 +318,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Banner */}
           <div style={{ marginBottom: "1.25rem" }}>
             <label className="label" htmlFor="banner">Ankündigungs-Banner (leer = aus)</label>
             <input id="banner" className="input" type="text" value={flags.banner} maxLength={280}
@@ -329,33 +337,24 @@ export default function AdminPage() {
       )}
 
       {/* Daten */}
-      {status && (
+      {status && selected && (
         <section className="card" style={{ marginBottom: "1.25rem" }}>
           <h3 style={{ marginBottom: "0.85rem" }}>🗄️ Daten</h3>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "flex-end" }}>
             <div>
               <label className="label" htmlFor="restore">Backup einspielen</label>
-              <select id="restore" className="select" value={restoreDate}
-                onChange={e => setRestoreDate(e.target.value)} style={{ minWidth: 200 }}>
+              <select id="restore" className="select" value={restoreId} onChange={e => setRestoreId(e.target.value)} style={{ minWidth: 240 }}>
                 <option value="">— Backup wählen —</option>
-                <option value="pre_action">Undo (Stand vor letzter Aktion)</option>
-                {status.backups.map(d => <option key={d} value={d}>{d}</option>)}
+                {status.backups.map(b => <option key={b.id} value={b.id}>{b.label} · {fmtTs(b.createdAt)}</option>)}
               </select>
             </div>
-            <button className="btn btn-secondary" disabled={saving || !restoreDate}
-              onClick={() => doData("restore", restoreDate)}>
-              Einspielen
-            </button>
+            <button className="btn btn-secondary" disabled={saving || !restoreId} onClick={() => doData("restore", restoreId)}>Einspielen</button>
             <div style={{ flex: 1 }} />
-            <button className="btn btn-secondary" disabled={saving}
-              onClick={() => doData("reset")}
-              style={{ color: "var(--warm-red)", borderColor: "var(--warm-red)" }}>
-              Daten leeren
-            </button>
+            <button className="btn btn-secondary" disabled={saving} onClick={() => doData("reset")}
+              style={{ color: "var(--warm-red)", borderColor: "var(--warm-red)" }}>Daten leeren</button>
           </div>
           <p style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.75rem" }}>
-            Jede destruktive Aktion sichert vorher automatisch einen Undo-Snapshot. Tages-Backups
-            werden 14 Tage aufbewahrt.
+            Jede destruktive Aktion sichert vorher automatisch einen Undo-Snapshot (die letzten 20 bleiben erhalten).
           </p>
         </section>
       )}

@@ -1,4 +1,4 @@
-import { requireAuth, readJson } from "@/lib/server-auth";
+import { getSessionContext, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 import { chat, pickModel } from "@/lib/llm";
 import { guardFeature, incrAiUsage } from "@/lib/flags";
@@ -122,17 +122,17 @@ async function fetchPageContent(url: string): Promise<string> {
 }
 
 export async function POST(req: Request) {
-  const authError = await requireAuth(req);
-  if (authError) return authError;
+  const ctx = await getSessionContext();
+  if (ctx instanceof Response) return ctx;
 
   const rl = await checkRateLimit(aiLimiter, getClientIp(req));
   if (!rl.ok) {
     return tooManyRequests(rl.retryAfterSec, "Zu viele KI-Anfragen in kurzer Zeit. Bitte warte einen Moment und versuche es erneut.");
   }
 
-  const featureBlock = await guardFeature({ ai: true, module: "research" });
+  const featureBlock = await guardFeature(ctx.tenantId, { ai: true, module: "research" });
   if (featureBlock) return featureBlock;
-  await incrAiUsage();
+  await incrAiUsage(ctx.tenantId);
 
   const body = await readJson<Record<string, unknown>>(req);
   if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });
