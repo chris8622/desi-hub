@@ -178,7 +178,7 @@ export default function Sidebar({ onLogout, open }: { onLogout: () => void; open
           style={{ padding: "1.5rem 1.25rem 1rem", cursor: "default", userSelect: "none" }}
           onClick={handleLogoClick}
         >
-          <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.4rem", color: "var(--accent)" }}>
+          <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.4rem", color: "var(--accent)" }}>
             Contentraum
           </div>
           <div style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.15rem" }}>Wo Ideen Raum finden</div>

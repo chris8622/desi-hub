@@ -1,25 +1,7 @@
 import { requireAuth } from "@/lib/server-auth";
+import { getUpstashConfig, getValidToken } from "@/lib/pinterest";
 
 export const maxDuration = 30;
-
-const PINTEREST_KEY = "desi_pinterest_v1";
-
-function getUpstashConfig(): { url: string; token: string } | null {
-  const url   = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
-  if (!url || !token) return null;
-  return { url, token };
-}
-
-async function kvGet(cfg: { url: string; token: string }, key: string): Promise<unknown> {
-  const res = await fetch(`${cfg.url}/get/${encodeURIComponent(key)}`, {
-    headers: { Authorization: `Bearer ${cfg.token}` },
-    signal: AbortSignal.timeout(8000),
-  });
-  const json = await res.json() as { result: string | null };
-  if (!json.result) return null;
-  try { return JSON.parse(json.result); } catch { return json.result; }
-}
 
 export async function POST(req: Request) {
   const authError = requireAuth(req);
@@ -28,7 +10,8 @@ export async function POST(req: Request) {
   const cfg = getUpstashConfig();
   if (!cfg) return Response.json({ error: "KV nicht verfügbar" }, { status: 503 });
 
-  const tokenData = await kvGet(cfg, PINTEREST_KEY) as { access_token?: string } | null;
+  // Holt gültigen Token — erneuert abgelaufene automatisch (Auto-Refresh)
+  const tokenData = await getValidToken(cfg);
   if (!tokenData?.access_token) {
     return Response.json({ error: "Pinterest nicht verbunden — bitte zuerst in den Einstellungen verbinden" }, { status: 401 });
   }

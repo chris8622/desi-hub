@@ -20,6 +20,7 @@ export const SYNC_KEYS = [
   "dh_goals",
   "dh_checkins",
   "dh_vision_board",
+  "dh_instagram_handle", // wurde bisher nicht synchronisiert (Audit B5)
 ];
 
 function getAuthToken(): string {

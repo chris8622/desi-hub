@@ -142,7 +142,7 @@ export default function IdeenPage() {
               Ideen sammeln, ordnen und direkt in Action umwandeln
             </p>
           </div>
-          <span style={{ fontFamily: "'DM Serif Display',serif", fontSize: "2rem", color: "var(--accent)" }}>
+          <span style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "var(--accent)" }}>
             {ideen.length}
           </span>
         </div>

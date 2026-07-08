@@ -1,6 +1,22 @@
 import type { Metadata, Viewport } from "next";
+import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import LoginGate from "@/components/LoginGate";
 import "./globals.css";
+
+// Self-hosted via next/font (kein Google-Request zur Laufzeit — schneller + DSGVO).
+// Bereitgestellt als CSS-Variablen; globals.css mappt sie auf --font-sans/--font-serif.
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans-base",
+  display: "swap",
+});
+const dmSerif = DM_Serif_Display({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-serif-base",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Contentraum",
@@ -15,7 +31,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de">
+    <html lang="de" className={`${dmSans.variable} ${dmSerif.variable}`}>
       <head>
         {/* Theme vor dem ersten Paint setzen (kein Flash), gilt auch für das dunkle Theme */}
         <script
@@ -24,7 +40,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "(function(){try{var s=JSON.parse(localStorage.getItem('dh_settings')||'{}');if(s&&s.theme&&s.theme!=='sand'){document.documentElement.setAttribute('data-theme',s.theme);}}catch(e){}})();",
           }}
         />
-        <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       {/* LoginGate EINMAL hier statt in jeder Seite — beendet den
           syncDown + „Laden…"-Zyklus bei jedem Seitenwechsel (Audit A2) */}

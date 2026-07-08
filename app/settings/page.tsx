@@ -3,8 +3,8 @@ import { useState, useEffect } from "react";
 import { scheduleSyncUp, syncDown, syncUp, SYNC_KEYS } from "@/lib/sync";
 import { THEMES, applyTheme } from "@/lib/theme";
 
-// Alle Backup-Keys: zentrale Sync-Keys + Instagram-Handle
-const BACKUP_KEYS = [...SYNC_KEYS, "dh_instagram_handle"];
+// Backup umfasst genau die synchronisierten Keys
+const BACKUP_KEYS = [...SYNC_KEYS];
 import { getTokenUsage } from "@/lib/tokens";
 
 // NEUTRALE Defaults — kein vorausgefülltes Profil einer bestimmten Person.
@@ -444,7 +444,7 @@ export default function SettingsPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.65rem" }}>
                 <button onClick={() => setS(p => ({ ...p, [key]: Math.max(0, (p as never)[key] - 1) }))}
                   style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--surface)", cursor: "pointer", fontSize: "1.1rem", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                <span style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.8rem", color, minWidth: 32, textAlign: "center" }}>
+                <span style={{ fontFamily: "var(--font-serif)", fontSize: "1.8rem", color, minWidth: 32, textAlign: "center" }}>
                   {(s as never)[key]}
                 </span>
                 <button onClick={() => setS(p => ({ ...p, [key]: Math.min(7, (p as never)[key] + 1) }))}
@@ -584,11 +584,11 @@ export default function SettingsPage() {
         </p>
         <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: "2rem", color: "var(--accent)" }}>{tokenUsage.requests}</div>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "var(--accent)" }}>{tokenUsage.requests}</div>
             <div style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Analysen heute</div>
           </div>
           <div>
-            <div style={{ fontFamily: "'DM Serif Display',serif", fontSize: "2rem", color: "var(--sage)" }}>
+            <div style={{ fontFamily: "var(--font-serif)", fontSize: "2rem", color: "var(--sage)" }}>
               {tokenUsage.tokens > 0 ? tokenUsage.tokens.toLocaleString("de-AT") : "—"}
             </div>
             <div style={{ fontSize: "0.72rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Verarbeitete Wörter</div>

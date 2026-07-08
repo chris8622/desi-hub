@@ -155,28 +155,28 @@ export default function AnalyticsPage() {
             {bestChannel && (
               <div className="card" style={{ padding: "1.25rem" }}>
                 <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "0.4rem" }}>Bester Kanal</div>
-                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.6rem", color: "var(--accent)", lineHeight: 1 }}>{bestChannel.ch}</div>
+                <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.6rem", color: "var(--accent)", lineHeight: 1 }}>{bestChannel.ch}</div>
                 <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "0.3rem" }}>Ø {bestChannel.avg} Saves</div>
               </div>
             )}
             {bestDay && (
               <div className="card" style={{ padding: "1.25rem" }}>
                 <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "0.4rem" }}>Bester Wochentag</div>
-                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.6rem", color: "var(--sage)", lineHeight: 1 }}>{bestDay.d}</div>
+                <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.6rem", color: "var(--sage)", lineHeight: 1 }}>{bestDay.d}</div>
                 <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "0.3rem" }}>Ø {bestDay.avg} Saves</div>
               </div>
             )}
             {totalSaves != null && (
               <div className="card" style={{ padding: "1.25rem" }}>
                 <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "0.4rem" }}>Ø Saves</div>
-                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.6rem", color: "var(--warm-red)", lineHeight: 1 }}>{totalSaves}</div>
+                <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.6rem", color: "var(--warm-red)", lineHeight: 1 }}>{totalSaves}</div>
                 <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "0.3rem" }}>über alle Kanäle</div>
               </div>
             )}
             {totalReach != null && (
               <div className="card" style={{ padding: "1.25rem" }}>
                 <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "0.4rem" }}>Ø Reichweite</div>
-                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.6rem", color: "var(--gold)", lineHeight: 1 }}>{totalReach.toLocaleString("de-AT")}</div>
+                <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.6rem", color: "var(--gold)", lineHeight: 1 }}>{totalReach.toLocaleString("de-AT")}</div>
                 <div style={{ fontSize: "0.78rem", color: "var(--muted)", marginTop: "0.3rem" }}>Personen erreicht</div>
               </div>
             )}
@@ -316,7 +316,7 @@ function Metric({ icon, label, value }: { icon: string; label: string; value: nu
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.1rem" }}>
       <div style={{ fontSize: "0.68rem", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{icon} {label}</div>
-      <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: "1.2rem", color: "var(--text)", lineHeight: 1 }}>
+      <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.2rem", color: "var(--text)", lineHeight: 1 }}>
         {value.toLocaleString("de-AT")}
       </div>
     </div>

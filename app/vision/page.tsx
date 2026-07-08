@@ -137,7 +137,7 @@ function BoardCardEl({ card, onDelete }: { card: BoardCard; onDelete: () => void
             fontSize: card.size === "lg" ? "1.05rem" : "0.9rem",
             lineHeight: 1.65, fontStyle: "italic",
             textAlign: "center", margin: 0,
-            fontFamily: "'DM Serif Display', serif",
+            fontFamily: "var(--font-serif)",
           }}>
             &ldquo;{card.content}&rdquo;
           </p>
@@ -156,7 +156,7 @@ function BoardCardEl({ card, onDelete }: { card: BoardCard; onDelete: () => void
           fontSize: card.size === "lg" ? "2.2rem" : "1.6rem",
           fontWeight: 800, textAlign: "center", lineHeight: 1.2,
           letterSpacing: "-0.02em",
-          fontFamily: "'DM Serif Display', serif",
+          fontFamily: "var(--font-serif)",
         }}>
           {card.content}
         </span>
@@ -379,7 +379,7 @@ function AddCardModal({ onClose, onAdd }: { onClose: () => void; onAdd: (card: B
               <textarea className="input" rows={3} value={content}
                 onChange={e => setContent(e.target.value)}
                 placeholder="Ich bin stark genug für diesen Weg…"
-                style={{ resize: "vertical", fontFamily: "'DM Serif Display', serif" }}
+                style={{ resize: "vertical", fontFamily: "var(--font-serif)" }}
               />
             </div>
           )}
@@ -421,7 +421,7 @@ function AddCardModal({ onClose, onAdd }: { onClose: () => void; onAdd: (card: B
                 }}>
                   <span style={{
                     color: textColor,
-                    fontFamily: "'DM Serif Display', serif",
+                    fontFamily: "var(--font-serif)",
                     fontSize: type === "word" ? "1.5rem" : "0.9rem",
                     fontWeight: type === "word" ? 800 : 400,
                     fontStyle: type === "quote" ? "italic" : "normal",

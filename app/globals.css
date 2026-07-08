@@ -22,6 +22,10 @@
   --radius-sm:    8px;
   --shadow:       0 1px 3px rgba(44,32,22,0.08), 0 1px 2px rgba(44,32,22,0.04);
   --shadow-md:    0 4px 12px rgba(44,32,22,0.1), 0 2px 4px rgba(44,32,22,0.06);
+
+  /* Schriften — Basis-Variablen kommen von next/font (layout.tsx) */
+  --font-sans:  var(--font-sans-base), -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: var(--font-serif-base), Georgia, serif;
 }
 
 /* ─── Themes (personalisierbar) — via [data-theme] am <html> umgeschaltet ─── */
@@ -56,7 +60,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'DM Sans', -apple-system, sans-serif;
+  font-family: var(--font-sans);
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -90,8 +94,8 @@ body {
 }
 
 /* ─── Typografie ─── */
-h1 { font-family: 'DM Serif Display', serif; font-size: 1.75rem; font-weight: 400; color: var(--text); }
-h2 { font-family: 'DM Serif Display', serif; font-size: 1.35rem; font-weight: 400; color: var(--text); }
+h1 { font-family: var(--font-serif); font-size: 1.75rem; font-weight: 400; color: var(--text); }
+h2 { font-family: var(--font-serif); font-size: 1.35rem; font-weight: 400; color: var(--text); }
 h3 { font-size: 0.95rem; font-weight: 700; color: var(--text); }
 
 /* ─── Karten ─── */
@@ -255,7 +259,7 @@ h3 { font-size: 0.95rem; font-weight: 700; color: var(--text); }
     box-shadow: var(--shadow);
   }
   .mobile-topbar-logo {
-    font-family: 'DM Serif Display', serif;
+    font-family: var(--font-serif);
     font-size: 1.05rem;
     color: var(--accent);
     letter-spacing: -0.01em;

@@ -67,6 +67,10 @@ const STOCK_PHOTOS = [
   { id: "p12", url: "https://images.unsplash.com/photo-1527515545081-5db817172677?w=720&q=80&auto=format&fit=crop", label: "Meditation",      photographer: "Le Minh Phuong",   unsplashUrl: "https://unsplash.com/photos/OtW4pEkFxKg" },
 ];
 
+// Picker zeigt 60×60-Kacheln — 720px-Bilder dafür zu laden ist Verschwendung.
+const thumbUrl = (url: string) => url.replace("w=720", "w=120");
+
+
 function SlidePreview({
   slide,
   index,
@@ -109,7 +113,7 @@ function SlidePreview({
         boxSizing: "border-box",
         position: "relative",
         overflow: "hidden",
-        fontFamily: "'DM Sans', sans-serif",
+        fontFamily: "var(--font-sans)",
         ...bgStyle,
       }}
     >
@@ -142,7 +146,7 @@ function SlidePreview({
         {/* Headline */}
         <div
           style={{
-            fontFamily: "'DM Serif Display', serif",
+            fontFamily: "var(--font-serif)",
             fontSize: 22,
             lineHeight: 1.2,
             color: textColor,
@@ -229,7 +233,7 @@ function PinPreview({
         boxSizing: "border-box",
         position: "relative",
         overflow: "hidden",
-        fontFamily: "'DM Sans', sans-serif",
+        fontFamily: "var(--font-sans)",
         ...bgStyle,
       }}
     >
@@ -268,7 +272,7 @@ function PinPreview({
         >
           <div
             style={{
-              fontFamily: "'DM Serif Display', serif",
+              fontFamily: "var(--font-serif)",
               fontSize: 32,
               lineHeight: 1.18,
               color: textColor,
@@ -410,7 +414,9 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
 
   // Load Instagram handle, saved carousels and saved pins from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("dh_instagram_handle");
+    // getLS statt rohem getItem — sonst scheitert JSON.parse beim Sync (B5).
+    // Migration: ein alter roher String liefert per Fallback "" statt zu crashen.
+    const saved = getLS<string>("dh_instagram_handle", "");
     if (saved) setIgHandle(saved);
     setSavedCarousels(getLS<SavedCarousel[]>("dh_carousels", []));
     setSavedPins(getLS<SavedPin[]>("dh_pins", []));
@@ -433,7 +439,8 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
 
   const saveHandle = (val: string) => {
     setIgHandle(val);
-    localStorage.setItem("dh_instagram_handle", val);
+    setLS("dh_instagram_handle", val);
+    scheduleSyncUp(2000);
   };
 
   // Ideas state
@@ -1293,7 +1300,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
                                       height: 60,
                                       borderRadius: 6,
                                       border: currentStyle === `photo-${photo.id}` ? "2px solid var(--accent)" : "2px solid transparent",
-                                      backgroundImage: `url(${photo.url})`,
+                                      backgroundImage: `url(${thumbUrl(photo.url)})`,
                                       backgroundSize: "cover",
                                       backgroundPosition: "center",
                                       cursor: "pointer",
@@ -1829,7 +1836,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
                                 height: 60,
                                 borderRadius: 6,
                                 border: pinStyle === `photo-${photo.id}` ? "2px solid var(--accent)" : "2px solid transparent",
-                                backgroundImage: `url(${photo.url})`,
+                                backgroundImage: `url(${thumbUrl(photo.url)})`,
                                 backgroundSize: "cover",
                                 backgroundPosition: "center",
                                 cursor: "pointer",

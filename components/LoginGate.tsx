@@ -214,7 +214,7 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
           }} />
 
           <h1 style={{
-            fontFamily: "'DM Serif Display', serif",
+            fontFamily: "var(--font-serif)",
             fontSize: "2.2rem", color: "var(--accent)",
             marginBottom: "0.35rem", lineHeight: 1.15,
           }}>

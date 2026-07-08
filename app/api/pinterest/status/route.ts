@@ -1,30 +1,5 @@
 import { requireAuth } from "@/lib/server-auth";
-
-const PINTEREST_KEY = "desi_pinterest_v1";
-
-function getUpstashConfig(): { url: string; token: string } | null {
-  const url   = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
-  if (!url || !token) return null;
-  return { url, token };
-}
-
-async function kvGet(cfg: { url: string; token: string }, key: string): Promise<unknown> {
-  const res = await fetch(`${cfg.url}/get/${encodeURIComponent(key)}`, {
-    headers: { Authorization: `Bearer ${cfg.token}` },
-    signal: AbortSignal.timeout(8000),
-  });
-  const json = await res.json() as { result: string | null };
-  if (!json.result) return null;
-  try { return JSON.parse(json.result); } catch { return json.result; }
-}
-
-type PinterestToken = {
-  access_token: string;
-  username?: string;
-  stored_at?: number;
-  expires_in?: number;
-};
+import { getUpstashConfig, getValidToken, getStoredToken } from "@/lib/pinterest";
 
 export async function GET(req: Request) {
   const authError = requireAuth(req);
@@ -42,20 +17,22 @@ export async function GET(req: Request) {
   }
 
   try {
-    const token = await kvGet(cfg, PINTEREST_KEY) as PinterestToken | null;
-    if (!token?.access_token) {
+    // Nie verbunden ≠ abgelaufen: erst Rohbestand prüfen, dann validieren.
+    const stored = await getStoredToken(cfg);
+    if (!stored) {
       return Response.json({ configured, connected: false });
     }
-
-    // Ablauf prüfen (Pinterest Standard: 1 Jahr)
-    const expired = token.stored_at && token.expires_in
-      ? Date.now() > token.stored_at + token.expires_in * 1000
-      : false;
+    // getValidToken erneuert abgelaufene Tokens automatisch — „expired" ist nur
+    // noch true, wenn auch der Refresh fehlschlägt (dann: neu verbinden).
+    const token = await getValidToken(cfg);
+    if (!token?.access_token) {
+      return Response.json({ configured, connected: false, expired: true });
+    }
 
     return Response.json({
       configured,
       connected: true,
-      expired,
+      expired: false,
       username: token.username || "",
       stored_at: token.stored_at,
     });
