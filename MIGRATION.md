@@ -335,8 +335,19 @@ Setup-Guide für Christian: `~/Desktop/contentraum-phase1-setup.html`. Neon-Proj
   bleibt (`desi2024`) für nahtlosen Cutover. Verifiziert gegen Neon: Login→Session mit
   tenantId, falsches PW abgewiesen, Signout leert Session.
 
-**Increment 3 — Cutover + Tenant-Datenschicht (offen, NÄCHSTES)**
-LoginGate auf NextAuth-Session umstellen; `sync`/`flags`/`admin`/Verbrauch pro Tenant
-gegen Postgres (KV als Fallback/Import-Quelle); Desis KV-Daten in ihren `workspace`
-importieren. Danach: Medien → Vercel Blob (`BLOB_READ_WRITE_TOKEN`), Magic-Link/Reset
-via Resend. **Delikat** (Desis Datenpfad) → mit Fallbacks + End-to-End-Verifikation.
+**Increment 3a — Login-Cutover ✅ (2026-07-08)**
+- `requireAuth()` liest jetzt die Auth.js-Session (statt `x-app-token`); alle 14
+  Kunden-Routen `await`. `getSessionContext()` liefert `{tenantId,userId,role}` für 3b.
+- `Providers` (SessionProvider) ums Layout; `LoginGate` nutzt `useSession` (Redirect
+  `/login` wenn aus, App-Chrome unverändert wenn ein). Logout → `signOut`.
+- Alte `/api/auth` (APP_PASSWORD-Login) entfernt. `APP_PASSWORD` env damit vestigial.
+- **Login-Log** bekommt vorerst keine neuen Einträge (alte Route weg) — später via
+  NextAuth-Event nachrüstbar (unkritisch).
+- Verifiziert gegen Neon: unauth→Redirect+401, Login→Dashboard+API 200, KI-Route
+  passiert Auth, Admin eigenständig, Logout→/login.
+
+**Increment 3b — Tenant-Datenschicht (offen, NÄCHSTES)**
+`sync`/`flags`/`admin`/Verbrauch pro Tenant gegen Postgres (via `getSessionContext`),
+Desis KV-`desi_hub_data_v1` in ihren `workspace` importieren, `entitlements` KV→Postgres
+(guardFeature-Quelle). Danach: Medien → Vercel Blob, Magic-Link/Reset via Resend.
+**Delikat** (Desis Datenpfad) → mit Fallbacks + End-to-End-Verifikation.
