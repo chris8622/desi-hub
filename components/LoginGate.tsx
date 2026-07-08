@@ -197,9 +197,9 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
     window.location.reload();
   };
 
-  // Die Admin-Konsole läuft an diesem Kunden-Login vorbei — sie hat ihren
-  // eigenen Admin-Login (ADMIN_PASSWORD) direkt in der Seite.
-  if (pathname?.startsWith("/admin")) return <>{children}</>;
+  // Die Admin-Konsole und der neue Auth.js-Login (/login) laufen an diesem
+  // (alten) Kunden-Login vorbei — sie haben ihr eigenes Gate.
+  if (pathname?.startsWith("/admin") || pathname?.startsWith("/login")) return <>{children}</>;
 
   if (authed === null) {
     return (
