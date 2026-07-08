@@ -18,6 +18,7 @@ mandantenfähigen Produkt. Phasenplan siehe `desi-hub-umsetzungsprompt-opus.md`
 | C1 | Post-Paket + „Heute"-Cockpit | ✅ **abgeschlossen** (2026-07-07) |
 | C2/C3 | Hashtag-Bank im Flow + Brand Voice überall | ✅ **abgeschlossen** (2026-07-07) |
 | C4 | Brachliegende KI (Editor-Artikel, Research→Ideenpool) | ✅ **abgeschlossen** (2026-07-07) |
+| Multi-KI | Provider-Layer (5 Anbieter) + Modell-Wähler | ✅ **abgeschlossen** (2026-07-07) |
 | 1 | Postgres + echte Logins | ⏳ offen |
 | 2 | Entitlements + Admin-Cockpit | ⏳ offen |
 | 3 | Theming + Rechtliches | ⏳ offen |
@@ -107,6 +108,24 @@ Hashtags als neues Set sichern.
 
 **Noch offen aus Phase C:** Caption-Bank in den Erstell-Flow (Picker); C5 (Autoplan nutzt
 Analytics, Repurpose→E-Mail, Vision-Ziele an echte Zahlen). Und weiterhin B3/B4 aus Phase B.
+
+---
+
+## Multi-KI Provider-Layer (abgeschlossen 2026-07-07)
+
+`lib/llm.ts` — ein `chat()` über das OpenAI-kompatible Format für **Groq, OpenAI, Gemini,
+Claude (Anthropic-Kompat), Perplexity**. Alle 5 KI-Routen nutzen es; `provider`/`model`
+kommen aus dem Request (Default groq), **Keys nur serverseitig**. `extractJson()` für
+Anbieter ohne zuverlässiges `response_format`.
+- Settings „🤖 KI-Modell": Text-Modell-Dropdown (8) + Research-Modus (Standard/Perplexity),
+  in `dh_settings.ai_provider/ai_model/research_engine`; `lib/aichoice.ts` speist die
+  10 Client-Aufrufe.
+- **Env-Keys** (Vercel, je nach genutztem Anbieter): `OPENAI_API_KEY`, `GEMINI_API_KEY`,
+  `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY` (GROQ bestehend). Fehlt ein Key → sauberer 503.
+- **Modell-IDs** (Juli 2026, in lib/llm.ts pflegbar): gpt-4o(-mini), gemini-2.5-flash/pro,
+  claude-opus-4-8 / sonnet-5 / haiku-4-5-20251001, sonar / sonar-pro / sonar-deep-research.
+- **⚠️** Live-Ausgabe je Anbieter braucht den jeweiligen Key auf Vercel; lokal war nur der
+  (abgelaufene) Groq-Key vorhanden → verifiziert wurde die Verdrahtung + der 503-Fehlerpfad.
 
 ---
 
