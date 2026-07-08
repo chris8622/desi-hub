@@ -15,6 +15,7 @@ mandantenfähigen Produkt. Phasenplan siehe `desi-hub-umsetzungsprompt-opus.md`
 | A2 | LoginGate ins Layout | ✅ **abgeschlossen** (2026-07-07) |
 | B | Refactor-Fundament (B1/B2/B5) | ✅ **abgeschlossen** (2026-07-07) — B3/B4 offen |
 | H1-Pinterest | Token-Auto-Refresh | ✅ **abgeschlossen** (2026-07-07) |
+| C1 | Post-Paket + „Heute"-Cockpit | ✅ **abgeschlossen** (2026-07-07) |
 | 1 | Postgres + echte Logins | ⏳ offen |
 | 2 | Entitlements + Admin-Cockpit | ⏳ offen |
 | 3 | Theming + Rechtliches | ⏳ offen |
@@ -61,6 +62,28 @@ aus Git.
 
 **Noch offen aus Phase B:** B3 (UI-Primitives: Modal/TabBar/useFlash/Confirm) und
 B4 (`content/page.tsx` 2.100 Zeilen in Tab-Komponenten splitten).
+
+---
+
+## Phase C1 — Post-Paket + „Heute"-Cockpit (abgeschlossen 2026-07-07)
+
+Größter Workflow-Bruch aus dem Audit behoben: Einplanen aus dem Content-Bereich
+schrieb **nur den Titel** in den Planer — Slides, Caption, Hashtags waren am Posttag weg.
+
+- `PlannerItem` hat jetzt `carouselId`/`pinId` (zusätzlich `draftId`). `scheduleCarousel`/
+  `schedulePin` sichern den Inhalt automatisch mit + setzen die Referenz.
+- `lib/postpaket.ts` — `resolvePaket(item)` löst Referenz → Caption/Hashtags/Slides
+  (eine Quelle für Planer + Dashboard). `openTarget()` setzt den Handoff.
+- `components/PostPaket.tsx` — Text/Hashtags kopieren + „Öffnen →" (Deep-Link lädt den
+  Inhalt via `dh_open_carousel`/`dh_open_pin` zurück ins Content-Modul).
+- Planer-Modal zeigt das Paket; Wochenraster: 📎 an verknüpften Posts.
+- Dashboard **„Heute fällig"** — heutige + überfällige (noch nicht veröffentlichte) Posts
+  mit Kopier-Aktionen. Erster Schritt zum 15-Minuten-Tag (Zukunftsplan H1).
+- Nebenbei: Content-Typen nach `lib/types`; restliche kollisionsanfällige IDs → `uid()`.
+
+**Noch offen aus Phase C:** C2 (Caption-Bank/Hashtag-Sets im Erstell-Flow wählbar),
+C3 (Brand Voice in ALLEN Generierungen), C4 (blog-Prompt im Editor, Research→Ideenpool
++ Quellen), C5 (Autoplan nutzt Analytics, Repurpose→E-Mail, Vision-Ziele an Zahlen).
 
 ---
 
