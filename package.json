@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "ci": "tsc --noEmit && next build"
   },
   "dependencies": {
     "@upstash/ratelimit": "^2.0.8",
