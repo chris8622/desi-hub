@@ -4,12 +4,12 @@ import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
 import { apiFetch, errorMessage } from "@/lib/api";
+import { uid } from "@/lib/id";
 
 type HashtagSet = { id: string; name: string; emoji: string; tags: string[]; createdAt: string };
 
 const EMOJIS = ["#️⃣", "🌿", "🌸", "💪", "✨", "🧘", "🍋", "🌙", "🔥", "💡", "🎯", "🌺"];
 
-function randomId() { return Math.random().toString(36).slice(2, 9); }
 
 function getBrandVoice() {
   return getLS<Record<string, unknown>>("dh_settings", {});
@@ -41,7 +41,7 @@ export default function HashtagsPage() {
   function createSet() {
     if (!newName.trim()) return;
     const tags = newTags.split(/[\n,]+/).map(t => t.trim().replace(/^#/, "")).filter(Boolean);
-    const set: HashtagSet = { id: randomId(), name: newName.trim(), emoji: newEmoji, tags, createdAt: new Date().toISOString() };
+    const set: HashtagSet = { id: uid(), name: newName.trim(), emoji: newEmoji, tags, createdAt: new Date().toISOString() };
     save([set, ...sets]);
     setNewName(""); setNewTags(""); setNewEmoji("🌿"); setEditing(null);
   }

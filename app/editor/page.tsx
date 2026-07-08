@@ -3,9 +3,9 @@ import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { scheduleSyncUp } from "@/lib/sync";
 import { useSearchParams } from "next/navigation";
 import { getLS, setLS } from "@/lib/storage";
+import type { PlannerItem, Draft } from "@/lib/types";
+import { uid } from "@/lib/id";
 
-type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
-type PlannerItem = { id: string; date: string; channel: string; title: string; status: string; draftId?: string };
 
 function renderMarkdown(md: string): string {
   let html = md
@@ -201,7 +201,7 @@ function EditorInner() {
       setLS("dh_drafts", updated);
       setDrafts(updated);
     } else {
-      const newDraft: Draft = { id: crypto.randomUUID(), title: title || "Ohne Titel", content, channel, savedAt: now };
+      const newDraft: Draft = { id: uid(), title: title || "Ohne Titel", content, channel, savedAt: now };
       const updated = [newDraft, ...allDrafts];
       setLS("dh_drafts", updated);
       setDrafts(updated);
@@ -240,7 +240,7 @@ function EditorInner() {
     if (!scheduleDate) return;
     const planItems = getLS<PlannerItem[]>("dh_planner", []);
     const newItem: PlannerItem = {
-      id: Date.now().toString(36),
+      id: uid(),
       date: scheduleDate,
       channel: d.channel || "Blog",
       title: d.title || "Ohne Titel",

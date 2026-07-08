@@ -4,6 +4,7 @@ import { trackTokens } from "@/lib/tokens";
 import { apiFetch, errorMessage } from "@/lib/api";
 import { scheduleSyncUp } from "@/lib/sync";
 import { getLS, setLS } from "@/lib/storage";
+import { uid } from "@/lib/id";
 
 type Subscriber = { id: string; name: string; email: string; addedAt: string };
 type Newsletter = { id: string; subject: string; preheader?: string; body: string; createdAt: string };
@@ -91,7 +92,7 @@ export default function EmailPage() {
       const existing = new Set(subscribers.map(s => s.email.toLowerCase()));
       const newSubs: Subscriber[] = parsed
         .filter(r => !existing.has(r.email.toLowerCase()))
-        .map(r => ({ id: crypto.randomUUID(), ...r }));
+        .map(r => ({ id: uid(), ...r }));
       saveSubs([...subscribers, ...newSubs]);
     };
     reader.readAsText(file);
@@ -159,7 +160,7 @@ export default function EmailPage() {
     if (editingId) {
       saveNLs(newsletters.map(n => n.id === editingId ? { ...n, subject: nlSubject, body: nlBody } : n));
     } else {
-      saveNLs([{ id: crypto.randomUUID(), subject: nlSubject, body: nlBody, createdAt: now }, ...newsletters]);
+      saveNLs([{ id: uid(), subject: nlSubject, body: nlBody, createdAt: now }, ...newsletters]);
     }
     setShowForm(false);
     setNlSubject(""); setNlBody(""); setEditingId(null);

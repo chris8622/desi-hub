@@ -7,6 +7,8 @@ import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
 import { getLS, setLS } from "@/lib/storage";
 import { apiFetch, ApiError, errorMessage } from "@/lib/api";
+import type { PlannerItem } from "@/lib/types";
+import { uid } from "@/lib/id";
 
 type Slide = { headline: string; points: string[]; cta?: string };
 type CarouselResult = { title: string; slides: Slide[]; caption: string; hashtags: string[] };
@@ -30,7 +32,6 @@ type SavedPin = {
   savedAt: string;
 };
 
-type PlannerItem = { id: string; date: string; channel: string; title: string; status: string; draftId?: string };
 
 const TYPE_BADGE: Record<string, string> = {
   instagram: "badge-terra",
@@ -813,7 +814,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     if (!carousel || !carouselScheduleDate) return;
     const planItems = getLS<PlannerItem[]>("dh_planner", []);
     const newItem: PlannerItem = {
-      id: Date.now().toString(36),
+      id: uid(),
       date: carouselScheduleDate,
       channel: "Instagram",
       title: carousel.title,
@@ -831,7 +832,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     const label = pinTitle || pinHeadline || "Pinterest-Pin";
     const planItems = getLS<PlannerItem[]>("dh_planner", []);
     const newItem: PlannerItem = {
-      id: Date.now().toString(36),
+      id: uid(),
       date: pinScheduleDate,
       channel: "Pinterest",
       title: label,

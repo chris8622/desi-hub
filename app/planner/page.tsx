@@ -4,10 +4,10 @@ import { scheduleSyncUp } from "@/lib/sync";
 import Link from "next/link";
 import { getLS, setLS } from "@/lib/storage";
 import { apiFetch, errorMessage } from "@/lib/api";
+import type { PlannerItem, Draft } from "@/lib/types";
+import { uid } from "@/lib/id";
 
-type PlannerItem = { id: string; date: string; channel: string; title: string; status: string; draftId?: string };
 type ModalData = { date: string; item?: PlannerItem };
-type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
 
 const CHANNELS = ["Instagram", "Pinterest", "Blog", "Newsletter", "Sonstiges"];
 const STATUSES = ["Entwurf", "Geplant", "Veröffentlicht"];
@@ -149,7 +149,7 @@ export default function PlannerPage() {
         ? { ...i, title: formTitle, channel: formChannel, status: formStatus, draftId }
         : i));
     } else {
-      save([...items, { id: crypto.randomUUID(), date: modal.date, title: formTitle, channel: formChannel, status: formStatus, draftId }]);
+      save([...items, { id: uid(), date: modal.date, title: formTitle, channel: formChannel, status: formStatus, draftId }]);
     }
     setModal(null);
   };

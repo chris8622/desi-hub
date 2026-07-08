@@ -5,6 +5,7 @@ import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
 import { getLS, setLS } from "@/lib/storage";
 import { apiStream, errorMessage } from "@/lib/api";
+import { uid } from "@/lib/id";
 
 type Trend = {
   name: string;
@@ -100,7 +101,7 @@ export default function TrendsPage() {
   const toIdea = (t: Trend) => {
     const pool = getLS<{ id: string; title: string; notes: string; tags: string[]; status: string; createdAt: string; updatedAt: string }[]>("dh_ideenpool", []);
     const idea = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+      id: uid(),
       title: t.name,
       notes: `${t.description}\n\nContent-Idee: ${t.opportunity}\nHerkunft: ${t.origin} · Status: ${STATUS_CONFIG[t.europe_status]?.label || t.europe_status}`,
       tags: ["Trend"],

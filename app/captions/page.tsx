@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
+import { uid } from "@/lib/id";
 
 export type SavedCaption = {
   id: string;
@@ -22,7 +23,6 @@ const CHANNEL_COLORS: Record<string, string> = {
   Sonstiges: "badge-muted",
 };
 
-function randomId() { return Math.random().toString(36).slice(2, 9); }
 
 export default function CaptionsPage() {
   const [captions, setCaptions] = useState<SavedCaption[]>([]);
@@ -50,7 +50,7 @@ export default function CaptionsPage() {
     if (!newText.trim()) return;
     const tags = newHashtags.split(/[\n,\s]+/).map(t => t.replace(/^#/, "").trim()).filter(Boolean);
     const entry: SavedCaption = {
-      id: randomId(), text: newText.trim(), hashtags: tags,
+      id: uid(), text: newText.trim(), hashtags: tags,
       channel: newChannel, notes: newNotes.trim(), savedAt: new Date().toISOString(),
     };
     save([entry, ...captions]);

@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
+import type { PlannerItem } from "@/lib/types";
 
-type PlannerItem = { id: string; date: string; channel: string; title: string; status: string };
 
 type AnalyticsEntry = {
   id: string;

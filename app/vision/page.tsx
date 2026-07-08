@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
 import { DAILY_TIPS } from "@/lib/tips";
+import { uid } from "@/lib/id";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,7 +71,6 @@ const BOARD_COLORS = [
   { bg: "#587857", text: "#f0f7f0", label: "Forest" },
 ];
 
-function randomId() { return Math.random().toString(36).slice(2, 9); }
 
 // ─── Progress Ring ────────────────────────────────────────────────────────────
 
@@ -270,7 +270,7 @@ function AddCardModal({ onClose, onAdd }: { onClose: () => void; onAdd: (card: B
     const trimmed = content.trim();
     if (!trimmed) return;
     onAdd({
-      id: randomId(),
+      id: uid(),
       type, content: trimmed,
       color: type !== "image" ? color : undefined,
       textColor: type !== "image" ? textColor : undefined,

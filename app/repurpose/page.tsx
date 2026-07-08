@@ -5,9 +5,10 @@ import { scheduleSyncUp } from "@/lib/sync";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { apiFetch, errorMessage } from "@/lib/api";
 import { trackTokens } from "@/lib/tokens";
+import type { Draft } from "@/lib/types";
+import { uid } from "@/lib/id";
 import type { SavedCaption } from "@/app/captions/page";
 
-type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
 type HistoryItem = { query: string; date: string; summary: string };
 
 type RepurposeResult = {
@@ -31,7 +32,6 @@ const FORMAT_OPTIONS = [
   { key: "blog_intro",  label: "Blog-Einleitung",    icon: "✍️",  desc: "Titel + Intro-Absatz" },
 ];
 
-function randomId() { return Math.random().toString(36).slice(2, 9); }
 
 export default function RepurposePage() {
   const [sourceType, setSourceType] = useState<"paste" | "draft" | "research">("paste");
@@ -104,7 +104,7 @@ export default function RepurposePage() {
   function saveToBank(text: string, hashtags: string[], channel: SavedCaption["channel"]) {
     const existing = getLS<SavedCaption[]>("dh_caption_bank", []);
     const entry: SavedCaption = {
-      id: randomId(), text, hashtags, channel,
+      id: uid(), text, hashtags, channel,
       notes: "Via Repurpose", savedAt: new Date().toISOString(),
     };
     setLS("dh_caption_bank", [entry, ...existing]);

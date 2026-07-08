@@ -3,9 +3,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getLS } from "@/lib/storage";
 import { DAILY_TIPS } from "@/lib/tips";
+import type { PlannerItem, Draft } from "@/lib/types";
 
-type PlannerItem = { id: string; date: string; channel: string; title: string; status: string };
-type Draft = { id: string; title: string; content: string; channel: string; savedAt: string };
 type Subscriber = { id: string; name: string; email: string; addedAt: string };
 type Trend = { name: string; europe_status: string; origin: string; opportunity: string };
 type TrendsLatest = { result: { trends: Trend[] }; date: string };

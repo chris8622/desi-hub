@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { scheduleSyncUp } from "@/lib/sync";
 import { getLS, setLS } from "@/lib/storage";
+import { uid } from "@/lib/id";
 
 // ─── Types ───────────────────────────────────────────────
 type Status = "neu" | "recherchiert" | "in_arbeit" | "fertig";
@@ -28,7 +29,6 @@ const STATUS_CONFIG: Record<Status, { label: string; color: string; bg: string; 
 // bereits vergebenen Tags — keine hardcodierte Themenliste einer bestimmten Person.
 
 // ─── Helpers ─────────────────────────────────────────────
-function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
 // ─── Component ───────────────────────────────────────────
 export default function IdeenPage() {
