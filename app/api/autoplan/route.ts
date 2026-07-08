@@ -27,7 +27,7 @@ interface PlanEntry {
 }
 
 export async function POST(req: Request) {
-  const authError = requireAuth(req);
+  const authError = await requireAuth(req);
   if (authError) return authError;
 
   const rl = await checkRateLimit(aiLimiter, getClientIp(req));

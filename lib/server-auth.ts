@@ -1,4 +1,5 @@
 import { createHash, timingSafeEqual } from "crypto";
+import { auth } from "@/auth";
 
 // Konstantzeit-Vergleich zweier Strings (verhindert Timing-Angriffe auf das
 // Passwort). Beide Seiten werden zuerst gehasht → gleiche Länge, kein Längen-Leak.
@@ -17,20 +18,30 @@ export async function readJson<T>(req: Request): Promise<T | null> {
   }
 }
 
-// Zentraler Auth-Check für alle API-Routen.
-// FAIL-CLOSED: Ist APP_PASSWORD nicht konfiguriert, wird ALLES abgelehnt —
-// sonst wären die Routen (die serverseitige API-Keys proxen) öffentlich nutzbar.
-export function requireAuth(req: Request): Response | null {
-  const appPassword = process.env.APP_PASSWORD;
-  if (!appPassword) {
-    return Response.json(
-      { error: "Server nicht konfiguriert (APP_PASSWORD fehlt)" },
-      { status: 503 },
-    );
-  }
-  const token = req.headers.get("x-app-token") || "";
-  if (!safeEqual(token, appPassword)) {
+// Zentraler Auth-Check für alle Kunden-API-Routen (Phase 1: Auth.js-Session).
+// FAIL-CLOSED: keine gültige Session mit tenantId → 401. Der frühere
+// x-app-token/APP_PASSWORD-Mechanismus ist mit dem Login-Cutover abgelöst.
+// Gibt null zurück, wenn authentifiziert, sonst eine 401-Response.
+export async function requireAuth(_req?: Request): Promise<Response | null> {
+  const session = await auth();
+  if (!session?.user?.tenantId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return null; // authentifiziert
+  return null;
+}
+
+// Wie requireAuth, aber gibt bei Erfolg den Tenant-Kontext zurück (für die
+// tenant-bezogene Datenschicht in den folgenden Increments).
+export async function getSessionContext(): Promise<
+  { tenantId: string; userId: string; role: string } | Response
+> {
+  const session = await auth();
+  if (!session?.user?.tenantId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return {
+    tenantId: session.user.tenantId,
+    userId: session.user.id,
+    role: session.user.role,
+  };
 }

@@ -2,7 +2,7 @@ import { requireAuth } from "@/lib/server-auth";
 import { getUpstashConfig, getValidToken } from "@/lib/pinterest";
 
 export async function GET(req: Request) {
-  const authError = requireAuth(req);
+  const authError = await requireAuth(req);
   if (authError) return authError;
 
   const cfg = getUpstashConfig();

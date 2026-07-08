@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/server-auth";
 
 export async function GET(req: Request) {
-  const authError = requireAuth(req);
+  const authError = await requireAuth(req);
   if (authError) return authError;
 
   const url   = process.env.KV_REST_API_URL;

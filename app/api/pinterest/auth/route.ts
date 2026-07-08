@@ -37,7 +37,7 @@ async function kvGet(cfg: { url: string; token: string }, key: string): Promise<
 }
 
 export async function GET(req: Request) {
-  const authError = requireAuth(req);
+  const authError = await requireAuth(req);
   if (authError) return authError;
 
   const appId       = process.env.PINTEREST_APP_ID;

@@ -5,7 +5,7 @@ import { getFlags, MODULE_KEYS, moduleEnabled } from "@/lib/flags";
 // Nur für die UX (Sidebar ausblenden, Banner zeigen). Die eigentliche
 // Durchsetzung passiert serverseitig via guardFeature() in den API-Routen.
 export async function GET(req: Request) {
-  const authError = requireAuth(req);
+  const authError = await requireAuth(req);
   if (authError) return authError;
 
   const flags = await getFlags();

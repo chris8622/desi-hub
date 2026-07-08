@@ -10,7 +10,7 @@ function getUpstashConfig(): { url: string; token: string } | null {
 }
 
 export async function POST(req: Request) {
-  const authError = requireAuth(req);
+  const authError = await requireAuth(req);
   if (authError) return authError;
 
   const cfg = getUpstashConfig();

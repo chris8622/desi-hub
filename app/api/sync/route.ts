@@ -101,7 +101,7 @@ async function writeDailyBackup(cfg: { url: string; token: string }, wrapper: Wr
 
 // ── GET: Daten vom Server laden ──────────────────────────
 export async function GET(req: Request) {
-  const authError = requireAuth(req);
+  const authError = await requireAuth(req);
   if (authError) return authError;
 
   const cfg = getUpstashConfig();
@@ -118,7 +118,7 @@ export async function GET(req: Request) {
 
 // ── POST: Daten auf Server speichern ─────────────────────
 export async function POST(req: Request) {
-  const authError = requireAuth(req);
+  const authError = await requireAuth(req);
   if (authError) return authError;
 
   // Nur-Lese-/Sperr-Status blockt jeden Schreibvorgang (Admin-Flags)

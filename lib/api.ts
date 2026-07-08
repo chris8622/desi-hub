@@ -18,14 +18,9 @@ function authToken(): string {
   try { return localStorage.getItem("desi_auth_token") || ""; } catch { return ""; }
 }
 
-// Session abgelaufen → aufräumen und Login zeigen.
+// Session abgelaufen (401) → zum echten Login (Auth.js).
 function forceLogout(): void {
-  try {
-    localStorage.removeItem("desi_auth");
-    localStorage.removeItem("desi_auth_token");
-    localStorage.removeItem("desi_session_expires");
-  } catch {}
-  if (typeof window !== "undefined") window.location.reload();
+  if (typeof window !== "undefined") window.location.href = "/login";
 }
 
 type ApiOptions = {

@@ -1,48 +1,34 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
 import { syncDown, syncUp, flushOnHide } from "@/lib/sync";
 import { apiFetch } from "@/lib/api";
 
 type ClientFlags = { modules: Record<string, boolean>; banner: string; status: string };
-
-// Rolling session: 8 Stunden Inaktivität → Auto-Logout
-const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
-const SESSION_KEY = "desi_session_expires";
-
-function getSessionExpires(): number {
-  try { return Number(localStorage.getItem(SESSION_KEY)) || 0; } catch { return 0; }
-}
-function refreshSession(): void {
-  try { localStorage.setItem(SESSION_KEY, String(Date.now() + SESSION_DURATION_MS)); } catch {}
-}
-function clearSession(): void {
-  try {
-    localStorage.removeItem("desi_auth");
-    localStorage.removeItem("desi_auth_token");
-    localStorage.removeItem(SESSION_KEY);
-  } catch {}
-}
+type SyncUi = "idle" | "syncing" | "synced" | "local" | "error";
 
 export default function LoginGate({ children }: { children: React.ReactNode }) {
-  const [authed, setAuthed] = useState<boolean | null>(null);
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const { status } = useSession(); // "loading" | "authenticated" | "unauthenticated"
+  const authed = status === "authenticated";
+  const pathname = usePathname();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<"idle"|"syncing"|"synced"|"local"|"error">("idle");
+  const [syncStatus, setSyncStatus] = useState<SyncUi>("idle");
   const [syncMessage, setSyncMessage] = useState("");
   const [kvAvailable, setKvAvailable] = useState(false);
   const [conflictNote, setConflictNote] = useState(false);
   const [flags, setFlags] = useState<ClientFlags | null>(null);
-  const activityThrottle = useRef(0);
-  const pathname = usePathname();
+  const didInitialSync = useRef(false);
+
+  // Admin-Konsole und Auth.js-Login laufen an diesem Gate vorbei.
+  const isBypass = pathname?.startsWith("/admin") || pathname?.startsWith("/login");
 
   // Live-Sync-Status aus lib/sync (Hintergrund-Uploads beim Tippen)
   useEffect(() => {
     const onSync = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { status: typeof syncStatus; message?: string };
+      const detail = (e as CustomEvent).detail as { status: SyncUi; message?: string };
       if (!detail) return;
       setSyncStatus(detail.status);
       setSyncMessage(detail.message || "");
@@ -76,44 +62,9 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
-  // Feature-Flags laden, sobald eingeloggt (Module ausblenden + Banner)
+  // Einmalige Migration: früher im Browser gespeicherte API-Keys entfernen —
+  // KI läuft ausschließlich serverseitig (Sicherheit).
   useEffect(() => {
-    if (authed !== true) return;
-    apiFetch<ClientFlags>("/api/flags").then(setFlags).catch(() => {});
-  }, [authed]);
-
-  // Aktivität tracken — refresht die Session (gedrosselt auf 1× pro Minute)
-  const onActivity = useCallback(() => {
-    if (!authed) return;
-    const now = Date.now();
-    if (now - activityThrottle.current > 60_000) {
-      activityThrottle.current = now;
-      refreshSession();
-    }
-  }, [authed]);
-
-  useEffect(() => {
-    if (!authed) return;
-    const events = ["mousedown", "keydown", "touchstart", "scroll"];
-    events.forEach(e => window.addEventListener(e, onActivity, { passive: true }));
-    return () => events.forEach(e => window.removeEventListener(e, onActivity));
-  }, [authed, onActivity]);
-
-  // Prüft Session-Ablauf alle 60 Sekunden
-  useEffect(() => {
-    if (!authed) return;
-    const interval = setInterval(() => {
-      if (Date.now() > getSessionExpires()) {
-        clearSession();
-        setAuthed(false);
-      }
-    }, 60_000);
-    return () => clearInterval(interval);
-  }, [authed]);
-
-  useEffect(() => {
-    // Migration: früher im Browser gespeicherte API-Keys entfernen —
-    // KI läuft jetzt ausschließlich serverseitig (Sicherheit).
     try {
       const raw = localStorage.getItem("dh_settings");
       if (raw) {
@@ -125,65 +76,28 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
         }
       }
     } catch {}
-
-    try {
-      const val = typeof window !== "undefined" ? localStorage.getItem("desi_auth") : null;
-      if (val === "1") {
-        // Session abgelaufen → sofort ausloggen
-        if (Date.now() > getSessionExpires()) {
-          clearSession();
-          setAuthed(false);
-          return;
-        }
-        refreshSession(); // Rolling: Seitenaufruf zählt als Aktivität
-        setSyncStatus("syncing");
-        syncDown().then(({ available }) => {
-          setKvAvailable(available);
-          setSyncStatus(available ? "synced" : "local");
-          setAuthed(true);
-        }).catch(() => {
-          setAuthed(true);
-        });
-      } else {
-        setAuthed(false);
-      }
-    } catch {
-      setAuthed(false);
-    }
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (res.ok) {
-        try {
-          localStorage.setItem("desi_auth", "1");
-          localStorage.setItem("desi_auth_token", password);
-          refreshSession(); // Session-Timer starten
-        } catch {}
-        setSyncStatus("syncing");
-        const { available } = await syncDown();
+  // Sobald authentifiziert: einmalig Server-Stand laden + Flags holen.
+  useEffect(() => {
+    if (!authed || didInitialSync.current) return;
+    didInitialSync.current = true;
+    setSyncStatus("syncing");
+    syncDown()
+      .then(({ available }) => {
         setKvAvailable(available);
         setSyncStatus(available ? "synced" : "local");
-        setAuthed(true);
-      } else {
-        setError("Falsches Passwort. Bitte nochmal versuchen.");
-      }
-    } catch {
-      setError("Verbindungsfehler. Bitte Seite neu laden.");
-    } finally {
-      setLoading(false);
-    }
-  };
+      })
+      .catch(() => setSyncStatus("local"));
+    apiFetch<ClientFlags>("/api/flags").then(setFlags).catch(() => {});
+  }, [authed]);
 
-  // Manueller Sync
+  // Nicht eingeloggt → zum echten Login (außer auf Bypass-Pfaden).
+  useEffect(() => {
+    if (isBypass) return;
+    if (status === "unauthenticated") window.location.href = "/login";
+  }, [status, isBypass]);
+
   const handleManualSync = async () => {
     setSyncStatus("syncing");
     await syncUp();
@@ -192,16 +106,13 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
     setSyncStatus(available ? "synced" : "local");
   };
 
-  const handleLogout = () => {
-    clearSession();
-    window.location.reload();
-  };
+  const handleLogout = () => { signOut({ redirectTo: "/login" }); };
 
-  // Die Admin-Konsole und der neue Auth.js-Login (/login) laufen an diesem
-  // (alten) Kunden-Login vorbei — sie haben ihr eigenes Gate.
-  if (pathname?.startsWith("/admin") || pathname?.startsWith("/login")) return <>{children}</>;
+  // Bypass-Pfade rendern ihr eigenes Gate.
+  if (isBypass) return <>{children}</>;
 
-  if (authed === null) {
+  // Während des Ladens oder solange die Weiterleitung zum Login läuft.
+  if (status === "loading" || status === "unauthenticated") {
     return (
       <div style={{
         minHeight: "100vh", display: "flex", alignItems: "center",
@@ -212,84 +123,7 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!authed) {
-    return (
-      <div style={{
-        minHeight: "100vh", display: "flex", alignItems: "center",
-        justifyContent: "center", background: "var(--bg)",
-        padding: "1.5rem",
-      }}>
-        <div className="card" style={{
-          width: "100%", maxWidth: 420, padding: "2.5rem 2rem",
-          boxShadow: "var(--shadow-md)", textAlign: "center",
-        }}>
-          {/* Decorative top accent */}
-          <div style={{
-            width: 48, height: 4, borderRadius: 2,
-            background: "var(--accent)", margin: "0 auto 1.75rem",
-          }} />
-
-          <h1 style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "2.2rem", color: "var(--accent)",
-            marginBottom: "0.35rem", lineHeight: 1.15,
-          }}>
-            Contentraum
-          </h1>
-          <p style={{ color: "var(--muted)", fontSize: "0.88rem", marginBottom: "2rem" }}>
-            Wo Ideen Raum finden
-          </p>
-
-          <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ textAlign: "left" }}>
-              <label className="label" htmlFor="pw-input">Passwort</label>
-              <input
-                id="pw-input"
-                className="input"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Passwort eingeben…"
-                autoFocus
-                style={{ width: "100%" }}
-              />
-            </div>
-
-            {error && (
-              <div className="alert alert-error" style={{ textAlign: "left" }}>
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading || !password}
-              style={{ width: "100%", justifyContent: "center", marginTop: "0.25rem" }}
-            >
-              {loading ? "Anmelden…" : "Einloggen"}
-            </button>
-          </form>
-
-          <p style={{ color: "var(--muted)", fontSize: "0.75rem", marginTop: "2rem" }}>
-            🌿 Dein persönlicher Workspace
-          </p>
-          <p style={{ color: "var(--border)", fontSize: "0.7rem", marginTop: "1rem" }}>
-            made with ❤️ by{" "}
-            <a href="https://toelsner.at" target="_blank" rel="noopener"
-              style={{ color: "var(--muted)", textDecoration: "none" }}>
-              Toelsner Digital
-            </a>
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Zentraler Modul-Guard: ist der aktuelle Pfad ein vom Admin gesperrtes Modul,
-  // zeigen wir statt des Tools einen Hinweis — deckt Deep-Links, Direkt-URLs und
-  // Dashboard-Schnellstarts an EINER Stelle ab (die APIs sind serverseitig ohnehin
-  // geblockt). Dashboard ("/") und Einstellungen bleiben immer erreichbar.
+  // Zentraler Modul-Guard: gesperrtes Modul → Hinweis statt Tool.
   const moduleKey = pathname && pathname !== "/" ? pathname.split("/")[1] : "";
   const lockedModule = !!(flags && moduleKey && flags.modules[moduleKey] === false);
 

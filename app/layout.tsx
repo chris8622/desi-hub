@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, DM_Serif_Display } from "next/font/google";
 import LoginGate from "@/components/LoginGate";
+import Providers from "@/components/Providers";
 import "./globals.css";
 
 // Self-hosted via next/font (kein Google-Request zur Laufzeit — schneller + DSGVO).
@@ -43,7 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       {/* LoginGate EINMAL hier statt in jeder Seite — beendet den
           syncDown + „Laden…"-Zyklus bei jedem Seitenwechsel (Audit A2) */}
-      <body><LoginGate>{children}</LoginGate></body>
+      <body><Providers><LoginGate>{children}</LoginGate></Providers></body>
     </html>
   );
 }
