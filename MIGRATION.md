@@ -21,7 +21,7 @@ mandantenfähigen Produkt. Phasenplan siehe `desi-hub-umsetzungsprompt-opus.md`
 | Multi-KI | Provider-Layer (5 Anbieter) + Modell-Wähler | ✅ **abgeschlossen** (2026-07-07) |
 | Release | Release-Prozess (dev-Branch, CI-Gate, RELEASE/CHANGELOG) | ✅ **abgeschlossen** (2026-07-08) |
 | Admin-1 | Stufe-1-Admin-Konsole (KV-Flags, /admin) | ✅ **abgeschlossen** (2026-07-08, auf `dev`) |
-| 1 | Postgres + echte Logins | ⏳ offen |
+| 1 | Postgres + echte Logins | 🔵 **in Arbeit** (auf `dev`) — DB-Fundament ✅ + Auth.js ✅, Cutover offen |
 | 2 | Entitlements + Admin-Cockpit | ⏳ offen |
 | 3 | Theming + Rechtliches | ⏳ offen |
 | 4 | Publishing + Analytics | ⏳ offen |
@@ -314,8 +314,29 @@ freigeschaltet" statt des Tools. Deckt Sidebar-Hiding, Deep-Links, Direkt-URLs u
 Dashboard-Schnellstarts ab; die APIs bleiben zusätzlich serverseitig geblockt.
 Verifiziert: gesperrtes `/research`→Hinweis, freies `/content`→Tool lädt.
 
-## Nächster Schritt: Phase 1
-Neon Postgres (Frankfurt) + Drizzle-Schema (`tenants/users/entitlements/usage/items`),
-Auth.js v5, Datenzugriffs-Hook `useTenantData`, Seed + localStorage-Import, Medien → Vercel Blob.
-Details im Umsetzungsprompt. **Voraussetzung:** Neon-Projekt, Resend-Konto, `AUTH_SECRET`,
-Vercel-Blob-Store (siehe Prompt, Abschnitt „AKTION CHRISTIAN Phase 1").
+## Phase 1 — Postgres + echte Logins (in Arbeit, Branch `dev`)
+
+Setup-Guide für Christian: `~/Desktop/contentraum-phase1-setup.html`. Neon-Projekt
+„Contentraum" (Frankfurt) läuft; DB-URLs + `AUTH_SECRET` lokal in `.env.local`.
+**⚠️ Neon-Passwort vor Produktivdaten rotieren** (steht im Chatverlauf).
+
+**Increment 1 — DB-Fundament ✅ (2026-07-08)**
+- `lib/db/schema.ts`: `tenants/users/entitlements/usage/workspaces` (Drizzle).
+  `entitlements` spiegeln die AdminFlags; `workspaces` hält vorerst den Daten-Blob
+  1:1 wie `desi_hub_data_v1` → Import ohne Datenverlust.
+- `lib/db/index.ts`: Neon serverless HTTP-Client, Platzhalter-Fallback (Build ohne DB).
+- `drizzle.config.ts` + `db:push`. Verifiziert gegen Neon (`scripts/verify-db.mjs`):
+  Tabellen, Defaults, JSONB-Roundtrip, Cascade-Delete.
+
+**Increment 2 — Auth.js v5 ✅ (2026-07-08)**
+- `auth.ts`: Credentials (E-Mail+Passwort), JWT-Session mit `tenantId`+`role`.
+  `lib/password.ts` (scrypt). `app/login` (via LoginGate-Bypass). Seed: `scripts/seed-desi.mjs`.
+- **Bewusst Passwort statt Magic-Link** → kein Resend nötig zum Start; Desi-Passwort
+  bleibt (`desi2024`) für nahtlosen Cutover. Verifiziert gegen Neon: Login→Session mit
+  tenantId, falsches PW abgewiesen, Signout leert Session.
+
+**Increment 3 — Cutover + Tenant-Datenschicht (offen, NÄCHSTES)**
+LoginGate auf NextAuth-Session umstellen; `sync`/`flags`/`admin`/Verbrauch pro Tenant
+gegen Postgres (KV als Fallback/Import-Quelle); Desis KV-Daten in ihren `workspace`
+importieren. Danach: Medien → Vercel Blob (`BLOB_READ_WRITE_TOKEN`), Magic-Link/Reset
+via Resend. **Delikat** (Desis Datenpfad) → mit Fallbacks + End-to-End-Verifikation.
