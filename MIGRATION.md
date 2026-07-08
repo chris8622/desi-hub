@@ -19,6 +19,8 @@ mandantenfähigen Produkt. Phasenplan siehe `desi-hub-umsetzungsprompt-opus.md`
 | C2/C3 | Hashtag-Bank im Flow + Brand Voice überall | ✅ **abgeschlossen** (2026-07-07) |
 | C4 | Brachliegende KI (Editor-Artikel, Research→Ideenpool) | ✅ **abgeschlossen** (2026-07-07) |
 | Multi-KI | Provider-Layer (5 Anbieter) + Modell-Wähler | ✅ **abgeschlossen** (2026-07-07) |
+| Release | Release-Prozess (dev-Branch, CI-Gate, RELEASE/CHANGELOG) | 🟡 **eingerichtet** (2026-07-08) — Workflow-Push offen (Token-Scope) |
+| Admin-1 | Stufe-1-Admin-Konsole (KV-Flags, /admin) | ⏳ offen (nächstes Feature) |
 | 1 | Postgres + echte Logins | ⏳ offen |
 | 2 | Entitlements + Admin-Cockpit | ⏳ offen |
 | 3 | Theming + Rechtliches | ⏳ offen |
@@ -243,6 +245,30 @@ PINTEREST_APP_ID= / PINTEREST_APP_SECRET= / PINTEREST_CALLBACK_URL=
 3. Optional `PERPLEXITY_API_KEY` in Vercel setzen, falls die Premium-Research wieder gewünscht ist.
 
 ---
+
+## Release-Prozess (eingerichtet 2026-07-08)
+
+Schritt 1 des Admin-/Release-Plans (`~/Desktop/contentraum-admin-release-plan.html`).
+**Regel: `main` = Produktion, immer lauffähig.**
+
+- **`dev`-Branch** angelegt und gepusht → Integrationszweig; Vercel erzeugt dafür eine
+  Preview-URL. Feature-Arbeit läuft über `dev` (oder Feature-Branch → PR nach `dev`), nie
+  direkt auf `main`.
+- **CI-Gate** `.github/workflows/ci.yml` — `tsc --noEmit` + `next build` bei jedem Push
+  auf `main`/`dev` und jedem PR. `npm run ci` macht dasselbe lokal (verifiziert: Exit 0).
+- **`RELEASE.md`** — 5-Schritte-Ablauf, 5-Min-Smoke-Checkliste, Env-Var-Checkliste pro
+  Vercel-Projekt, Rollback, einmalige Einrichtung.
+- **`CHANGELOG.md`** — Keep-a-Changelog, kundentauglich (wird später „Was ist neu?"-Seite).
+
+**⚠️ Offen (Christian):**
+1. **`workflow`-Scope für den gh-Token** — der aktuelle Token (`gist, read:org, repo`)
+   darf keine `.github/workflows/`-Dateien pushen. Die CI-Datei liegt lokal bereit, ist
+   aber noch **nicht auf GitHub**. Fix (im interaktiven Terminal):
+   `gh auth refresh -h github.com -s workflow` → danach wird die Action gepusht.
+   Alternativ: Datei-Inhalt über die GitHub-Weboberfläche anlegen.
+2. **Test-Upstash-Store** anlegen + im Vercel-**Preview**-Environment die `KV_*`-Vars
+   darauf zeigen lassen (Production unberührt) — ~15 Min, Schritte in `RELEASE.md`.
+3. **Branch-Protection** auf `main`: Merge nur bei grünem Check „Typecheck + Build".
 
 ## Nächster Schritt: Phase 1
 Neon Postgres (Frankfurt) + Drizzle-Schema (`tenants/users/entitlements/usage/items`),
