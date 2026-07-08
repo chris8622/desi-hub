@@ -308,9 +308,11 @@ Konsolen-Fehler; Build grün.
 2. KV-abhängige Persistenz greift wie immer nur mit gesetztem `KV_REST_API_URL/TOKEN`
    (auf Vercel vorhanden; lokal fail-open).
 
-**Kleine bewusste Grenze (Stufe 1):** Das Ausblenden gesperrter Module ist UX in der
-Sidebar; Deep-Links/Dashboard-Schnellstart bleiben sichtbar, aber die zugehörigen
-KI-/Schreib-APIs sind serverseitig geblockt. Feiner Client-Guard kommt mit Phase 2.
+**Zentraler Client-Guard (nachgezogen 2026-07-08):** `LoginGate` prüft den aktuellen
+Pfad gegen die Flags — ein gesperrtes Modul zeigt an EINER Stelle „Bereich nicht
+freigeschaltet" statt des Tools. Deckt Sidebar-Hiding, Deep-Links, Direkt-URLs und
+Dashboard-Schnellstarts ab; die APIs bleiben zusätzlich serverseitig geblockt.
+Verifiziert: gesperrtes `/research`→Hinweis, freies `/content`→Tool lädt.
 
 ## Nächster Schritt: Phase 1
 Neon Postgres (Frankfurt) + Drizzle-Schema (`tenants/users/entitlements/usage/items`),

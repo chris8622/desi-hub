@@ -286,6 +286,13 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Zentraler Modul-Guard: ist der aktuelle Pfad ein vom Admin gesperrtes Modul,
+  // zeigen wir statt des Tools einen Hinweis — deckt Deep-Links, Direkt-URLs und
+  // Dashboard-Schnellstarts an EINER Stelle ab (die APIs sind serverseitig ohnehin
+  // geblockt). Dashboard ("/") und Einstellungen bleiben immer erreichbar.
+  const moduleKey = pathname && pathname !== "/" ? pathname.split("/")[1] : "";
+  const lockedModule = !!(flags && moduleKey && flags.modules[moduleKey] === false);
+
   return (
     <div className="app-layout">
       {conflictNote && (
@@ -344,7 +351,16 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
             </span>
           </div>
         )}
-        {children}
+        {lockedModule ? (
+          <div className="card" style={{ maxWidth: 460, margin: "3rem auto", textAlign: "center", padding: "2.5rem 2rem" }}>
+            <div style={{ fontSize: "2rem", marginBottom: "0.75rem" }}>🔒</div>
+            <h2 style={{ marginBottom: "0.5rem" }}>Bereich nicht freigeschaltet</h2>
+            <p style={{ color: "var(--muted)", fontSize: "0.88rem", marginBottom: "1.5rem" }}>
+              Dieser Bereich ist für deine Instanz derzeit nicht aktiv.
+            </p>
+            <a href="/" className="btn btn-primary" style={{ textDecoration: "none" }}>Zum Dashboard</a>
+          </div>
+        ) : children}
         <footer style={{ marginTop: "3rem", paddingTop: "1.5rem", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
           {/* Sync-Status */}
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
