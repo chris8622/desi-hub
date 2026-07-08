@@ -17,6 +17,7 @@ mandantenfähigen Produkt. Phasenplan siehe `desi-hub-umsetzungsprompt-opus.md`
 | H1-Pinterest | Token-Auto-Refresh | ✅ **abgeschlossen** (2026-07-07) |
 | C1 | Post-Paket + „Heute"-Cockpit | ✅ **abgeschlossen** (2026-07-07) |
 | C2/C3 | Hashtag-Bank im Flow + Brand Voice überall | ✅ **abgeschlossen** (2026-07-07) |
+| C4 | Brachliegende KI (Editor-Artikel, Research→Ideenpool) | ✅ **abgeschlossen** (2026-07-07) |
 | 1 | Postgres + echte Logins | ⏳ offen |
 | 2 | Entitlements + Admin-Cockpit | ⏳ offen |
 | 3 | Theming + Rechtliches | ⏳ offen |
@@ -92,9 +93,20 @@ generierten ohne Brand Voice (nur Karussell schickte sie). Jetzt eine geteilte
 Einbahnstraße. Neue Bar im Pinterest-Tab: Set einfügen (dedupliziert) + aktuelle
 Hashtags als neues Set sichern.
 
-**Noch offen aus Phase C:** Caption-Bank in den Erstell-Flow (Picker); C4 (blog-Prompt
-im Editor, Research→Ideenpool + Quellen); C5 (Autoplan nutzt Analytics, Repurpose→E-Mail,
-Vision-Ziele an echte Zahlen). Und weiterhin B3/B4 aus Phase B.
+## Phase C4 (abgeschlossen 2026-07-07)
+
+- **Editor „✍️ Artikel mit KI schreiben"** — der serverseitige `blog`-Prompt war von
+  keiner Seite erreichbar. Jetzt: Thema → kompletter Artikel (Titel/Intro/Abschnitte/
+  Fazit) als Markdown, mit Brand Voice + Überschreib-Schutz.
+- **Research „🌱 In Ideen-Pool"** — Ergebnis als Idee (Tag „Research") mit Kurzfassung +
+  Top-Quellen sichern.
+- **Research-History speichert Quellen** (`HistoryItem.sources`) — Belegpflicht.
+  Bugfix: manueller Save hätte den auto-gesicherten Eintrag sonst quellenlos überschrieben.
+- **⚠️ Betrieb:** lokaler `GROQ_API_KEY` (.env.local) ist abgelaufen — Live-KI lokal nicht
+  testbar. **Vercel-Key auf Gültigkeit prüfen**, sonst ist KI auch in Produktion tot.
+
+**Noch offen aus Phase C:** Caption-Bank in den Erstell-Flow (Picker); C5 (Autoplan nutzt
+Analytics, Repurpose→E-Mail, Vision-Ziele an echte Zahlen). Und weiterhin B3/B4 aus Phase B.
 
 ---
 
