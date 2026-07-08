@@ -3,7 +3,29 @@ import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { scheduleSyncUp } from "@/lib/sync";
 import { useSearchParams } from "next/navigation";
 import { getLS, setLS } from "@/lib/storage";
+import { apiFetch, errorMessage } from "@/lib/api";
+import { getBrandVoice } from "@/lib/brandvoice";
+import { trackTokens } from "@/lib/tokens";
 import type { PlannerItem, Draft } from "@/lib/types";
+
+// Strukturierte Blog-Antwort der KI → Markdown fürs Editor-Feld.
+type BlogResult = {
+  title?: string; intro?: string;
+  sections?: { heading?: string; content?: string }[];
+  conclusion?: string; metaDescription?: string; readingTime?: number;
+  _tokens?: number;
+};
+function blogToMarkdown(b: BlogResult): string {
+  const parts: string[] = [];
+  if (b.title) parts.push(`# ${b.title}`);
+  if (b.intro) parts.push(b.intro);
+  for (const s of b.sections || []) {
+    if (s.heading) parts.push(`## ${s.heading}`);
+    if (s.content) parts.push(s.content);
+  }
+  if (b.conclusion) parts.push(`## Fazit\n\n${b.conclusion}`);
+  return parts.join("\n\n");
+}
 import { uid } from "@/lib/id";
 
 
@@ -69,6 +91,9 @@ function EditorInner() {
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
   const [autosaveIndicator, setAutosaveIndicator] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
   const lastSavedContentRef = useRef<string>("");
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -189,6 +214,32 @@ function EditorInner() {
     { label: "Liste", action: () => insertAtCursor("- ", "") },
     { label: "Zitat", action: () => insertAtCursor("> ", "") },
   ];
+
+  // Blog-Prompt (serverseitig vorhanden) endlich vom Editor aus nutzbar (C4).
+  const generateArticle = async () => {
+    const topic = aiTopic.trim() || title.trim();
+    if (!topic) { setAiError("Bitte gib ein Thema ein."); return; }
+    if (content.trim() && !window.confirm("Der aktuelle Text wird durch den KI-Artikel ersetzt. Fortfahren?")) return;
+    setAiLoading(true); setAiError("");
+    try {
+      const data = await apiFetch<BlogResult>("/api/generate", {
+        method: "POST",
+        body: { type: "blog", topic, brandVoice: getBrandVoice() },
+        timeoutMs: 90_000,
+      });
+      trackTokens(data._tokens || 0);
+      const md = blogToMarkdown(data);
+      if (!md.trim()) throw new Error("Die KI-Antwort war unvollständig. Bitte versuche es erneut.");
+      if (data.title) setTitle(data.title);
+      setContent(md);
+      setChannel("Blog");
+      setAiTopic("");
+    } catch (e) {
+      setAiError(errorMessage(e));
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const saveDraft = () => {
     const now = new Date().toISOString();
@@ -380,6 +431,25 @@ function EditorInner() {
             )}
             <button className="btn btn-primary btn-sm" onClick={saveDraft}>{saved ? "✓ Gespeichert" : "Speichern"}</button>
           </div>
+
+          {/* KI-Artikel (nutzt den serverseitigen blog-Prompt, C4) */}
+          <div style={{ background: "var(--accent-light)", border: "1px solid rgba(196,112,74,0.28)", borderRadius: "var(--radius-sm)", padding: "0.65rem 0.8rem", display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+            <input
+              className="input"
+              style={{ flex: 1, minWidth: 180, fontSize: "0.85rem" }}
+              value={aiTopic}
+              onChange={e => setAiTopic(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !aiLoading) generateArticle(); }}
+              placeholder="Thema für einen kompletten Artikel — z. B. Morgenroutine für mehr Fokus"
+              disabled={aiLoading}
+            />
+            <button className="btn btn-primary btn-sm" onClick={generateArticle} disabled={aiLoading} style={{ whiteSpace: "nowrap" }}>
+              {aiLoading ? "Schreibt…" : "✍️ Artikel mit KI schreiben"}
+            </button>
+          </div>
+          {aiError && (
+            <div className="alert alert-error" style={{ fontSize: "0.8rem", padding: "0.6rem 0.8rem" }}>⚠️ {aiError}</div>
+          )}
 
           {/* Toolbar */}
           <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>

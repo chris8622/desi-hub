@@ -6,16 +6,19 @@ import { sanitizeHtml } from "@/lib/sanitize";
 import { scheduleSyncUp } from "@/lib/sync";
 import { getLS, setLS } from "@/lib/storage";
 import { apiStream, errorMessage } from "@/lib/api";
+import { uid } from "@/lib/id";
 
 type Source = { title: string; url: string; snippet: string; credibility?: { level: string; label: string; color: string } };
-type HistoryItem = { query: string; date: string; summary: string };
+// Quellen gehören zur History — gerade in der Health-Nische (Belegpflicht)
+// dürfen sie beim Speichern nicht verloren gehen (C4).
+type HistoryItem = { query: string; date: string; summary: string; sources?: { title: string; url: string }[] };
 
 // Vorschlags-Chips kommen aus den eigenen Content-Themen (Einstellungen) —
 // keine hardcodierte Themenliste einer bestimmten Person.
 
 // Neueste zuerst, Cap 30, dedupliziert nach query
-function addToHistory(prev: HistoryItem[], query: string, summary: string): HistoryItem[] {
-  const item: HistoryItem = { query, date: new Date().toISOString(), summary };
+function addToHistory(prev: HistoryItem[], query: string, summary: string, sources: { title: string; url: string }[] = []): HistoryItem[] {
+  const item: HistoryItem = { query, date: new Date().toISOString(), summary, sources: sources.slice(0, 12) };
   return [item, ...prev.filter(h => h.query !== query)].slice(0, 30);
 }
 
@@ -30,6 +33,7 @@ export default function ResearchPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [deepLoading, setDeepLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [ideaSaved, setIdeaSaved] = useState(false);
   const [trustedSources, setTrustedSources] = useState<Set<string>>(new Set());
   const [preferredDomains, setPreferredDomains] = useState<string[]>([]);
   const [suggested, setSuggested] = useState<string[]>([]);
@@ -111,9 +115,11 @@ export default function ResearchPage() {
             if (evt.type === "result") {
               trackTokens(evt.data.tokens || 0);
               setSummary(evt.data.summary || "");
-              setSources(Array.isArray(evt.data.sources) ? evt.data.sources : []);
+              const srcList = Array.isArray(evt.data.sources) ? evt.data.sources : [];
+              setSources(srcList);
               setHistory(prev => {
-                const updated = addToHistory(prev, q, evt.data.summary || "");
+                const updated = addToHistory(prev, q, evt.data.summary || "",
+                  srcList.map((s: Source) => ({ title: s.title, url: s.url })));
                 setLS("dh_research_history", updated);
                 scheduleSyncUp(3000);
                 return updated;
@@ -156,13 +162,29 @@ export default function ResearchPage() {
 
   const saveResearch = () => {
     setHistory(prev => {
-      const updated = addToHistory(prev, query, summary);
+      // Quellen mitspeichern — sonst würde dieser manuelle Save den
+      // automatisch gesicherten Eintrag (mit Quellen) überschreiben.
+      const updated = addToHistory(prev, query, summary, sources.map(s => ({ title: s.title, url: s.url })));
       setLS("dh_research_history", updated);
       scheduleSyncUp(3000);
       return updated;
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
+  };
+
+  // Research → Idee in den Pool (Muster wie im Trend-Radar, C4)
+  const toIdea = () => {
+    const plain = summary.replace(/<[^>]+>/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, 400);
+    const srcLines = sources.slice(0, 3).map(s => `- ${s.title}: ${s.url}`).join("\n");
+    const notes = [plain, srcLines && `\nQuellen:\n${srcLines}`].filter(Boolean).join("\n");
+    const pool = getLS<{ id: string; title: string; notes: string; tags: string[]; status: string; createdAt: string; updatedAt: string }[]>("dh_ideenpool", []);
+    const now = new Date().toISOString();
+    const idea = { id: uid(), title: query, notes, tags: ["Research"], status: "recherchiert", createdAt: now, updatedAt: now };
+    setLS("dh_ideenpool", [idea, ...pool]);
+    scheduleSyncUp(3000);
+    setIdeaSaved(true);
+    setTimeout(() => setIdeaSaved(false), 2500);
   };
 
   // Tiefere Research: mehr Quellen, wissenschaftliche Suche
@@ -361,6 +383,13 @@ export default function ResearchPage() {
                   <span style={{ fontSize: "1.3rem" }}>{saved ? "✅" : "💾"}</span>
                   <span style={{ fontWeight: 700, fontSize: "0.85rem", color: saved ? "var(--sage)" : "var(--text)" }}>{saved ? "Gespeichert!" : "Research speichern"}</span>
                   <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Im Suchverlauf ablegen</span>
+                </button>
+
+                {/* In Ideen-Pool */}
+                <button onClick={toIdea} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "0.25rem", padding: "0.9rem 1rem", background: ideaSaved ? "var(--sage-light)" : "var(--surface2)", border: `1px solid ${ideaSaved ? "var(--sage)" : "var(--border)"}`, borderRadius: "var(--radius-sm)", cursor: "pointer", transition: "all 0.2s", textAlign: "left" }}>
+                  <span style={{ fontSize: "1.3rem" }}>{ideaSaved ? "✅" : "🌱"}</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.85rem", color: ideaSaved ? "var(--sage)" : "var(--text)" }}>{ideaSaved ? "Im Pool!" : "In Ideen-Pool"}</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>Als Idee mit Quellen sichern</span>
                 </button>
 
                 {/* Blogartikel */}
