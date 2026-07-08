@@ -346,8 +346,21 @@ Setup-Guide für Christian: `~/Desktop/contentraum-phase1-setup.html`. Neon-Proj
 - Verifiziert gegen Neon: unauth→Redirect+401, Login→Dashboard+API 200, KI-Route
   passiert Auth, Admin eigenständig, Logout→/login.
 
-**Increment 3b — Tenant-Datenschicht (offen, NÄCHSTES)**
-`sync`/`flags`/`admin`/Verbrauch pro Tenant gegen Postgres (via `getSessionContext`),
-Desis KV-`desi_hub_data_v1` in ihren `workspace` importieren, `entitlements` KV→Postgres
-(guardFeature-Quelle). Danach: Medien → Vercel Blob, Magic-Link/Reset via Resend.
-**Delikat** (Desis Datenpfad) → mit Fallbacks + End-to-End-Verifikation.
+**Increment 3b — Workspace-Daten → Postgres ✅ (2026-07-08)**
+- `lib/db/workspace.ts`: `getWorkspace`/`setWorkspace`/`isEmpty` (eine Zeile pro Tenant).
+- `app/api/sync/route.ts` neu auf Postgres (statt KV), pro eingeloggtem Tenant via
+  `getSessionContext`. Response-Form unverändert → Client (`lib/sync.ts`) unangetastet.
+- **Einmaliger Import**: ist der Postgres-Workspace leer, aber der alte KV-Blob
+  `desi_hub_data_v1` vorhanden → übernehmen. **Einwegs & non-destruktiv** — der KV-Blob
+  bleibt als eingefrorenes Backup. Idempotent: nach einer Änderung kein Re-Import.
+- Konflikt-Schutz (409 via `x-last-synced-at`) erhalten. KV-Tages-Backup im Sync entfällt
+  (Postgres ist Primärquelle; Backups kommen in 3c).
+- **Lokal jetzt voll testbar** (Neon ist lokal gesetzt, KV war es nie): verifiziert gegen
+  Neon — GET leer → POST → GET zurück (Daten real in DB) → Konflikt 409; Import aus
+  Mock-KV → Postgres geschrieben, KV unberührt, kein Re-Import nach Änderung.
+
+**Increment 3c — Entitlements + Admin → Postgres (offen, NÄCHSTES)**
+`entitlements`/Verbrauch KV→Postgres pro Tenant (guardFeature-Quelle), Admin-Konsole
+multi-tenant (Tenant-Liste, Daten-Reset/Restore gegen Postgres-Workspace + Backups).
+Danach: Medien → Vercel Blob, Magic-Link/Reset via Resend.
+Hinweis: bis 3c operieren die Admin-Daten-Aktionen noch auf dem (eingefrorenen) KV-Blob.
