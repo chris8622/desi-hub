@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { scheduleSyncUp, syncDown, syncUp, SYNC_KEYS } from "@/lib/sync";
 import { THEMES, applyTheme } from "@/lib/theme";
+import { apiFetch, errorMessage } from "@/lib/api";
 
 // Backup umfasst genau die synchronisierten Keys
 const BACKUP_KEYS = [...SYNC_KEYS];
@@ -107,9 +108,7 @@ function PinterestCard() {
   async function loadStatus() {
     setStatus("loading");
     try {
-      const token = localStorage.getItem("desi_auth_token") || "";
-      const res = await fetch("/api/pinterest/status", { headers: { "x-app-token": token } });
-      const d = await res.json() as { configured: boolean; connected: boolean; username?: string };
+      const d = await apiFetch<{ configured: boolean; connected: boolean; username?: string }>("/api/pinterest/status");
       if (!d.configured) { setStatus("unconfigured"); return; }
       if (d.connected) { setStatus("connected"); setUsername(d.username || ""); return; }
       setStatus("disconnected");
@@ -120,23 +119,20 @@ function PinterestCard() {
     setConnecting(true);
     setMsg("");
     try {
-      const token = localStorage.getItem("desi_auth_token") || "";
-      const res = await fetch("/api/pinterest/auth", { headers: { "x-app-token": token } });
-      const d = await res.json() as { configured?: boolean; authUrl?: string; error?: string };
+      const d = await apiFetch<{ configured?: boolean; authUrl?: string }>("/api/pinterest/auth");
       if (!d.configured) { setMsg("Pinterest ist noch nicht konfiguriert. Bitte die Anleitung unten befolgen."); setConnecting(false); return; }
       if (d.authUrl) window.location.href = d.authUrl;
-    } catch { setMsg("Fehler beim Starten der Verbindung."); setConnecting(false); }
+    } catch (e) { setMsg(errorMessage(e)); setConnecting(false); }
   }
 
   async function disconnect() {
     if (!confirm("Pinterest-Verbindung trennen?")) return;
     try {
-      const token = localStorage.getItem("desi_auth_token") || "";
-      await fetch("/api/pinterest/disconnect", { method: "POST", headers: { "x-app-token": token } });
+      await apiFetch("/api/pinterest/disconnect", { method: "POST" });
       setStatus("disconnected");
       setUsername("");
       setMsg("");
-    } catch { setMsg("Fehler beim Trennen."); }
+    } catch (e) { setMsg(errorMessage(e)); }
   }
 
   return (
@@ -642,6 +638,8 @@ export default function SettingsPage() {
 
               setSyncState("checking"); setSyncMsg("Teste Verbindung…");
               try {
+                // Bewusst rohes fetch: dieser Diagnose-Klick behandelt 401 selbst
+                // („relogin"-Hinweis) statt über apiFetch sofort auszuloggen.
                 const res = await fetch("/api/sync", { headers: { "x-app-token": token } });
                 const data = await res.json() as { available: boolean; error?: string };
                 if (res.status === 401) {

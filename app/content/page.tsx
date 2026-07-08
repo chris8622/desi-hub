@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
 import { getLS, setLS } from "@/lib/storage";
+import { apiFetch, ApiError, errorMessage } from "@/lib/api";
 
 type Slide = { headline: string; points: string[]; cta?: string };
 type CarouselResult = { title: string; slides: Slide[]; caption: string; hashtags: string[] };
@@ -502,14 +503,11 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     setSlideStyles([]);
     slideRefs.current = [];
     try {
-      const res = await fetch("/api/generate", {
+      const data = await apiFetch<CarouselResult & { _tokens?: number }>("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ type: "carousel", topic, context: researchContext || undefined, brandVoice: getBrandVoice() }),
+        body: { type: "carousel", topic, context: researchContext || undefined, brandVoice: getBrandVoice() },
       });
-      const data = await res.json();
       trackTokens(data._tokens || 0);
-      if (data.error) throw new Error(data.error);
       // KI-Antwort validieren — eine unerwartete Struktur würde sonst beim
       // Rendern crashen (weiße Seite) statt eine Fehlermeldung zu zeigen.
       if (!Array.isArray(data.slides) || data.slides.length === 0) {
@@ -520,7 +518,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
       const initialStyles = Array(data.slides.length).fill(slideStyle);
       setSlideStyles(initialStyles);
     } catch (e) {
-      setCarouselError(e instanceof Error ? e.message : "Fehler beim Generieren");
+      setCarouselError(errorMessage(e));
     } finally {
       setCarouselLoading(false);
     }
@@ -559,17 +557,14 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     setIdeasLoading(true);
     setIdeasError("");
     try {
-      const res = await fetch("/api/generate", {
+      const data = await apiFetch<{ ideas?: Idea[]; _tokens?: number }>("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ type: "ideas", topic: ideaTopic, context: researchContext || undefined }),
+        body: { type: "ideas", topic: ideaTopic, context: researchContext || undefined },
       });
-      const data = await res.json();
       trackTokens(data._tokens || 0);
-      if (data.error) throw new Error(data.error);
       setIdeas(data.ideas || []);
     } catch (e) {
-      setIdeasError(e instanceof Error ? e.message : "Fehler beim Generieren");
+      setIdeasError(errorMessage(e));
     } finally {
       setIdeasLoading(false);
     }
@@ -580,20 +575,17 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     setPinLoading(true);
     setPinError("");
     try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ type: "pinterest", topic: pinTopic, context: researchContext || undefined }),
-      });
-      const data = await res.json();
+      const data = await apiFetch<{ headline?: string; title?: string; description?: string; hashtags?: string[]; _tokens?: number }>(
+        "/api/generate",
+        { method: "POST", body: { type: "pinterest", topic: pinTopic, context: researchContext || undefined } },
+      );
       trackTokens(data._tokens || 0);
-      if (data.error) throw new Error(data.error);
       setPinHeadline(data.headline || "");
       setPinTitle(data.title || "");
       setPinDescription(data.description || "");
       setPinHashtags(Array.isArray(data.hashtags) ? data.hashtags : []);
     } catch (e) {
-      setPinError(e instanceof Error ? e.message : "Fehler beim Generieren");
+      setPinError(errorMessage(e));
     } finally {
       setPinLoading(false);
     }
@@ -627,10 +619,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
   };
 
   const loadPinterestBoards = async (): Promise<{ id: string; name: string }[]> => {
-    const token = localStorage.getItem("desi_auth_token") || "";
-    const res = await fetch("/api/pinterest/boards", { headers: { "x-app-token": token } });
-    const d = await res.json() as { boards?: { id: string; name: string }[]; error?: string };
-    if (d.error) throw new Error(d.error);
+    const d = await apiFetch<{ boards?: { id: string; name: string }[] }>("/api/pinterest/boards");
     return d.boards || [];
   };
 
@@ -662,46 +651,29 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
 
       // An API-Route senden
       setPinterestMsg({ type: "info", text: "Pin wird hochgeladen…" });
-      const token = localStorage.getItem("desi_auth_token") || "";
-      const res = await fetch("/api/pinterest/pin", {
+      const d = await apiFetch<{ success?: boolean; pin_url?: string }>("/api/pinterest/pin", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-app-token": token },
-        body: JSON.stringify({
+        body: {
           board_id:    pinterestBoardId,
           title:       pinTitle || pinHeadline || "Neuer Pin",
           description: [pinDescription, pinHashtags.map(h => `#${h.replace(/^#/, "")}`).join(" ")].filter(Boolean).join("\n"),
           image_base64: dataUrl,
-        }),
+        },
       });
-      const d = await res.json() as { success?: boolean; pin_url?: string; error?: string };
-
-      if (!res.ok || d.error) {
-        if (res.status === 401) {
-          setPinterestMsg({ type: "error", text: "Pinterest nicht verbunden — bitte in den Einstellungen verbinden." });
-        } else {
-          setPinterestMsg({ type: "error", text: d.error || "Fehler beim Posten." });
-        }
-        return;
-      }
 
       setPinterestMsg({
         type: "success",
-        text: `✓ Pin erfolgreich gepostet!${d.pin_url ? " " : ""}`,
+        text: d.pin_url ? `✓ Pin erfolgreich gepostet! → ${d.pin_url}` : "✓ Pin erfolgreich gepostet!",
       });
-      // Externen Link separat merken
-      if (d.pin_url) {
-        setPinterestMsg({
-          type: "success",
-          text: `✓ Pin erfolgreich gepostet! → ${d.pin_url}`,
-        });
-      }
     } catch (e) {
-      const msg = (e as Error).message;
-      if (msg.includes("nicht verbunden") || msg.includes("401")) {
-        setPinterestMsg({ type: "error", text: "Pinterest nicht verbunden — bitte in den Einstellungen verbinden." });
-      } else {
-        setPinterestMsg({ type: "error", text: msg });
-      }
+      // 401 von Pinterest = „nicht verbunden" (kein App-Session-Ablauf)
+      const isNotConnected = e instanceof ApiError && e.status === 401;
+      setPinterestMsg({
+        type: "error",
+        text: isNotConnected
+          ? "Pinterest nicht verbunden — bitte in den Einstellungen verbinden."
+          : errorMessage(e),
+      });
     } finally {
       setPinterestPosting(false);
     }
@@ -719,25 +691,18 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
       if (!pinRef.current) throw new Error("Pin-Vorschau nicht gefunden.");
       const { toPng } = await import("html-to-image");
       const dataUrl = await toPng(pinRef.current, { width: 360, height: 540, pixelRatio: 1.39 });
-      const token = localStorage.getItem("desi_auth_token") || "";
-      const res = await fetch("/api/pinterest/pin", {
+      const d = await apiFetch<{ success?: boolean; pin_url?: string }>("/api/pinterest/pin", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-app-token": token },
-        body: JSON.stringify({
+        body: {
           board_id:     boardId,
           title:        pinTitle || pinHeadline || "Neuer Pin",
           description:  [pinDescription, pinHashtags.map(h => `#${h.replace(/^#/, "")}`).join(" ")].filter(Boolean).join("\n"),
           image_base64: dataUrl,
-        }),
+        },
       });
-      const d = await res.json() as { success?: boolean; pin_url?: string; error?: string };
-      if (!res.ok || d.error) {
-        setPinterestMsg({ type: "error", text: d.error || "Fehler beim Posten." });
-      } else {
-        setPinterestMsg({ type: "success", text: `✓ Gepostet auf „${boardName}"!${d.pin_url ? ` → ${d.pin_url}` : ""}` });
-      }
+      setPinterestMsg({ type: "success", text: `✓ Gepostet auf „${boardName}"!${d.pin_url ? ` → ${d.pin_url}` : ""}` });
     } catch (e) {
-      setPinterestMsg({ type: "error", text: (e as Error).message });
+      setPinterestMsg({ type: "error", text: errorMessage(e) });
     } finally {
       setPinterestPosting(false);
     }

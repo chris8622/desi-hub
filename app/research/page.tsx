@@ -5,6 +5,7 @@ import { trackTokens } from "@/lib/tokens";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { scheduleSyncUp } from "@/lib/sync";
 import { getLS, setLS } from "@/lib/storage";
+import { apiStream, errorMessage } from "@/lib/api";
 
 type Source = { title: string; url: string; snippet: string; credibility?: { level: string; label: string; color: string } };
 type HistoryItem = { query: string; date: string; summary: string };
@@ -34,6 +35,7 @@ export default function ResearchPage() {
   const [suggested, setSuggested] = useState<string[]>([]);
   const [searchMode, setSearchMode] = useState<"all" | "trusted_only">("all");
   const [rateLimited, setRateLimited] = useState<{ countdown: number; isDaily: boolean } | null>(null);
+  const [searchError, setSearchError] = useState("");
 
   useEffect(() => {
     setHistory(getLS<HistoryItem[]>("dh_research_history", []));
@@ -73,23 +75,20 @@ export default function ResearchPage() {
     setSummary("");
     setSources([]);
     setRateLimited(null);
+    setSearchError("");
 
     try {
-      const res = await fetch("/api/research", {
+      // apiStream prüft res.ok — Fehlerantworten (429/503) sind JSON, kein Stream
+      const reader = await apiStream("/api/research", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({
+        body: {
           query: q,
           engine: "standard",
           niche: getLS<{niche?:string}>("dh_settings",{}).niche || "",
           trustedDomains: getLS<{trusted_sources?:string[]}>("dh_settings",{}).trusted_sources || [],
           searchMode,
-        }),
+        },
       });
-
-      if (!res.body) throw new Error("Kein Stream");
-
-      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
@@ -125,7 +124,9 @@ export default function ResearchPage() {
         }
       }
     } catch (err) {
-      setStatus(`Verbindungsfehler: ${err instanceof Error ? err.message : "Unbekannt"}`);
+      // Eigener Fehler-State: setStatus() wurde vom finally sofort wieder
+      // geleert — Fehler waren dadurch für die Nutzerin nie sichtbar.
+      setSearchError(errorMessage(err));
     } finally {
       setLoading(false);
       setStatus("");
@@ -268,6 +269,17 @@ export default function ResearchPage() {
           <div className="alert" style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <span className="pulse-dot" />
             {status}
+          </div>
+        )}
+
+        {/* Fehler (Netz, 429, 503 …) */}
+        {searchError && !rateLimited && (
+          <div className="alert alert-error" style={{ marginBottom: "1.25rem", display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            <span>⚠️</span>
+            <span style={{ flex: 1 }}>{searchError}</span>
+            <button className="btn btn-sm btn-secondary" onClick={() => { setSearchError(""); runSearch(query); }}>
+              Erneut versuchen
+            </button>
           </div>
         )}
 

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
 import { sanitizeHtml } from "@/lib/sanitize";
+import { apiFetch, errorMessage } from "@/lib/api";
 import { trackTokens } from "@/lib/tokens";
 import type { SavedCaption } from "@/app/captions/page";
 
@@ -80,21 +81,14 @@ export default function RepurposePage() {
     setSavedKeys(new Set());
     try {
       const settings = getLS<Record<string, unknown>>("dh_settings", {});
-      const res = await fetch("/api/repurpose", {
+      const data = await apiFetch<RepurposeResult>("/api/repurpose", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({
-          sourceText: text.slice(0, 6000),
-          formats,
-          brandVoice: settings,
-        }),
+        body: { sourceText: text.slice(0, 6000), formats, brandVoice: settings },
       });
-      const data = await res.json() as RepurposeResult;
       trackTokens(data._tokens || 0);
-      if (data.error) throw new Error(data.error);
       setResult(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Fehler beim Generieren");
+      setError(errorMessage(e));
     } finally {
       setLoading(false);
     }

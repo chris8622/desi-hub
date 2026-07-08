@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { apiFetch, errorMessage } from "@/lib/api";
 
 const NAV = [
   { href: "/",           icon: "🏠", label: "Dashboard"     },
@@ -34,12 +35,9 @@ function LoginLogModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("desi_auth_token");
-    if (!token) { setError("Nicht eingeloggt."); return; }
-    fetch("/api/admin/login-log", { headers: { "x-app-token": token } })
-      .then(r => r.json())
-      .then((d: { entries: LoginEntry[] }) => setEntries(d.entries || []))
-      .catch(() => setError("Fehler beim Laden."));
+    apiFetch<{ entries: LoginEntry[] }>("/api/admin/login-log")
+      .then(d => setEntries(d.entries || []))
+      .catch(e => setError(errorMessage(e)));
   }, []);
 
   return (

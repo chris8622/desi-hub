@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { scheduleSyncUp } from "@/lib/sync";
 import Link from "next/link";
 import { getLS, setLS } from "@/lib/storage";
+import { apiFetch, errorMessage } from "@/lib/api";
 
 type PlannerItem = { id: string; date: string; channel: string; title: string; status: string; draftId?: string };
 type ModalData = { date: string; item?: PlannerItem };
@@ -78,13 +79,10 @@ export default function PlannerPage() {
     const settings = { ...defaults, ...getLS<Partial<typeof defaults>>("dh_settings", {}) };
     setAutoLoading(true); setAutoMsg("KI erstellt deinen Wochenplan…");
     try {
-      const res = await fetch("/api/autoplan", {
+      const data = await apiFetch<{ plan?: PlannerItem[] }>("/api/autoplan", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ settings, weekStart: formatDate(weekStart) }),
+        body: { settings, weekStart: formatDate(weekStart) },
       });
-      const data = await res.json() as { plan?: PlannerItem[]; error?: string };
-      if (data.error) { setAutoMsg("⚠️ " + data.error); return; }
       // Nur neue Slots hinzufügen (bestehende behalten).
       // WICHTIG: frisch aus localStorage lesen — der `items`-State kann hier
       // eine veraltete Closure sein (Auto-Fill startet aus dem Mount-Effect),
@@ -102,7 +100,7 @@ export default function PlannerPage() {
       setShowAutoFillBanner(false);
       setAutoMsg(`✓ ${newItems.length} neue Posts eingeplant!`);
     } catch (e) {
-      setAutoMsg("⚠️ " + (e as Error).message);
+      setAutoMsg("⚠️ " + errorMessage(e));
     } finally {
       setAutoLoading(false);
       setTimeout(() => setAutoMsg(""), 4000);

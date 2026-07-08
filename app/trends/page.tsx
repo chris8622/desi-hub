@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
 import { getLS, setLS } from "@/lib/storage";
+import { apiStream, errorMessage } from "@/lib/api";
 
 type Trend = {
   name: string;
@@ -57,18 +58,8 @@ export default function TrendsPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch("/api/trends", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ niche: useNiche }),
-      });
-      // Fehlerantworten (400/401/429/503) sind JSON, kein Stream — sauber melden
-      if (!res.ok || !res.body) {
-        let msg = `Fehler ${res.status} — bitte versuche es erneut.`;
-        try { const d = await res.json() as { error?: string }; if (d.error) msg = d.error; } catch {}
-        throw new Error(msg);
-      }
-      const reader = res.body.getReader();
+      // apiStream prüft res.ok (Fehlerantworten sind JSON, kein Stream)
+      const reader = await apiStream("/api/trends", { method: "POST", body: { niche: useNiche } });
       const decoder = new TextDecoder();
       let buffer = "";
       while (true) {
@@ -101,7 +92,7 @@ export default function TrendsPage() {
           } catch {}
         }
       }
-    } catch (e) { setError((e as Error).message); }
+    } catch (e) { setError(errorMessage(e)); }
     finally { setLoading(false); setStatus(""); }
   };
 

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
+import { apiFetch, errorMessage } from "@/lib/api";
 
 type HashtagSet = { id: string; name: string; emoji: string; tags: string[]; createdAt: string };
 
@@ -68,18 +69,11 @@ export default function HashtagsPage() {
     setSuggestError("");
     try {
       const settings = getBrandVoice();
-      const res = await fetch("/api/generate", {
+      const data = await apiFetch<{ hashtags?: string[]; _tokens?: number }>("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({
-          type: "hashtags",
-          topic: suggestTopic,
-          brandVoice: settings,
-        }),
+        body: { type: "hashtags", topic: suggestTopic, brandVoice: settings },
       });
-      const data = await res.json() as { hashtags?: string[]; error?: string; _tokens?: number };
       trackTokens(data._tokens || 0);
-      if (data.error) throw new Error(data.error);
       if (data.hashtags?.length) {
         const currentSet = sets.find(s => s.id === setId);
         const existing = currentSet?.tags || [];
@@ -89,7 +83,7 @@ export default function HashtagsPage() {
         setSuggestTopic("");
       }
     } catch (e) {
-      setSuggestError(e instanceof Error ? e.message : "Fehler");
+      setSuggestError(errorMessage(e));
     } finally {
       setSuggestLoading(false);
     }

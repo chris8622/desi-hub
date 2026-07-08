@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { trackTokens } from "@/lib/tokens";
+import { apiFetch, errorMessage } from "@/lib/api";
 import { scheduleSyncUp } from "@/lib/sync";
 import { getLS, setLS } from "@/lib/storage";
 
@@ -60,6 +61,7 @@ export default function EmailPage() {
   const [nlSubject, setNlSubject] = useState("");
   const [nlBody, setNlBody] = useState("");
   const [nlLoading, setNlLoading] = useState(false);
+  const [nlError, setNlError] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -136,21 +138,17 @@ export default function EmailPage() {
   const generateNewsletter = async () => {
     if (!nlSubject.trim()) return;
     setNlLoading(true);
+    setNlError("");
     try {
-      const res = await fetch("/api/generate", {
+      const data = await apiFetch<{ body?: string; subject?: string; _tokens?: number }>("/api/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-app-token": localStorage.getItem("desi_auth_token") || "" },
-        body: JSON.stringify({ type: "newsletter", topic: nlSubject }),
+        body: { type: "newsletter", topic: nlSubject },
       });
-      const data = await res.json();
       trackTokens(data._tokens || 0);
-      if (data.error) { alert("Fehler: " + data.error); }
-      else {
-        if (data.body) setNlBody(data.body);
-        if (data.subject) setNlSubject(data.subject);
-      }
+      if (data.body) setNlBody(data.body);
+      if (data.subject) setNlSubject(data.subject);
     } catch (e) {
-      alert("Verbindungsfehler: " + (e as Error).message);
+      setNlError(errorMessage(e)); // vorher: alert() — jetzt inline
     }
     setNlLoading(false);
   };
@@ -321,6 +319,11 @@ export default function EmailPage() {
                         {nlLoading ? "Generiere…" : "✨ KI-Hilfe"}
                       </button>
                     </div>
+                    {nlError && (
+                      <div className="alert alert-error" style={{ marginTop: "0.6rem", fontSize: "0.8rem" }}>
+                        ⚠️ {nlError}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="label">Inhalt</label>
