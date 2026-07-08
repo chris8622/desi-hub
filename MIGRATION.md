@@ -16,6 +16,7 @@ mandantenfähigen Produkt. Phasenplan siehe `desi-hub-umsetzungsprompt-opus.md`
 | B | Refactor-Fundament (B1/B2/B5) | ✅ **abgeschlossen** (2026-07-07) — B3/B4 offen |
 | H1-Pinterest | Token-Auto-Refresh | ✅ **abgeschlossen** (2026-07-07) |
 | C1 | Post-Paket + „Heute"-Cockpit | ✅ **abgeschlossen** (2026-07-07) |
+| C2/C3 | Hashtag-Bank im Flow + Brand Voice überall | ✅ **abgeschlossen** (2026-07-07) |
 | 1 | Postgres + echte Logins | ⏳ offen |
 | 2 | Entitlements + Admin-Cockpit | ⏳ offen |
 | 3 | Theming + Rechtliches | ⏳ offen |
@@ -81,9 +82,19 @@ schrieb **nur den Titel** in den Planer — Slides, Caption, Hashtags waren am P
   mit Kopier-Aktionen. Erster Schritt zum 15-Minuten-Tag (Zukunftsplan H1).
 - Nebenbei: Content-Typen nach `lib/types`; restliche kollisionsanfällige IDs → `uid()`.
 
-**Noch offen aus Phase C:** C2 (Caption-Bank/Hashtag-Sets im Erstell-Flow wählbar),
-C3 (Brand Voice in ALLEN Generierungen), C4 (blog-Prompt im Editor, Research→Ideenpool
-+ Quellen), C5 (Autoplan nutzt Analytics, Repurpose→E-Mail, Vision-Ziele an Zahlen).
+## Phase C2 + C3 (abgeschlossen 2026-07-07)
+
+**C3 · Brand Voice überall** (`lib/brandvoice.ts`) — Ideen, Pinterest und Newsletter
+generierten ohne Brand Voice (nur Karussell schickte sie). Jetzt eine geteilte
+`getBrandVoice()`-Quelle; alle 6 KI-Aufrufe senden name/niche/voice/audience mit.
+
+**C2 · Hashtag-Bank im Flow** (`components/HashtagBar.tsx`) — Hashtag-Sets waren eine
+Einbahnstraße. Neue Bar im Pinterest-Tab: Set einfügen (dedupliziert) + aktuelle
+Hashtags als neues Set sichern.
+
+**Noch offen aus Phase C:** Caption-Bank in den Erstell-Flow (Picker); C4 (blog-Prompt
+im Editor, Research→Ideenpool + Quellen); C5 (Autoplan nutzt Analytics, Repurpose→E-Mail,
+Vision-Ziele an echte Zahlen). Und weiterhin B3/B4 aus Phase B.
 
 ---
 
