@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { trackTokens } from "@/lib/tokens";
 import { apiFetch, errorMessage } from "@/lib/api";
+import { getBrandVoice } from "@/lib/brandvoice";
 import { scheduleSyncUp } from "@/lib/sync";
 import { getLS, setLS } from "@/lib/storage";
 import { uid } from "@/lib/id";
@@ -143,7 +144,7 @@ export default function EmailPage() {
     try {
       const data = await apiFetch<{ body?: string; subject?: string; _tokens?: number }>("/api/generate", {
         method: "POST",
-        body: { type: "newsletter", topic: nlSubject },
+        body: { type: "newsletter", topic: nlSubject, brandVoice: getBrandVoice() },
       });
       trackTokens(data._tokens || 0);
       if (data.body) setNlBody(data.body);

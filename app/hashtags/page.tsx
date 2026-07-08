@@ -6,14 +6,12 @@ import { trackTokens } from "@/lib/tokens";
 import { apiFetch, errorMessage } from "@/lib/api";
 import { uid } from "@/lib/id";
 import type { HashtagSet } from "@/lib/types";
+import { getBrandVoice } from "@/lib/brandvoice";
 
 
 const EMOJIS = ["#️⃣", "🌿", "🌸", "💪", "✨", "🧘", "🍋", "🌙", "🔥", "💡", "🎯", "🌺"];
 
 
-function getBrandVoice() {
-  return getLS<Record<string, unknown>>("dh_settings", {});
-}
 
 export default function HashtagsPage() {
   const [sets, setSets] = useState<HashtagSet[]>([]);

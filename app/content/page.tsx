@@ -10,6 +10,8 @@ import { apiFetch, ApiError, errorMessage } from "@/lib/api";
 import type { PlannerItem, Slide, CarouselResult, SavedCarousel, SavedPin } from "@/lib/types";
 import { OPEN_CAROUSEL_KEY, OPEN_PIN_KEY } from "@/lib/types";
 import { uid } from "@/lib/id";
+import { getBrandVoice } from "@/lib/brandvoice";
+import HashtagBar from "@/components/HashtagBar";
 
 type Idea = { title: string; type: "instagram" | "blog" | "newsletter"; hook: string; angle: string };
 
@@ -434,9 +436,6 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     }
   }, []);
 
-  function getBrandVoice() {
-    return getLS<Record<string, unknown>>("dh_settings", {});
-  }
 
   function saveToCaptionBank(text: string, hashtags: string[]) {
     type Cap = { id: string; text: string; hashtags: string[]; channel: string; notes: string; savedAt: string };
@@ -570,7 +569,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     try {
       const data = await apiFetch<{ ideas?: Idea[]; _tokens?: number }>("/api/generate", {
         method: "POST",
-        body: { type: "ideas", topic: ideaTopic, context: researchContext || undefined },
+        body: { type: "ideas", topic: ideaTopic, context: researchContext || undefined, brandVoice: getBrandVoice() },
       });
       trackTokens(data._tokens || 0);
       setIdeas(data.ideas || []);
@@ -588,7 +587,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     try {
       const data = await apiFetch<{ headline?: string; title?: string; description?: string; hashtags?: string[]; _tokens?: number }>(
         "/api/generate",
-        { method: "POST", body: { type: "pinterest", topic: pinTopic, context: researchContext || undefined } },
+        { method: "POST", body: { type: "pinterest", topic: pinTopic, context: researchContext || undefined, brandVoice: getBrandVoice() } },
       );
       trackTokens(data._tokens || 0);
       setPinHeadline(data.headline || "");
@@ -1934,6 +1933,9 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
                       ))}
                     </div>
                   )}
+
+                  {/* Hashtag-Bank anbinden (C2): Set einfügen / als Set sichern */}
+                  <HashtagBar tags={pinHashtags} onChange={setPinHashtags} />
 
                   <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
                     <button className="btn btn-secondary" onClick={copyPinText} style={{ alignSelf: "flex-start" }}>
