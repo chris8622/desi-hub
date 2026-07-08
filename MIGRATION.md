@@ -12,6 +12,9 @@ mandantenfähigen Produkt. Phasenplan siehe `desi-hub-umsetzungsprompt-opus.md`
 |-------|-------|--------|
 | 0 | Sicherheits-Härtung des Bestands | ✅ **abgeschlossen** (2026-07-05) |
 | A-Sec | Sicherheitsrelevante Audit-Lücken | ✅ **abgeschlossen** (2026-07-07) |
+| A2 | LoginGate ins Layout | ✅ **abgeschlossen** (2026-07-07) |
+| B | Refactor-Fundament (B1/B2/B5) | ✅ **abgeschlossen** (2026-07-07) — B3/B4 offen |
+| H1-Pinterest | Token-Auto-Refresh | ✅ **abgeschlossen** (2026-07-07) |
 | 1 | Postgres + echte Logins | ⏳ offen |
 | 2 | Entitlements + Admin-Cockpit | ⏳ offen |
 | 3 | Theming + Rechtliches | ⏳ offen |
@@ -22,6 +25,42 @@ Hinweis: A-Sec = der **sicherheitsrelevante Teil** der Audit-Phase A. Die reinen
 Stabilitäts-/UX-Punkte von Phase A (LoginGate ins Layout = A2, Robustheits-Bugs =
 weiße Seite/Spinner/Editor-Dirty aus A4) sind bewusst NICHT enthalten und bleiben
 als Stabilitäts-Arbeit offen (nach dem Sync-Fix kein Sicherheitsthema mehr).
+
+---
+
+## Phase A2 + B + Pinterest (abgeschlossen 2026-07-07)
+
+**A2 · LoginGate ins Root-Layout** — mountete vorher in jeder der 14 Seiten neu und
+löste dort `syncDown` + „Laden…"-Flackern bei JEDEM Seitenwechsel aus. Jetzt einmal in
+`app/layout.tsx`. Verifiziert: Sidebar bleibt bei Navigation dasselbe DOM-Element.
+
+**Pinterest Token-Auto-Refresh** (`lib/pinterest.ts`) — der `refresh_token` wurde
+gespeichert, aber **nie benutzt**: nach Ablauf brach die Verbindung still ab.
+`getValidToken()` erneuert jetzt automatisch (10-min-Puffer); `status` unterscheidet
+„nie verbunden" von „abgelaufen + Refresh fehlgeschlagen".
+
+**B1 · `lib/types.ts` + `lib/id.ts`** — PlannerItem war 5×, Draft 4× lokal definiert.
+`uid()` ersetzt vier ID-Schemata. **Bugfix:** `Date.now().toString(36)` (content, editor)
+hatte keinen Zufallsanteil → zwei Einträge in derselben Millisekunde bekamen dieselbe ID.
+
+**B2 · `lib/api.ts` (apiFetch/apiStream)** — 16 von 18 fetch-Callsites umgestellt.
+Zentral: Auth-Header, `res.ok`, Timeouts, deutsche Fehlermeldungen, Session-Ablauf.
+**Wichtige Unterscheidung:** `requireAuth` liefert `{error:"Unauthorized"}` → Logout;
+Pinterest liefert 401 mit eigener Meldung → **kein** Logout (sonst hätte das Verbinden
+von Pinterest die Nutzerin ausgeloggt). Raw belassen: `/api/auth` (Login selbst) und der
+Sync-Diagnoseklick in Settings.
+- Dabei gefunden: **research zeigte Fehler nie an** (catch schrieb in `status`, das
+  `finally` leerte ihn sofort) → eigener Fehler-State + Retry-Button.
+- `email`: `alert()` → Inline-Meldung.
+
+**B5 · Hygiene** — `next/font` (self-hosted, 0 externe Font-Requests, auch DSGVO),
+20 hartkodierte Font-Strings → CSS-Variablen; `dh_instagram_handle` in SYNC_KEYS
+(wurde nie synchronisiert) + auf getLS/setLS umgestellt; Foto-Picker lud 720px-Bilder
+für 60×60-Kacheln → `thumbUrl()`; `@vercel/kv` (ungenutzt) raus; `tsconfig.tsbuildinfo`
+aus Git.
+
+**Noch offen aus Phase B:** B3 (UI-Primitives: Modal/TabBar/useFlash/Confirm) und
+B4 (`content/page.tsx` 2.100 Zeilen in Tab-Komponenten splitten).
 
 ---
 
