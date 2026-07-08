@@ -2,6 +2,7 @@ import { getSessionContext, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 import { chat, extractJson, pickModel } from "@/lib/llm";
 import { guardFeature, incrAiUsage } from "@/lib/flags";
+import { getTenantKey } from "@/lib/aikeys";
 
 export const maxDuration = 60;
 
@@ -68,6 +69,7 @@ export async function POST(req: Request) {
   }
   const serperKey = process.env.SERPER_API_KEY || "";
   const { provider, model } = pickModel(body);
+  const apiKey = await getTenantKey(ctx.tenantId, provider); // BYOK
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
@@ -141,7 +143,7 @@ Wichtig:
         let trendTokens = 0;
         try {
           const { text, tokens } = await chat({
-            provider, model, user: prompt,
+            provider, model, apiKey, user: prompt,
             temperature: 0.4, maxTokens: 2000, json: true, timeoutMs: 40000,
           });
           trendTokens = tokens;

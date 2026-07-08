@@ -2,6 +2,7 @@ import { getSessionContext, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 import { chat, extractJson, pickModel } from "@/lib/llm";
 import { guardFeature, incrAiUsage } from "@/lib/flags";
+import { getTenantKey } from "@/lib/aikeys";
 
 export const maxDuration = 60;
 
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
   if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });
   const { sourceText, formats, brandVoice } = body;
   const { provider, model } = pickModel(body);
+  const apiKey = await getTenantKey(ctx.tenantId, provider); // BYOK
 
   if (!sourceText?.trim()) return Response.json({ error: "Kein Quelltext." }, { status: 400 });
   if (!formats?.length) return Response.json({ error: "Kein Format gewählt." }, { status: 400 });
@@ -87,7 +89,7 @@ Antworte mit JSON:
 
   try {
     const { text, tokens } = await chat({
-      provider, model,
+      provider, model, apiKey,
       system: buildSystemPrompt(brandVoice), user: prompt,
       temperature: 0.7, maxTokens: 3000, json: true,
     });

@@ -376,6 +376,20 @@ Setup-Guide für Christian: `~/Desktop/contentraum-phase1-setup.html`. Neon-Proj
   `usage.ai_calls=2`; Admin-UI Mandanten-Wähler + Reset→Backup→Restore→Undo; keine
   Konsolen-Fehler; npm run ci grün.
 
-**Increment 3d — Kür (offen)**: Medien → Vercel Blob (`BLOB_READ_WRITE_TOKEN`),
+**BYOK — kundeneigene KI-Keys ✅ (2026-07-08)**
+- Hybrid: Kunden-Key hat Vorrang, sonst Operator-Key (env). Pro Tenant+Provider ein
+  **verschlüsselter** Key (`tenant_secrets`, AES-256-GCM via `lib/crypto.ts`,
+  `ENCRYPTION_KEY`). Klartext verlässt den Server nie Richtung Client.
+- `chat()` nimmt `apiKey`-Override; alle 5 KI-Routen lösen `getTenantKey(tenantId,provider)`
+  auf (auch Research-Perplexity-Zweig). `/api/settings/ai-keys` (GET Status / POST setzen /
+  DELETE entfernen). `components/AiKeysCard` in den Einstellungen (write-only, zeigt nur
+  „eigener Schlüssel ✓/Standard-Zugang").
+- Verifiziert gegen Neon: Crypto-Roundtrip; Key setzen→Status true, at-rest nur `v1:`-GCM
+  (kein Klartext); generate/openai mit hinterlegtem Bogus-Key → Fehler kommt **von OpenAI**
+  (Key wird benutzt); entfernen → Fallback „kein Schlüssel"; GET gibt nie den Key zurück;
+  Settings-UI 5 Provider. **Vercel:** `ENCRYPTION_KEY` setzen, sonst ist BYOK deaktiviert
+  (Operator-Key gilt weiter).
+
+**Increment 3d — Rest-Kür (offen)**: Medien → Vercel Blob (`BLOB_READ_WRITE_TOKEN`),
 Magic-Link/Reset via Resend, Registrierung/Selbstanlage neuer Mandanten, Login-Log via
-NextAuth-Event. Damit ist der **Multi-Tenant-Kern von Phase 1 komplett**.
+NextAuth-Event. Der **Multi-Tenant-Kern von Phase 1 ist komplett** (inkl. BYOK).

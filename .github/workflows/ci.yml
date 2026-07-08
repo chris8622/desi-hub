@@ -48,3 +48,4 @@ jobs:
           GROQ_API_KEY: ci-placeholder
           AUTH_SECRET: ci-placeholder-secret-min-32-chars-xxxxx
           DATABASE_URL: postgresql://ci:ci@localhost/ci
+          ENCRYPTION_KEY: ci-placeholder-encryption-key

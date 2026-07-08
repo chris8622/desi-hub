@@ -2,6 +2,7 @@ import { getSessionContext, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 import { chat, pickModel } from "@/lib/llm";
 import { guardFeature, incrAiUsage } from "@/lib/flags";
+import { getTenantKey } from "@/lib/aikeys";
 
 export const maxDuration = 60;
 
@@ -141,13 +142,15 @@ export async function POST(req: Request) {
   const niche          = ((body.niche as string) || "").trim();
   const nicheLabel     = niche ? ` (Nische: ${niche})` : "";
   const serperKey      = process.env.SERPER_API_KEY || "";
-  const perplexityKey  = process.env.PERPLEXITY_API_KEY || "";
+  // BYOK: Kunden-Perplexity-Key hat Vorrang, sonst Operator-Key.
+  const perplexityKey  = (await getTenantKey(ctx.tenantId, "perplexity")) || process.env.PERPLEXITY_API_KEY || "";
   const engine         = (body.engine as string | undefined) || "standard";
   const trustedDomains = (body.trustedDomains as string[] | undefined) || [];
   const searchMode     = (body.searchMode as string | undefined) || "all";
   const trustedOnly    = searchMode === "trusted_only" && trustedDomains.length > 0;
   const usePerplexity  = engine === "perplexity" && perplexityKey;
   const { provider, model } = pickModel(body);
+  const apiKey = await getTenantKey(ctx.tenantId, provider); // BYOK (Standard-Engine)
 
   const encoder = new TextEncoder();
   const stream  = new ReadableStream({
@@ -319,7 +322,7 @@ Schreibe ausführlich und substanziell. Lieber ein präziser, tiefer Punkt als d
         let summaryTokens = 0;
         try {
           const { text, tokens } = await chat({
-            provider, model,
+            provider, model, apiKey,
             system: summarySystem, user: summaryUser,
             temperature: 0.35, maxTokens: 3500, timeoutMs: 45000,
           });

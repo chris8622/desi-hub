@@ -50,6 +50,15 @@ export const workspaces = pgTable("workspaces", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Kundeneigene KI-Keys (BYOK), verschlüsselt (AES-256-GCM). Eine Zeile pro
+// Tenant+Provider. ciphertext = v1:<iv>:<tag>:<ct> (siehe lib/crypto.ts).
+export const tenantSecrets = pgTable("tenant_secrets", {
+  tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(),
+  ciphertext: text("ciphertext").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.tenantId, t.provider] })]);
+
 // On-Demand-Snapshots für die Admin-Konsole (Undo vor Reset/Restore).
 export const workspaceBackups = pgTable("workspace_backups", {
   id: uuid("id").defaultRandom().primaryKey(),

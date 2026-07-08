@@ -4,6 +4,7 @@ import { scheduleSyncUp, syncDown, syncUp, SYNC_KEYS } from "@/lib/sync";
 import { THEMES, applyTheme } from "@/lib/theme";
 import { TEXT_MODELS, RESEARCH_ENGINES } from "@/lib/llm";
 import { apiFetch, errorMessage } from "@/lib/api";
+import AiKeysCard from "@/components/AiKeysCard";
 
 // Backup umfasst genau die synchronisierten Keys
 const BACKUP_KEYS = [...SYNC_KEYS];
@@ -383,6 +384,9 @@ export default function SettingsPage() {
           Groq ist günstig &amp; schnell · Claude/GPT-4o liefern die feinste deutsche Prosa · Perplexity recherchiert live mit echten Quellen. Änderungen mit „Speichern" unten übernehmen.
         </p>
       </div>
+
+      {/* KI-Verbindung (eigene Keys, BYOK) */}
+      <AiKeysCard />
 
       {/* Brand Voice */}
       <div className="card" style={{ marginBottom: "1.25rem" }}>

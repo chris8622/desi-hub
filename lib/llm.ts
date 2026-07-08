@@ -65,14 +65,16 @@ export type ChatOpts = {
   maxTokens?: number;
   json?: boolean;       // JSON-Antwort erwünscht
   timeoutMs?: number;
+  apiKey?: string | null; // BYOK: Kunden-Key; fehlt er → Operator-Key (env)
 };
 
 // Zentraler KI-Aufruf. Wirft mit deutscher Meldung bei fehlendem Key oder Fehler.
 export async function chat(opts: ChatOpts): Promise<{ text: string; tokens: number }> {
   const cfg = PROVIDERS[opts.provider];
   if (!cfg) throw new Error(`Unbekannter KI-Anbieter: ${opts.provider}`);
-  const key = process.env[cfg.keyEnv];
-  if (!key) throw new Error(`${cfg.label} ist nicht konfiguriert (${cfg.keyEnv} fehlt auf dem Server).`);
+  // BYOK-Hybrid: Kunden-Key hat Vorrang, sonst Operator-Key (env).
+  const key = opts.apiKey || process.env[cfg.keyEnv];
+  if (!key) throw new Error(`Für ${cfg.label} ist kein Schlüssel hinterlegt. Trage ihn in den Einstellungen ein oder wähle einen anderen Anbieter.`);
   if (!opts.model) throw new Error(`Kein Modell für ${cfg.label} gewählt.`);
 
   const messages: { role: string; content: string }[] = [];

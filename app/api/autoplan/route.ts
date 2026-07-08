@@ -2,6 +2,7 @@ import { getSessionContext, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 import { chat, extractJson, pickModel } from "@/lib/llm";
 import { guardFeature, incrAiUsage } from "@/lib/flags";
+import { getTenantKey } from "@/lib/aikeys";
 
 export const maxDuration = 60;
 
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
   if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });
   const { settings, weekStart } = body;
   const { provider, model } = pickModel(body);
+  const apiKey = await getTenantKey(ctx.tenantId, provider); // BYOK
 
   // Frequenzen absichern: fehlt ein Wert (undefined), würde distribute()
   // sonst ALLE bevorzugten Tage belegen ("0 >= undefined" ist false).
@@ -111,7 +113,7 @@ Regeln:
 
   try {
     const { text } = await chat({
-      provider, model, user: prompt,
+      provider, model, apiKey, user: prompt,
       temperature: 0.8, maxTokens: 500, timeoutMs: 25000,
     });
 

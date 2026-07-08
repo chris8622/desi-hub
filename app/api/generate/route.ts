@@ -2,6 +2,7 @@ import { getSessionContext, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 import { chat, extractJson, pickModel } from "@/lib/llm";
 import { guardFeature, incrAiUsage } from "@/lib/flags";
+import { getTenantKey } from "@/lib/aikeys";
 
 export const maxDuration = 60;
 
@@ -174,10 +175,11 @@ export async function POST(req: Request) {
 
   const systemPrompt = buildSystemPrompt(brandVoice);
   const userPrompt   = promptFn(topic, context);
+  const apiKey = await getTenantKey(ctx.tenantId, provider); // BYOK: Kunden-Key oder null
 
   try {
     const { text, tokens } = await chat({
-      provider, model,
+      provider, model, apiKey,
       system: systemPrompt, user: userPrompt,
       temperature: 0.7, maxTokens: 3000, json: true,
     });
