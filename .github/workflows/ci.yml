@@ -1,0 +1,48 @@
+name: CI
+
+# CI-Gate für den Release-Prozess (siehe RELEASE.md).
+# Läuft bei jedem Push auf main/dev und bei jedem Pull Request.
+# Blockiert das Mergen, solange Typecheck oder Build rot sind —
+# damit main immer lauffähig bleibt ("main = Produktion, heilig").
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+# Neuere Läufe brechen ältere für denselben Branch ab (spart CI-Minuten).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Typecheck + Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Build (next build)
+        run: npm run build
+        env:
+          # Build muss ohne echte Secrets durchlaufen. Platzhalter verhindern,
+          # dass fehlende Env-Vars den Build brechen; zur Laufzeit setzt Vercel
+          # die echten Werte (siehe RELEASE.md, Env-Var-Checkliste).
+          APP_PASSWORD: ci-placeholder
+          GROQ_API_KEY: ci-placeholder
