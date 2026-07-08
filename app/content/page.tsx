@@ -7,30 +7,11 @@ import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
 import { getLS, setLS } from "@/lib/storage";
 import { apiFetch, ApiError, errorMessage } from "@/lib/api";
-import type { PlannerItem } from "@/lib/types";
+import type { PlannerItem, Slide, CarouselResult, SavedCarousel, SavedPin } from "@/lib/types";
+import { OPEN_CAROUSEL_KEY, OPEN_PIN_KEY } from "@/lib/types";
 import { uid } from "@/lib/id";
 
-type Slide = { headline: string; points: string[]; cta?: string };
-type CarouselResult = { title: string; slides: Slide[]; caption: string; hashtags: string[] };
 type Idea = { title: string; type: "instagram" | "blog" | "newsletter"; hook: string; angle: string };
-
-type SavedCarousel = {
-  id: string;
-  title: string;
-  savedAt: string;
-  carousel: CarouselResult;
-  styles: string[];
-};
-
-type SavedPin = {
-  id: string;
-  headline: string;
-  title: string;
-  description: string;
-  hashtags: string[];
-  style: string;
-  savedAt: string;
-};
 
 
 const TYPE_BADGE: Record<string, string> = {
@@ -420,8 +401,37 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     // Migration: ein alter roher String liefert per Fallback "" statt zu crashen.
     const saved = getLS<string>("dh_instagram_handle", "");
     if (saved) setIgHandle(saved);
-    setSavedCarousels(getLS<SavedCarousel[]>("dh_carousels", []));
-    setSavedPins(getLS<SavedPin[]>("dh_pins", []));
+    const carousels = getLS<SavedCarousel[]>("dh_carousels", []);
+    const pins = getLS<SavedPin[]>("dh_pins", []);
+    setSavedCarousels(carousels);
+    setSavedPins(pins);
+
+    // Handoff aus Planer/Dashboard: „Im Content öffnen" (Post-Paket, C1)
+    const openCarouselId = getLS<string>(OPEN_CAROUSEL_KEY, "");
+    if (openCarouselId) {
+      try { localStorage.removeItem(OPEN_CAROUSEL_KEY); } catch {}
+      const hit = carousels.find(c => c.id === openCarouselId);
+      if (hit) {
+        setTab("carousel");
+        setCarousel(hit.carousel);
+        setSlideStyles(hit.styles);
+        if (hit.styles.length > 0) setSlideStyle(hit.styles[0] as SlideStyle);
+      }
+      return;
+    }
+    const openPinId = getLS<string>(OPEN_PIN_KEY, "");
+    if (openPinId) {
+      try { localStorage.removeItem(OPEN_PIN_KEY); } catch {}
+      const hit = pins.find(p => p.id === openPinId);
+      if (hit) {
+        setTab("pinterest");
+        setPinHeadline(hit.headline);
+        setPinTitle(hit.title);
+        setPinDescription(hit.description);
+        setPinHashtags(hit.hashtags);
+        setPinStyle(hit.style);
+      }
+    }
   }, []);
 
   function getBrandVoice() {
@@ -432,7 +442,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     type Cap = { id: string; text: string; hashtags: string[]; channel: string; notes: string; savedAt: string };
     const existing = getLS<Cap[]>("dh_caption_bank", []);
     const entry: Cap = {
-      id: Math.random().toString(36).slice(2, 9),
+      id: uid(),
       text, hashtags, channel: "Instagram", notes: "", savedAt: new Date().toISOString(),
     };
     setLS("dh_caption_bank", [entry, ...existing]);
@@ -738,10 +748,13 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     setDownloadingAll(false);
   };
 
-  const saveCarousel = () => {
-    if (!carousel) return;
+  // Sichert das aktuelle Karussell und gibt den Eintrag zurück.
+  // Wird auch vom Einplanen genutzt — sonst gäbe es am Posttag nur einen Titel
+  // ohne Slides/Caption (Post-Paket, Phase C1).
+  const persistCarousel = (): SavedCarousel | null => {
+    if (!carousel) return null;
     const newEntry: SavedCarousel = {
-      id: Date.now().toString(),
+      id: uid(),
       title: carousel.title,
       savedAt: new Date().toLocaleDateString("de-AT", { day: "2-digit", month: "2-digit", year: "numeric" }),
       carousel,
@@ -752,6 +765,11 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     setLS("dh_carousels", updated);
     setSavedCarousels(updated);
     scheduleSyncUp(2000);
+    return newEntry;
+  };
+
+  const saveCarousel = () => {
+    if (!persistCarousel()) return;
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 2000);
   };
@@ -773,10 +791,11 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     scheduleSyncUp(3000);
   };
 
-  const savePin = () => {
-    if (!pinHeadline && !pinTitle) return;
+  // Sichert den aktuellen Pin und gibt den Eintrag zurück (auch fürs Einplanen).
+  const persistPin = (): SavedPin | null => {
+    if (!pinHeadline && !pinTitle) return null;
     const newEntry: SavedPin = {
-      id: Date.now().toString(),
+      id: uid(),
       headline: pinHeadline,
       title: pinTitle,
       description: pinDescription,
@@ -789,6 +808,11 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     setLS("dh_pins", updated);
     setSavedPins(updated);
     scheduleSyncUp(3000);
+    return newEntry;
+  };
+
+  const savePin = () => {
+    if (!persistPin()) return;
     setPinSavedMsg(true);
     setTimeout(() => setPinSavedMsg(false), 2000);
   };
@@ -812,6 +836,9 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
 
   const scheduleCarousel = () => {
     if (!carousel || !carouselScheduleDate) return;
+    // Karussell mitsichern und verknüpfen — damit am Posttag Slides, Caption
+    // und Hashtags im Planer bereitliegen (vorher ging alles außer dem Titel verloren).
+    const saved = persistCarousel();
     const planItems = getLS<PlannerItem[]>("dh_planner", []);
     const newItem: PlannerItem = {
       id: uid(),
@@ -819,17 +846,20 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
       channel: "Instagram",
       title: carousel.title,
       status: "Geplant",
+      carouselId: saved?.id,
     };
     setLS("dh_planner", [...planItems, newItem]);
     scheduleSyncUp(3000);
     setShowCarouselScheduler(false);
-    setCarouselScheduleMsg(`✓ Für ${carouselScheduleDate} eingeplant!`);
-    setTimeout(() => setCarouselScheduleMsg(""), 3000);
+    setCarouselScheduleMsg(`✓ Für ${carouselScheduleDate} eingeplant — Slides & Caption liegen im Planer bereit.`);
+    setTimeout(() => setCarouselScheduleMsg(""), 4000);
   };
 
   const schedulePin = () => {
     if (!pinScheduleDate) return;
     const label = pinTitle || pinHeadline || "Pinterest-Pin";
+    // Pin mitsichern und verknüpfen (Post-Paket)
+    const saved = persistPin();
     const planItems = getLS<PlannerItem[]>("dh_planner", []);
     const newItem: PlannerItem = {
       id: uid(),
@@ -837,12 +867,13 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
       channel: "Pinterest",
       title: label,
       status: "Geplant",
+      pinId: saved?.id,
     };
     setLS("dh_planner", [...planItems, newItem]);
     scheduleSyncUp(3000);
     setShowPinScheduler(false);
-    setPinScheduleMsg(`✓ Für ${pinScheduleDate} eingeplant!`);
-    setTimeout(() => setPinScheduleMsg(""), 3000);
+    setPinScheduleMsg(`✓ Für ${pinScheduleDate} eingeplant — Text & Hashtags liegen im Planer bereit.`);
+    setTimeout(() => setPinScheduleMsg(""), 4000);
   };
 
   const copyCaptionHashtags = async () => {

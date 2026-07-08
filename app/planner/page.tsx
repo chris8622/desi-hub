@@ -4,6 +4,7 @@ import { scheduleSyncUp } from "@/lib/sync";
 import Link from "next/link";
 import { getLS, setLS } from "@/lib/storage";
 import { apiFetch, errorMessage } from "@/lib/api";
+import PostPaket from "@/components/PostPaket";
 import type { PlannerItem, Draft } from "@/lib/types";
 import { uid } from "@/lib/id";
 
@@ -303,6 +304,9 @@ export default function PlannerPage() {
                       title={item.title}
                     >
                       <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>{item.title}</span>
+                      {(item.carouselId || item.pinId) && (
+                        <span title="Inhalt verknüpft (Slides/Caption/Hashtags)" style={{ fontSize: "0.7rem", opacity: 0.75 }}>📎</span>
+                      )}
                       {item.draftId && (
                         <Link
                           href={`/editor?draft=${item.draftId}`}
@@ -365,6 +369,14 @@ export default function PlannerPage() {
                   </select>
                 </div>
               </div>
+
+              {/* Post-Paket: der verknüpfte Inhalt (Slides, Caption, Hashtags) */}
+              {modal.item && (
+                <div style={{ marginTop: "1.25rem" }}>
+                  <label className="label">Post-Paket</label>
+                  <PostPaket item={modal.item} />
+                </div>
+              )}
 
               <div style={{ display: "flex", gap: "0.5rem", marginTop: "1.5rem", justifyContent: "flex-end" }}>
                 {modal.item && (

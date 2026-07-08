@@ -3,15 +3,7 @@ import { useState, useEffect } from "react";
 import { getLS, setLS } from "@/lib/storage";
 import { scheduleSyncUp } from "@/lib/sync";
 import { uid } from "@/lib/id";
-
-export type SavedCaption = {
-  id: string;
-  text: string;
-  hashtags: string[];
-  channel: "Instagram" | "Blog" | "Newsletter" | "Pinterest" | "Sonstiges";
-  notes: string;
-  savedAt: string;
-};
+import type { SavedCaption } from "@/lib/types";
 
 const CHANNELS = ["Alle", "Instagram", "Pinterest", "Blog", "Newsletter", "Sonstiges"] as const;
 

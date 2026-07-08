@@ -5,9 +5,9 @@ import { scheduleSyncUp } from "@/lib/sync";
 import { sanitizeHtml } from "@/lib/sanitize";
 import { apiFetch, errorMessage } from "@/lib/api";
 import { trackTokens } from "@/lib/tokens";
-import type { Draft } from "@/lib/types";
+import type { Draft, SavedCaption } from "@/lib/types";
 import { uid } from "@/lib/id";
-import type { SavedCaption } from "@/app/captions/page";
+
 
 type HistoryItem = { query: string; date: string; summary: string };
 

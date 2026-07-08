@@ -5,8 +5,8 @@ import { scheduleSyncUp } from "@/lib/sync";
 import { trackTokens } from "@/lib/tokens";
 import { apiFetch, errorMessage } from "@/lib/api";
 import { uid } from "@/lib/id";
+import type { HashtagSet } from "@/lib/types";
 
-type HashtagSet = { id: string; name: string; emoji: string; tags: string[]; createdAt: string };
 
 const EMOJIS = ["#️⃣", "🌿", "🌸", "💪", "✨", "🧘", "🍋", "🌙", "🔥", "💡", "🎯", "🌺"];
 

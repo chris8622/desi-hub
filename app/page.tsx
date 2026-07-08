@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getLS } from "@/lib/storage";
 import { DAILY_TIPS } from "@/lib/tips";
+import PostPaket from "@/components/PostPaket";
 import type { PlannerItem, Draft } from "@/lib/types";
 
 type Subscriber = { id: string; name: string; email: string; addedAt: string };
@@ -91,6 +92,12 @@ export default function DashboardPage() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 5);
 
+  // „Heute fällig" — inkl. überfälliger, noch nicht veröffentlichter Posts,
+  // damit nichts unbemerkt liegen bleibt (Post-Paket-Cockpit, C1).
+  const dueToday = planner
+    .filter(p => p.date <= todayStr && p.status !== "Veröffentlicht")
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   const QUICK_ACTIONS = [
     { href: "/research",  icon: "🔍", label: "Neue Research starten", desc: "Themen recherchieren & Quellen finden" },
     { href: "/content",   icon: "💡", label: "Content erstellen",     desc: "Karussell, Ideen & Captions generieren" },
@@ -108,6 +115,52 @@ export default function DashboardPage() {
         </h1>
         <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>{today}</p>
       </div>
+
+      {/* Heute fällig — das Tagespaket auf einen Blick */}
+      {dueToday.length > 0 && (
+        <div className="card" style={{ marginBottom: "2rem", borderLeft: "3px solid var(--accent)" }}>
+          <div className="flex-between" style={{ marginBottom: "1rem" }}>
+            <div>
+              <h2 style={{ fontSize: "1.15rem" }}>Heute fällig</h2>
+              <p style={{ color: "var(--muted)", fontSize: "0.8rem", marginTop: "0.15rem" }}>
+                {dueToday.length === 1 ? "Ein Post wartet" : `${dueToday.length} Posts warten`}{" — "}Text &amp; Hashtags liegen bereit
+              </p>
+            </div>
+            <Link href="/planner" style={{ fontSize: "0.8rem", color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" }}>
+              Zum Planer →
+            </Link>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+            {dueToday.map((item, idx) => {
+              const overdue = item.date < todayStr;
+              const isLast = idx === dueToday.length - 1;
+              return (
+                <div key={item.id} style={{
+                  display: "flex", flexDirection: "column", gap: "0.5rem",
+                  paddingBottom: isLast ? 0 : "0.85rem",
+                  borderBottom: isLast ? "none" : "1px solid var(--border)",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
+                    <span style={{
+                      width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                      background: CHANNEL_COLOR[item.channel] || "var(--muted)",
+                    }} />
+                    <strong style={{ fontSize: "0.9rem", flex: 1, minWidth: 140 }}>{item.title}</strong>
+                    <span style={{ fontSize: "0.72rem", color: "var(--muted)" }}>{item.channel}</span>
+                    {overdue && (
+                      <span className="badge badge-red" style={{ fontSize: "0.65rem" }}>
+                        seit {new Date(item.date + "T12:00:00").toLocaleDateString("de-AT", { day: "numeric", month: "short" })}
+                      </span>
+                    )}
+                  </div>
+                  <PostPaket item={item} compact />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="grid-4" style={{ marginBottom: "2rem" }}>
