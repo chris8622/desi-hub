@@ -7,11 +7,15 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "ci": "tsc --noEmit && next build"
+    "ci": "tsc --noEmit && next build",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
+    "drizzle-orm": "^0.45.2",
     "html-to-image": "^1.11.13",
     "next": "^16.2.7",
     "react": "^19",
@@ -21,6 +25,8 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
     "typescript": "^5"
   }
 }
