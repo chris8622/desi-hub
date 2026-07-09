@@ -425,6 +425,26 @@ Setup-Guide für Christian: `~/Desktop/contentraum-phase1-setup.html`. Neon-Proj
 - **Offen für Go-Live (Christian):** P0-4 Deploy (Checkliste im RELEASE.md), P0-5 Secrets
   rotieren. **P1** siehe Prüfbericht.
 
-**Increment 3d — Rest-Kür (offen)**: Medien → Vercel Blob, offene Selbst-Registrierung,
-Login-Log via NextAuth-Event, Pinterest pro Tenant, Monitoring, erste Tests, Landingpage.
-Der **Multi-Tenant-Kern von Phase 1 ist komplett** (inkl. BYOK, Reset, Einladung, P0-Security).
+**Phase 4/5 — Registrierung + Bezahlmodell ✅ (2026-07-09)**
+- **Selbst-Registrierung** (`/register`, `/api/auth/register`): Konto+Tenant+14-Tage-Trial+
+  Entitlements+Workspace, Planwahl, **AGB**-Zustimmung (`/agb`, `users.agb_accepted_at`),
+  Willkommens-Mail. Verifiziert.
+- **Pläne** (`lib/plans.ts`): Starter 29 / Pro 59 / Studio 99 €/Mon (jährlich=10×), KI-Kontingent
+  150/500/unbegrenzt. **Abo→Entitlements**: `getEntitlements` verrechnet Abo-Status+Plan
+  (trial/active/comped→voll, past_due→aktiv+Banner, canceled/Trial-Ende→readonly). Verifiziert
+  (Trial-Ende→readonly+Sync 403).
+- **Stripe** (gated auf `STRIPE_SECRET_KEY`): `/api/billing/checkout` (Abo+Gutscheincodes),
+  `/api/billing/portal`, `/api/webhooks/stripe` (Signatur, schreibt Abo→Postgres),
+  `/api/billing/status`. `components/BillingCard` in den Einstellungen (Plan/Trial, Monat/Jahr,
+  Checkout, Portal). Ohne Keys → 503, Admin kann manuell freischalten.
+- **Admin-Abrechnung** (`/api/admin/billing`, 💳-Sektion): Plan/Status/**Rabatt%**/Trial manuell,
+  „Gratis freischalten"/„Testphase +14". Verifiziert.
+- **P1-Politur:** Session 30 Tage + updateAge; „Zum Abo"-Link am readonly-Banner.
+- **⚠️ Braucht Christian:** Stripe-Konto + Keys + 6 Price-IDs + Webhook `/api/webhooks/stripe`
+  (Events checkout.session.completed, customer.subscription.updated/deleted, invoice.payment_failed).
+  `db:push` der neuen Felder auf Prod (billing-Spalten + `users.agb_accepted_at`).
+
+**Rest-Kür (offen, P1)**: Medien → Vercel Blob, Login-Log via NextAuth-Event, Pinterest pro
+Tenant, Monitoring/Sentry, erste E2E-Tests, öffentliche Landingpage, E-Mail-Verifizierung,
+AVV-Vorlage je Kundin. Der **Multi-Tenant-SaaS-Kern ist komplett** (Auth, Daten, Entitlements,
+BYOK, Reset/Einladung, P0-Security, Registrierung, Abo/Bezahlung).
