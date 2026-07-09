@@ -390,6 +390,21 @@ Setup-Guide für Christian: `~/Desktop/contentraum-phase1-setup.html`. Neon-Proj
   Settings-UI 5 Provider. **Vercel:** `ENCRYPTION_KEY` setzen, sonst ist BYOK deaktiviert
   (Operator-Key gilt weiter).
 
+**Passwort-Reset + Einladung ✅ (2026-07-09)**
+- Tabelle `auth_tokens` (nur sha256-Hash gespeichert, purpose reset|invite, TTL).
+  `lib/authtokens.ts` (createToken/consumeToken — einmalig verbrauchbar).
+  `lib/email.ts` (Resend; **Dev-Fallback**: ohne `RESEND_API_KEY` → Server-Log, Einladungs-
+  Link kommt in der Admin-Antwort). Branded E-Mail-Shell.
+- Routen: `/api/auth/forgot` (immer 200, kein Leak, rate-limited), `/api/auth/reset`
+  (reset ODER invite, min. 8 Zeichen), `/api/admin/invite` (Admin legt passwortlosen
+  User an + „Passwort setzen"-Link, 7 Tage). Seiten `/forgot` + `/reset` (LoginGate-Bypass),
+  „Passwort vergessen?" im Login, Einladungs-Karte in der Admin-Konsole.
+- Verifiziert gegen Neon: forgot→branded Link im Log; reset setzt PW, Token einmalig
+  (Reuse→400), <8 Zeichen→400; Login mit neuem PW ✓; Einladung→Link, Dublette→409,
+  Invite-Token setzt PW, neuer User loggt sich ein (role member, Desis Tenant); UI rendert;
+  keine Konsolen-Fehler; npm run ci grün. **Vercel:** `RESEND_API_KEY` + `AUTH_RESEND_FROM`
+  für echten Versand (sonst Link manuell aus der Admin-Antwort).
+
 **Increment 3d — Rest-Kür (offen)**: Medien → Vercel Blob (`BLOB_READ_WRITE_TOKEN`),
-Magic-Link/Reset via Resend, Registrierung/Selbstanlage neuer Mandanten, Login-Log via
-NextAuth-Event. Der **Multi-Tenant-Kern von Phase 1 ist komplett** (inkl. BYOK).
+offene Selbst-Registrierung neuer Mandanten, Login-Log via NextAuth-Event.
+Der **Multi-Tenant-Kern von Phase 1 ist komplett** (inkl. BYOK, Reset & Einladung).

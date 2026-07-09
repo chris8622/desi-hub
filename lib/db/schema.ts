@@ -50,6 +50,18 @@ export const workspaces = pgTable("workspaces", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Einmal-Tokens für Passwort-Reset & Einladung. Gespeichert wird nur der
+// sha256-Hash des Tokens (DB-Leak → keine nutzbaren Tokens). purpose: reset|invite.
+export const authTokens = pgTable("auth_tokens", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull(),
+  purpose: text("purpose").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // Kundeneigene KI-Keys (BYOK), verschlüsselt (AES-256-GCM). Eine Zeile pro
 // Tenant+Provider. ciphertext = v1:<iv>:<tag>:<ct> (siehe lib/crypto.ts).
 export const tenantSecrets = pgTable("tenant_secrets", {

@@ -45,6 +45,7 @@ export default function LoginPage() {
             style={{ width: "100%", justifyContent: "center", marginTop: "0.25rem" }}>
             {loading ? "Anmelden…" : "Einloggen"}
           </button>
+          <a href="/forgot" style={{ fontSize: "0.8rem", color: "var(--muted)", textDecoration: "none" }}>Passwort vergessen?</a>
         </form>
 
         <p style={{ color: "var(--border)", fontSize: "0.7rem", marginTop: "2rem" }}>

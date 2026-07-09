@@ -54,6 +54,7 @@ function fmtTs(ts: number): string {
 }
 const ACTION_LABELS: Record<string, string> = {
   flags_update: "Flags geändert", data_reset: "Daten geleert", data_restore: "Backup eingespielt",
+  invite: "Nutzer eingeladen",
 };
 
 export default function AdminPage() {
@@ -70,6 +71,9 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [restoreId, setRestoreId] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("member");
+  const [inviteLink, setInviteLink] = useState("");
 
   const loadForTenant = useCallback(async (t: string, tenantId: string) => {
     const [f, s] = await Promise.all([
@@ -177,6 +181,29 @@ export default function AdminPage() {
       await loadForTenant(token, selected);
       await loadAll(token, selected).catch(() => {});
       flash("ok", action === "reset" ? "Daten geleert (Undo gesichert)." : "Backup eingespielt.");
+    } catch (err) {
+      flash("err", (err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const doInvite = async () => {
+    if (!token || !selected || !inviteEmail.trim()) return;
+    setSaving(true);
+    setInviteLink("");
+    try {
+      const r = await adminFetch<{ emailed: boolean; link?: string }>(
+        "/api/admin/invite", token, { tenantId: selected, email: inviteEmail.trim(), role: inviteRole },
+      );
+      setInviteEmail("");
+      await loadAll(token, selected).catch(() => {});
+      if (r.emailed) {
+        flash("ok", "Einladung per E-Mail verschickt.");
+      } else {
+        setInviteLink(r.link || "");
+        flash("ok", "Nutzer angelegt — Link unten weitergeben (kein E-Mail-Versand konfiguriert).");
+      }
     } catch (err) {
       flash("err", (err as Error).message);
     } finally {
@@ -355,6 +382,37 @@ export default function AdminPage() {
           </div>
           <p style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.75rem" }}>
             Jede destruktive Aktion sichert vorher automatisch einen Undo-Snapshot (die letzten 20 bleiben erhalten).
+          </p>
+        </section>
+      )}
+
+      {/* Nutzer einladen */}
+      {selected && (
+        <section className="card" style={{ marginBottom: "1.25rem" }}>
+          <h3 style={{ marginBottom: "0.85rem" }}>👤 Nutzer einladen</h3>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label className="label" htmlFor="invite-email">E-Mail</label>
+              <input id="invite-email" className="input" type="email" value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)} placeholder="neue-person@beispiel.at" style={{ width: "100%" }} />
+            </div>
+            <div>
+              <label className="label" htmlFor="invite-role">Rolle</label>
+              <select id="invite-role" className="select" value={inviteRole} onChange={e => setInviteRole(e.target.value)}>
+                <option value="member">Mitglied</option>
+                <option value="owner">Owner</option>
+              </select>
+            </div>
+            <button className="btn btn-primary" disabled={saving || !inviteEmail.trim()} onClick={doInvite}>Einladen</button>
+          </div>
+          {inviteLink && (
+            <div style={{ marginTop: "0.85rem", padding: "0.75rem", background: "var(--surface2)", borderRadius: "var(--radius-sm)" }}>
+              <div style={{ fontSize: "0.72rem", color: "var(--muted)", marginBottom: "0.3rem" }}>Einladungs-Link (kein E-Mail-Versand — manuell weitergeben):</div>
+              <code style={{ fontSize: "0.72rem", wordBreak: "break-all" }}>{inviteLink}</code>
+            </div>
+          )}
+          <p style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.75rem" }}>
+            Die eingeladene Person setzt über den Link ihr eigenes Passwort (7 Tage gültig).
           </p>
         </section>
       )}
