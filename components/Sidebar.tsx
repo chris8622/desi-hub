@@ -181,7 +181,7 @@ export default function Sidebar({ onLogout, open, hidden }: { onLogout: () => vo
           onClick={handleLogoClick}
         >
           <div style={{ fontFamily: "var(--font-serif)", fontSize: "1.4rem", color: "var(--accent)" }}>
-            Contentraum
+            Raumo
           </div>
           <div style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.15rem" }}>Wo Ideen Raum finden</div>
         </div>

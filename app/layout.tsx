@@ -20,8 +20,8 @@ const dmSerif = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Contentraum",
-  description: "Contentraum — wo Ideen Raum finden",
+  title: "Raumo",
+  description: "Raumo — wo Ideen Raum finden",
 };
 
 export const viewport: Viewport = {

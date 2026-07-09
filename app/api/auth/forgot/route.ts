@@ -24,7 +24,7 @@ export async function POST(req: Request) {
         const link = `${baseUrl(req)}/reset?token=${token}`;
         await sendEmail({
           to: email,
-          subject: "Passwort zurücksetzen — Contentraum",
+          subject: "Passwort zurücksetzen — Raumo",
           html: emailShell(
             "Passwort zurücksetzen",
             "<p>Du hast angefragt, dein Passwort zurückzusetzen. Der Link ist 1 Stunde gültig. Wenn du das nicht warst, ignorier diese Mail einfach.</p>",

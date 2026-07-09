@@ -161,7 +161,7 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
           >
             ☰
           </button>
-          <span className="mobile-topbar-logo">Contentraum</span>
+          <span className="mobile-topbar-logo">Raumo</span>
           <div style={{ width: 40 }} />
         </div>
         <main className="main-content">

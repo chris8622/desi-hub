@@ -36,10 +36,10 @@ export async function POST(req: Request) {
     try {
       await sendEmail({
         to: email,
-        subject: "Deine Einladung zu Contentraum",
+        subject: "Deine Einladung zu Raumo",
         html: emailShell(
-          "Willkommen bei Contentraum",
-          "<p>Du wurdest zu Contentraum eingeladen. Setz dein Passwort und leg los — der Link ist 7 Tage gültig.</p>",
+          "Willkommen bei Raumo",
+          "<p>Du wurdest zu Raumo eingeladen. Setz dein Passwort und leg los — der Link ist 7 Tage gültig.</p>",
           { label: "Passwort setzen & loslegen", href: link },
         ),
       });

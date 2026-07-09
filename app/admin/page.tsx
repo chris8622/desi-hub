@@ -218,7 +218,7 @@ export default function AdminPage() {
         <div className="card" style={{ width: "100%", maxWidth: 420, padding: "2.5rem 2rem", textAlign: "center" }}>
           <div style={{ width: 48, height: 4, borderRadius: 2, background: "var(--accent)", margin: "0 auto 1.5rem" }} />
           <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "1.8rem", color: "var(--accent)", marginBottom: "0.35rem" }}>Admin-Konsole</h1>
-          <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginBottom: "2rem" }}>Betreiber-Zugang · Contentraum</p>
+          <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginBottom: "2rem" }}>Betreiber-Zugang · Raumo</p>
           <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div style={{ textAlign: "left" }}>
               <label className="label" htmlFor="admin-pw">Admin-Passwort</label>

@@ -1,4 +1,11 @@
-# Migration: Desi Hub → „Creator Hub" SaaS
+# Migration: Desi Hub → „Raumo" SaaS
+
+> **Produktname: Raumo** (2026-07-09). Domain `raumo.eu` registriert (Christian).
+> Marken-Vorabprüfung (TMview/EUIPO/ÖPA): kein „RAUMO" in Kl. 9/35/42 — nur
+> unähnliche Fremdbranchen (RAUMORA/AT Kl. 37/41 als entferntester Nachbar).
+> Claim bleibt „Wo Ideen Raum finden". Vorher: „Contentraum" (verworfen —
+> content-raum.com nutzt den Namen in derselben Nische). Codeweite Umbenennung erledigt.
+
 
 Fortschritts- und Übergabedokument für den Umbau vom Einzelkunden-Tool zum
 mandantenfähigen Produkt. Phasenplan siehe `desi-hub-umsetzungsprompt-opus.md`

@@ -25,7 +25,7 @@ export default function LoginPage() {
       <div className="card" style={{ width: "100%", maxWidth: 420, padding: "2.5rem 2rem", textAlign: "center" }}>
         <div style={{ width: 48, height: 4, borderRadius: 2, background: "var(--accent)", margin: "0 auto 1.75rem" }} />
         <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "2.2rem", color: "var(--accent)", marginBottom: "0.35rem", lineHeight: 1.15 }}>
-          Contentraum
+          Raumo
         </h1>
         <p style={{ color: "var(--muted)", fontSize: "0.88rem", marginBottom: "2rem" }}>Wo Ideen Raum finden</p>
 

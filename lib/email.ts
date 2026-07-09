@@ -16,7 +16,7 @@ export function baseUrl(req: Request): string {
 // Schlichtes, markenkonformes E-Mail-Layout.
 export function emailShell(title: string, bodyHtml: string, cta?: { label: string; href: string }): string {
   return `<div style="font-family:-apple-system,Segoe UI,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#2C2016">
-  <div style="font-family:Georgia,serif;font-size:22px;color:#C4704A;margin-bottom:4px">Contentraum</div>
+  <div style="font-family:Georgia,serif;font-size:22px;color:#C4704A;margin-bottom:4px">Raumo</div>
   <div style="font-size:12px;color:#8C7B6B;margin-bottom:24px">Wo Ideen Raum finden</div>
   <h2 style="font-size:18px;color:#2C2016;margin:0 0 12px">${title}</h2>
   <div style="font-size:14px;line-height:1.6;color:#2C2016">${bodyHtml}</div>
@@ -28,7 +28,7 @@ export function emailShell(title: string, bodyHtml: string, cta?: { label: strin
 
 export async function sendEmail(opts: { to: string; subject: string; html: string }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.AUTH_RESEND_FROM || "Contentraum <onboarding@resend.dev>";
+  const from = process.env.AUTH_RESEND_FROM || "Raumo <onboarding@resend.dev>";
 
   if (!apiKey) {
     console.log(`[email:dev] → ${opts.to} · ${opts.subject}\n${opts.html}`);
