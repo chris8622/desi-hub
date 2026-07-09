@@ -25,6 +25,7 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   // Admin-Konsole und Auth.js-Login laufen an diesem Gate vorbei.
   const isBypass = pathname?.startsWith("/admin") || pathname?.startsWith("/login")
     || pathname?.startsWith("/forgot") || pathname?.startsWith("/reset")
+    || pathname?.startsWith("/register") || pathname?.startsWith("/agb")
     || pathname?.startsWith("/impressum") || pathname?.startsWith("/datenschutz");
 
   // Live-Sync-Status aus lib/sync (Hintergrund-Uploads beim Tippen)

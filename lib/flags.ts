@@ -9,6 +9,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "./db";
 import { tenants, entitlements, usage } from "./db/schema";
+import { planAiLimit } from "./plans";
 
 // Modul-Schlüssel = Sidebar-href ohne führenden Slash.
 export const MODULE_KEYS = [
@@ -70,15 +71,18 @@ export function moduleEnabled(flags: AdminFlags, key: ModuleKey): boolean {
   return flags.modules[key] !== false;
 }
 
+// Cache eines Tenants verwerfen (nach Billing-/Plan-Änderungen aufrufen).
+export function invalidateTenantFlags(tenantId: string): void {
+  cache.delete(tenantId);
+}
+
 // 30-Sekunden-Cache pro Tenant (Lastspitzen abfedern, Änderungen zeitnah wirksam).
 const cache = new Map<string, { flags: AdminFlags; at: number }>();
 const CACHE_MS = 30_000;
 
-export async function getEntitlements(tenantId: string): Promise<AdminFlags> {
-  const now = Date.now();
-  const c = cache.get(tenantId);
-  if (c && now - c.at < CACHE_MS) return c.flags;
-
+// ROH: der Betreiber-Override (tenant.status + entitlements-Zeile) — für die
+// Admin-Konsole zum Anzeigen/Bearbeiten. KEINE Abo-/Plan-Verrechnung.
+export async function getRawEntitlements(tenantId: string): Promise<AdminFlags> {
   try {
     const rows = await db
       .select({
@@ -95,12 +99,74 @@ export async function getEntitlements(tenantId: string): Promise<AdminFlags> {
       .limit(1);
     const row = rows[0];
     if (!row) return DEFAULT_FLAGS;
-
-    const flags: AdminFlags = {
+    return {
       modules: (row.modules as Partial<Record<ModuleKey, boolean>>) ?? {},
       ai: { enabled: row.aiEnabled ?? true, monthlyLimit: row.aiMonthlyLimit ?? 0 },
       status: (row.status as AdminStatus) ?? "active",
       banner: row.banner ?? "",
+      updatedAt: row.updatedAt ? new Date(row.updatedAt).getTime() : 0,
+    };
+  } catch {
+    return DEFAULT_FLAGS;
+  }
+}
+
+// EFFEKTIV: Override + Abo-Status + Plan verrechnet. Quelle für guardFeature und
+// die Client-Flags. 30-s-Cache pro Tenant.
+export async function getEntitlements(tenantId: string): Promise<AdminFlags> {
+  const now = Date.now();
+  const c = cache.get(tenantId);
+  if (c && now - c.at < CACHE_MS) return c.flags;
+
+  try {
+    const rows = await db
+      .select({
+        status: tenants.status,
+        plan: tenants.plan,
+        sub: tenants.subscriptionStatus,
+        trialEndsAt: tenants.trialEndsAt,
+        modules: entitlements.modules,
+        aiEnabled: entitlements.aiEnabled,
+        aiMonthlyLimit: entitlements.aiMonthlyLimit,
+        banner: entitlements.banner,
+        updatedAt: entitlements.updatedAt,
+      })
+      .from(tenants)
+      .leftJoin(entitlements, eq(entitlements.tenantId, tenants.id))
+      .where(eq(tenants.id, tenantId))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return DEFAULT_FLAGS;
+
+    const adminStatus = (row.status as AdminStatus) ?? "active";
+    const sub = row.sub || "trialing";
+    const trialExpired = sub === "trialing" && !!row.trialEndsAt && new Date(row.trialEndsAt).getTime() < now;
+
+    // Effektiver Status: Admin-Sperre > Abo-Ende/Trial abgelaufen > Admin-Nur-Lese > aktiv
+    let status: AdminStatus = "active";
+    let billingBanner = "";
+    if (adminStatus === "locked") {
+      status = "locked";
+    } else if (sub === "canceled" || trialExpired) {
+      status = "readonly";
+      billingBanner = trialExpired
+        ? "Deine Testphase ist abgelaufen — wähle einen Plan, um weiter zu erstellen."
+        : "Dein Abo ist beendet — reaktiviere es, um weiter zu erstellen.";
+    } else if (adminStatus === "readonly") {
+      status = "readonly";
+    } else if (sub === "past_due") {
+      billingBanner = "Zahlung ausständig — bitte aktualisiere deine Zahlungsdaten.";
+    }
+
+    // KI-Kontingent: Admin-Override (>0) gewinnt, sonst das Kontingent des Plans.
+    const override = row.aiMonthlyLimit ?? 0;
+    const monthlyLimit = override > 0 ? override : planAiLimit(row.plan || "starter");
+
+    const flags: AdminFlags = {
+      modules: (row.modules as Partial<Record<ModuleKey, boolean>>) ?? {},
+      ai: { enabled: row.aiEnabled ?? true, monthlyLimit },
+      status,
+      banner: (row.banner || "") || billingBanner,
       updatedAt: row.updatedAt ? new Date(row.updatedAt).getTime() : 0,
     };
     cache.set(tenantId, { flags, at: now });

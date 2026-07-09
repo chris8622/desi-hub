@@ -48,6 +48,10 @@ export default function LoginPage() {
           <a href="/forgot" style={{ fontSize: "0.8rem", color: "var(--muted)", textDecoration: "none" }}>Passwort vergessen?</a>
         </form>
 
+        <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginTop: "1.25rem" }}>
+          Noch kein Konto? <a href="/register" style={{ color: "var(--accent)", fontWeight: 600 }}>Kostenlos starten</a>
+        </p>
+
         <p style={{ color: "var(--border)", fontSize: "0.7rem", marginTop: "2rem" }}>
           made with ❤️ by{" "}
           <a href="https://toelsner.at" target="_blank" rel="noopener" style={{ color: "var(--muted)", textDecoration: "none" }}>

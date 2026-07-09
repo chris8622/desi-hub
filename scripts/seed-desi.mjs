@@ -25,7 +25,7 @@ if (existing.length) {
   tenantId = existing[0].id;
   console.log("Tenant existiert bereits:", tenantId);
 } else {
-  const [t] = await sql`INSERT INTO tenants (slug, name, plan) VALUES (${SLUG}, ${"Desiree Maxa"}, ${"pro"}) RETURNING id`;
+  const [t] = await sql`INSERT INTO tenants (slug, name, plan, subscription_status) VALUES (${SLUG}, ${"Desiree Maxa"}, ${"studio"}, ${"comped"}) RETURNING id`;
   tenantId = t.id;
   await sql`INSERT INTO entitlements (tenant_id) VALUES (${tenantId})`;
   await sql`INSERT INTO workspaces (tenant_id, data) VALUES (${tenantId}, ${JSON.stringify({})})`;

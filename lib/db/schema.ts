@@ -13,9 +13,19 @@ export const tenants = pgTable("tenants", {
   id: uuid("id").defaultRandom().primaryKey(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
-  plan: text("plan").notNull().default("starter"),
-  status: text("status").notNull().default("active"), // active | readonly | locked
+  plan: text("plan").notNull().default("starter"), // Plan-ID: starter | pro | studio
+  status: text("status").notNull().default("active"), // active | readonly | locked (Betreiber-Override)
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+
+  // ── Abrechnung / Abo ──
+  // trialing | active | past_due | canceled | comped (Freischaltung ohne Zahlung)
+  subscriptionStatus: text("subscription_status").notNull().default("trialing"),
+  billingInterval: text("billing_interval"),                 // month | year
+  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  discountPercent: integer("discount_percent").notNull().default(0), // manueller Admin-Rabatt
 });
 
 export const users = pgTable("users", {
@@ -25,6 +35,7 @@ export const users = pgTable("users", {
   name: text("name"),
   role: text("role").notNull().default("member"), // owner | admin | member
   passwordHash: text("password_hash"),
+  agbAcceptedAt: timestamp("agb_accepted_at", { withTimezone: true }), // Nachweis AGB-Zustimmung
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
 });

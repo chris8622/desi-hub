@@ -1,8 +1,9 @@
 import { requireAdmin, writeAudit } from "@/lib/admin";
 import { readJson } from "@/lib/server-auth";
-import { getEntitlements, setEntitlements, normalizeFlags } from "@/lib/flags";
+import { getRawEntitlements, setEntitlements, normalizeFlags } from "@/lib/flags";
 
-// GET ?tenantId=… : Entitlements eines Tenants für die Konsole.
+// GET ?tenantId=… : Betreiber-Override eines Tenants für die Konsole (roh, ohne
+// Abo-Verrechnung — der Admin bearbeitet hier den Override).
 export async function GET(req: Request) {
   const authError = await requireAdmin(req);
   if (authError) return authError;
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
   const tenantId = new URL(req.url).searchParams.get("tenantId");
   if (!tenantId) return Response.json({ error: "tenantId fehlt." }, { status: 400 });
 
-  const flags = await getEntitlements(tenantId);
+  const flags = await getRawEntitlements(tenantId);
   return Response.json({ flags });
 }
 
