@@ -43,6 +43,17 @@ export const aiLimiter = redis
     })
   : null;
 
+// Admin-Konsole: 10 FEHLVERSUCHE pro IP pro 15 Minuten (nur falsche Tokens zählen,
+// legitime Nutzung wird nie gezählt → Brute-Force auf ADMIN_PASSWORD gedrosselt)
+export const adminLimiter = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, "15 m"),
+      prefix: "rl:admin",
+      analytics: false,
+    })
+  : null;
+
 // Client-IP aus den (Vercel-)Headern lesen
 export function getClientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for");

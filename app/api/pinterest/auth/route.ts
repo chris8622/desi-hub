@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/server-auth";
+import { pinterestEnabled } from "@/lib/pinterest";
 
 const PINTEREST_KEY = "desi_pinterest_v1";
 const STATE_KEY     = "desi_pinterest_state";
@@ -39,6 +40,8 @@ async function kvGet(cfg: { url: string; token: string }, key: string): Promise<
 export async function GET(req: Request) {
   const authError = await requireAuth(req);
   if (authError) return authError;
+
+  if (!pinterestEnabled()) return Response.json({ configured: false, error: "Pinterest ist derzeit nicht verfügbar." });
 
   const appId       = process.env.PINTEREST_APP_ID;
   const appSecret   = process.env.PINTEREST_APP_SECRET;

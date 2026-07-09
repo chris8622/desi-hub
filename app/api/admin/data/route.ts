@@ -7,7 +7,7 @@ export const maxDuration = 30;
 // POST { tenantId, action: "reset" | "restore", backupId?: string }
 // Jede destruktive Aktion legt vorher einen Undo-Snapshot in workspace_backups an.
 export async function POST(req: Request) {
-  const authError = requireAdmin(req);
+  const authError = await requireAdmin(req);
   if (authError) return authError;
 
   const body = await readJson<{ tenantId?: string; action?: string; backupId?: string }>(req);

@@ -4,7 +4,7 @@ import { getEntitlements, setEntitlements, normalizeFlags } from "@/lib/flags";
 
 // GET ?tenantId=… : Entitlements eines Tenants für die Konsole.
 export async function GET(req: Request) {
-  const authError = requireAdmin(req);
+  const authError = await requireAdmin(req);
   if (authError) return authError;
 
   const tenantId = new URL(req.url).searchParams.get("tenantId");
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
 
 // POST { tenantId, flags } : Entitlements setzen. Eingabe wird normalisiert.
 export async function POST(req: Request) {
-  const authError = requireAdmin(req);
+  const authError = await requireAdmin(req);
   if (authError) return authError;
 
   const body = await readJson<{ tenantId?: string; flags: unknown }>(req);

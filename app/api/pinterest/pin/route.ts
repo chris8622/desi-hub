@@ -1,11 +1,13 @@
 import { requireAuth } from "@/lib/server-auth";
-import { getUpstashConfig, getValidToken } from "@/lib/pinterest";
+import { getUpstashConfig, getValidToken, pinterestEnabled } from "@/lib/pinterest";
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const authError = await requireAuth(req);
   if (authError) return authError;
+
+  if (!pinterestEnabled()) return Response.json({ error: "Pinterest ist derzeit nicht verfügbar." }, { status: 503 });
 
   const cfg = getUpstashConfig();
   if (!cfg) return Response.json({ error: "KV nicht verfügbar" }, { status: 503 });

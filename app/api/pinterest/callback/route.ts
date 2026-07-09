@@ -40,12 +40,16 @@ async function kvDel(cfg: { url: string; token: string }, key: string): Promise<
 }
 
 export async function GET(req: Request) {
+  const settingsUrl = "/settings?pinterest=";
+
+  if (process.env.PINTEREST_ENABLED !== "true") {
+    return Response.redirect(new URL(`${settingsUrl}error`, req.url));
+  }
+
   const { searchParams } = new URL(req.url);
   const code  = searchParams.get("code");
   const state = searchParams.get("state");
   const error = searchParams.get("error");
-
-  const settingsUrl = "/settings?pinterest=";
 
   if (error) {
     return Response.redirect(new URL(`${settingsUrl}denied`, req.url));

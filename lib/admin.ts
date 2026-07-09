@@ -5,10 +5,12 @@
 
 import { safeEqual } from "./server-auth";
 import { getKvConfig, kvGet, kvSet } from "./kv";
+import { adminLimiter, checkRateLimit, getClientIp, tooManyRequests } from "./ratelimit";
 
 // FAIL-CLOSED: Ohne ADMIN_PASSWORD ist die Konsole komplett gesperrt
-// (nicht etwa offen). Header: x-admin-token.
-export function requireAdmin(req: Request): Response | null {
+// (nicht etwa offen). Header: x-admin-token. Fehlversuche werden pro IP
+// gedrosselt (Brute-Force-Schutz), legitime Nutzung wird nie gezählt.
+export async function requireAdmin(req: Request): Promise<Response | null> {
   const adminPassword = process.env.ADMIN_PASSWORD;
   if (!adminPassword) {
     return Response.json(
@@ -18,6 +20,9 @@ export function requireAdmin(req: Request): Response | null {
   }
   const token = req.headers.get("x-admin-token") || "";
   if (!safeEqual(token, adminPassword)) {
+    // Nur Fehlversuche zählen; nach 10/15 min ist die IP gesperrt.
+    const rl = await checkRateLimit(adminLimiter, getClientIp(req));
+    if (!rl.ok) return tooManyRequests(rl.retryAfterSec, "Zu viele Fehlversuche. Bitte später erneut.");
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   return null;

@@ -48,6 +48,21 @@ function setDirty(v: boolean): void {
   try { if (v) localStorage.setItem(DIRTY_KEY, "1"); else localStorage.removeItem(DIRTY_KEY); } catch {}
 }
 
+// ─── Mandanten-Isolation ─────────────────────────────────
+// Löscht ALLE App-Daten aus dem Browser (dh_*-Keys + Sync-Flags). Nötig beim
+// Logout UND beim Nutzerwechsel am selben Browser — sonst könnten Restdaten
+// von Kundin A in den Server-Workspace von Kundin B hochgeladen werden.
+export function clearLocalData(): void {
+  try {
+    const remove: string[] = [DIRTY_KEY, LAST_SYNCED_KEY];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("dh_")) remove.push(key);
+    }
+    for (const k of remove) localStorage.removeItem(k);
+  } catch {}
+}
+
 // Live-Sync-Status an die Oberfläche melden (Footer in LoginGate).
 export type SyncStatus = "syncing" | "synced" | "local" | "error";
 function notify(status: SyncStatus, message?: string): void {

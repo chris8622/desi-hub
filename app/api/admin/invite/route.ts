@@ -11,7 +11,7 @@ import { sendEmail, baseUrl, emailShell, emailConfigured } from "@/lib/email";
 // Ist kein Resend konfiguriert, wird der Link in der Antwort zurückgegeben,
 // damit der Betreiber ihn manuell weitergeben kann.
 export async function POST(req: Request) {
-  const authError = requireAdmin(req);
+  const authError = await requireAdmin(req);
   if (authError) return authError;
 
   const body = await readJson<{ tenantId?: string; email?: string; role?: string }>(req);

@@ -54,6 +54,11 @@ export default function LoginPage() {
             Toelsner Digital
           </a>
         </p>
+        <p style={{ fontSize: "0.7rem", marginTop: "0.6rem" }}>
+          <a href="/impressum" style={{ color: "var(--muted)", textDecoration: "none" }}>Impressum</a>
+          <span style={{ color: "var(--border)" }}> · </span>
+          <a href="/datenschutz" style={{ color: "var(--muted)", textDecoration: "none" }}>Datenschutz</a>
+        </p>
       </div>
     </div>
   );

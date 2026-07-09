@@ -7,6 +7,14 @@ const PINTEREST_KEY = "desi_pinterest_v1";
 // 10-Minuten-Puffer: lieber etwas zu früh erneuern als mit abgelaufenem Token anfragen
 const EXPIRY_BUFFER_MS = 10 * 60 * 1000;
 
+// LAUNCH-SICHERHEIT: Der Token liegt aktuell unter EINEM globalen Key — im
+// Mehrkundenbetrieb würde Kundin B damit Desis Konto überschreiben/bespielen.
+// Deshalb standardmäßig AUS; nur mit PINTEREST_ENABLED="true" aktiv (z. B. in
+// einer Single-Tenant-Instanz). Sauberer Umbau auf Token-pro-Tenant = P1.
+export function pinterestEnabled(): boolean {
+  return process.env.PINTEREST_ENABLED === "true";
+}
+
 export type PinterestToken = {
   access_token: string;
   refresh_token?: string;

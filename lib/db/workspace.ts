@@ -32,7 +32,7 @@ export function isEmpty(data: unknown): boolean {
 }
 
 // ── Backups (On-Demand-Snapshots für die Admin-Konsole) ──
-const BACKUP_KEEP = 20; // pro Tenant die letzten N behalten
+const BACKUP_KEEP = 30; // pro Tenant die letzten N behalten (~30 Tage Auto-Backups)
 
 export async function createBackup(tenantId: string, label: string, data: unknown): Promise<void> {
   await db.insert(workspaceBackups).values({ tenantId, label, data });

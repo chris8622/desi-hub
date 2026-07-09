@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { verifyPassword } from "@/lib/password";
+import { authLimiter, checkRateLimit, getClientIp } from "@/lib/ratelimit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -17,7 +18,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: { email: {}, password: {} },
-      authorize: async (creds) => {
+      authorize: async (creds, request) => {
+        // Brute-Force-Schutz: max. 5 Versuche pro IP / 15 min. Während der Sperre
+        // schlägt JEDER Login fehl (auch der richtige) → Rate-Limit greift wirklich.
+        const rl = await checkRateLimit(authLimiter, getClientIp(request as Request));
+        if (!rl.ok) return null;
+
         const email = String(creds?.email || "").toLowerCase().trim();
         const password = String(creds?.password || "");
         if (!email || !password) return null;

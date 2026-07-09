@@ -1,9 +1,12 @@
 import { requireAuth } from "@/lib/server-auth";
-import { getUpstashConfig, getValidToken, getStoredToken } from "@/lib/pinterest";
+import { getUpstashConfig, getValidToken, getStoredToken, pinterestEnabled } from "@/lib/pinterest";
 
 export async function GET(req: Request) {
   const authError = await requireAuth(req);
   if (authError) return authError;
+
+  // Im Mehrkundenbetrieb aus (globaler Token) → UI zeigt Pinterest als nicht verfügbar.
+  if (!pinterestEnabled()) return Response.json({ configured: false, connected: false });
 
   const configured = !!(process.env.PINTEREST_APP_ID && process.env.PINTEREST_APP_SECRET && process.env.PINTEREST_CALLBACK_URL);
 

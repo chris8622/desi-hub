@@ -3,14 +3,14 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
-import { syncDown, syncUp, flushOnHide } from "@/lib/sync";
+import { syncDown, syncUp, flushOnHide, clearLocalData } from "@/lib/sync";
 import { apiFetch } from "@/lib/api";
 
 type ClientFlags = { modules: Record<string, boolean>; banner: string; status: string };
 type SyncUi = "idle" | "syncing" | "synced" | "local" | "error";
 
 export default function LoginGate({ children }: { children: React.ReactNode }) {
-  const { status } = useSession(); // "loading" | "authenticated" | "unauthenticated"
+  const { data: session, status } = useSession(); // "loading" | "authenticated" | "unauthenticated"
   const authed = status === "authenticated";
   const pathname = usePathname();
 
@@ -24,7 +24,8 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
 
   // Admin-Konsole und Auth.js-Login laufen an diesem Gate vorbei.
   const isBypass = pathname?.startsWith("/admin") || pathname?.startsWith("/login")
-    || pathname?.startsWith("/forgot") || pathname?.startsWith("/reset");
+    || pathname?.startsWith("/forgot") || pathname?.startsWith("/reset")
+    || pathname?.startsWith("/impressum") || pathname?.startsWith("/datenschutz");
 
   // Live-Sync-Status aus lib/sync (Hintergrund-Uploads beim Tippen)
   useEffect(() => {
@@ -83,6 +84,18 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!authed || didInitialSync.current) return;
     didInitialSync.current = true;
+
+    // Mandanten-Isolation: wechselt der eingeloggte Nutzer (anderer Browser-User),
+    // erst ALLE lokalen Daten des Vorgängers wischen — bevor synchronisiert wird.
+    try {
+      const uid = session?.user?.id || "";
+      const prev = localStorage.getItem("dh_current_user");
+      if (uid && prev !== uid) {
+        clearLocalData();
+        localStorage.setItem("dh_current_user", uid);
+      }
+    } catch {}
+
     setSyncStatus("syncing");
     syncDown()
       .then(({ available }) => {
@@ -107,7 +120,11 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
     setSyncStatus(available ? "synced" : "local");
   };
 
-  const handleLogout = () => { signOut({ redirectTo: "/login" }); };
+  const handleLogout = () => {
+    // Erst alle lokalen Daten wischen, dann abmelden → nichts bleibt im Browser.
+    try { clearLocalData(); localStorage.removeItem("dh_current_user"); } catch {}
+    signOut({ redirectTo: "/login" });
+  };
 
   // Bypass-Pfade rendern ihr eigenes Gate.
   if (isBypass) return <>{children}</>;
@@ -231,7 +248,10 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
             )}
           </div>
           <p style={{ fontSize: "0.72rem", color: "var(--muted)" }}>
-            made with ❤️ by{" "}
+            <a href="/impressum" style={{ color: "var(--muted)", textDecoration: "none" }}>Impressum</a>
+            <span> · </span>
+            <a href="/datenschutz" style={{ color: "var(--muted)", textDecoration: "none" }}>Datenschutz</a>
+            <span> · made with ❤️ by </span>
             <a href="https://toelsner.at" target="_blank" rel="noopener"
               style={{ color: "var(--accent)", textDecoration: "none", fontWeight: 600 }}>
               Toelsner Digital

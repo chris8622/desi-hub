@@ -4,7 +4,7 @@ import { getWorkspace, listBackups } from "@/lib/db/workspace";
 
 // Übersicht für die Konsole, pro Tenant: KI-Verbrauch, Datengröße, Backups.
 export async function GET(req: Request) {
-  const authError = requireAdmin(req);
+  const authError = await requireAdmin(req);
   if (authError) return authError;
 
   const tenantId = new URL(req.url).searchParams.get("tenantId");
