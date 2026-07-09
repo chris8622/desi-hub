@@ -42,7 +42,8 @@ export default function DatenschutzPage() {
         </ul>
 
         <h2 style={h2}>4. Empfänger / Auftragsverarbeiter</h2>
-        <p>Zum Betrieb setzen wir sorgfältig ausgewählte Dienstleister als Auftragsverarbeiter (Art. 28 DSGVO) ein:</p>
+        <p>Zum Betrieb setzen wir sorgfältig ausgewählte Dienstleister als Auftragsverarbeiter (Art. 28 DSGVO)
+          ein — Details in der <a href="/avv" style={{ color: "var(--accent)" }}>Auftragsverarbeitungs-Vereinbarung</a>:</p>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "0.5rem" }}>
             <thead><tr><th style={th}>Dienst</th><th style={th}>Zweck</th><th style={th}>Sitz / Ort</th></tr></thead>

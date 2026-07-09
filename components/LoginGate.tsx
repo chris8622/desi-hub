@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
+import Landing from "@/components/Landing";
 import { syncDown, syncUp, flushOnHide, clearLocalData } from "@/lib/sync";
 import { apiFetch } from "@/lib/api";
 
@@ -26,7 +27,8 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   const isBypass = pathname?.startsWith("/admin") || pathname?.startsWith("/login")
     || pathname?.startsWith("/forgot") || pathname?.startsWith("/reset")
     || pathname?.startsWith("/register") || pathname?.startsWith("/agb")
-    || pathname?.startsWith("/impressum") || pathname?.startsWith("/datenschutz");
+    || pathname?.startsWith("/impressum") || pathname?.startsWith("/datenschutz")
+    || pathname?.startsWith("/avv");
 
   // Live-Sync-Status aus lib/sync (Hintergrund-Uploads beim Tippen)
   useEffect(() => {
@@ -107,11 +109,12 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
     apiFetch<ClientFlags>("/api/flags").then(setFlags).catch(() => {});
   }, [authed]);
 
-  // Nicht eingeloggt → zum echten Login (außer auf Bypass-Pfaden).
+  // Nicht eingeloggt → zum echten Login (außer auf Bypass-Pfaden und der
+  // öffentlichen Startseite „/", die die Landingpage zeigt).
   useEffect(() => {
     if (isBypass) return;
-    if (status === "unauthenticated") window.location.href = "/login";
-  }, [status, isBypass]);
+    if (status === "unauthenticated" && pathname !== "/") window.location.href = "/login";
+  }, [status, isBypass, pathname]);
 
   const handleManualSync = async () => {
     setSyncStatus("syncing");
@@ -129,6 +132,9 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
 
   // Bypass-Pfade rendern ihr eigenes Gate.
   if (isBypass) return <>{children}</>;
+
+  // Nicht eingeloggt auf „/" → öffentliche Landingpage.
+  if (status === "unauthenticated" && pathname === "/") return <Landing />;
 
   // Während des Ladens oder solange die Weiterleitung zum Login läuft.
   if (status === "loading" || status === "unauthenticated") {
