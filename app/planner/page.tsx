@@ -83,7 +83,7 @@ export default function PlannerPage() {
     try {
       const data = await apiFetch<{ plan?: PlannerItem[] }>("/api/autoplan", {
         method: "POST",
-        body: { settings, weekStart: formatDate(weekStart), ...getAiChoice() },
+        body: { settings, weekStart: formatDate(weekStart), ...getAiChoice("planner") },
       });
       // Nur neue Slots hinzufügen (bestehende behalten).
       // WICHTIG: frisch aus localStorage lesen — der `items`-State kann hier

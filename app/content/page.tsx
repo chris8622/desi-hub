@@ -516,7 +516,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     try {
       const data = await apiFetch<CarouselResult & { _tokens?: number }>("/api/generate", {
         method: "POST",
-        body: { type: "carousel", topic, context: researchContext || undefined, brandVoice: getBrandVoice(), ...getAiChoice() },
+        body: { type: "carousel", topic, context: researchContext || undefined, brandVoice: getBrandVoice(), ...getAiChoice("content") },
       });
       trackTokens(data._tokens || 0);
       // KI-Antwort validieren — eine unerwartete Struktur würde sonst beim
@@ -570,7 +570,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     try {
       const data = await apiFetch<{ ideas?: Idea[]; _tokens?: number }>("/api/generate", {
         method: "POST",
-        body: { type: "ideas", topic: ideaTopic, context: researchContext || undefined, brandVoice: getBrandVoice(), ...getAiChoice() },
+        body: { type: "ideas", topic: ideaTopic, context: researchContext || undefined, brandVoice: getBrandVoice(), ...getAiChoice("content") },
       });
       trackTokens(data._tokens || 0);
       setIdeas(data.ideas || []);
@@ -588,7 +588,7 @@ Gib mir anschließend in einem separaten Block noch eine Caption (mit Emojis, en
     try {
       const data = await apiFetch<{ headline?: string; title?: string; description?: string; hashtags?: string[]; _tokens?: number }>(
         "/api/generate",
-        { method: "POST", body: { type: "pinterest", topic: pinTopic, context: researchContext || undefined, brandVoice: getBrandVoice(), ...getAiChoice() } },
+        { method: "POST", body: { type: "pinterest", topic: pinTopic, context: researchContext || undefined, brandVoice: getBrandVoice(), ...getAiChoice("content") } },
       );
       trackTokens(data._tokens || 0);
       setPinHeadline(data.headline || "");

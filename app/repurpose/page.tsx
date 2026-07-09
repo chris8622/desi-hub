@@ -84,7 +84,7 @@ export default function RepurposePage() {
       const settings = getLS<Record<string, unknown>>("dh_settings", {});
       const data = await apiFetch<RepurposeResult>("/api/repurpose", {
         method: "POST",
-        body: { sourceText: text.slice(0, 6000), formats, brandVoice: settings, ...getAiChoice() },
+        body: { sourceText: text.slice(0, 6000), formats, brandVoice: settings, ...getAiChoice("repurpose") },
       });
       trackTokens(data._tokens || 0);
       setResult(data);

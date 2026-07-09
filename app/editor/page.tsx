@@ -225,7 +225,7 @@ function EditorInner() {
     try {
       const data = await apiFetch<BlogResult>("/api/generate", {
         method: "POST",
-        body: { type: "blog", topic, brandVoice: getBrandVoice(), ...getAiChoice() },
+        body: { type: "blog", topic, brandVoice: getBrandVoice(), ...getAiChoice("blog") },
         timeoutMs: 90_000,
       });
       trackTokens(data._tokens || 0);

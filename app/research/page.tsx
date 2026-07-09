@@ -88,7 +88,7 @@ export default function ResearchPage() {
         method: "POST",
         body: {
           query: q,
-          ...getAiChoice(),
+          ...getAiChoice("research"),
           engine: getResearchEngine(),
           niche: getLS<{niche?:string}>("dh_settings",{}).niche || "",
           trustedDomains: getLS<{trusted_sources?:string[]}>("dh_settings",{}).trusted_sources || [],

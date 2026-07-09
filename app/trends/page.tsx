@@ -61,7 +61,7 @@ export default function TrendsPage() {
     setLoading(true);
     try {
       // apiStream prüft res.ok (Fehlerantworten sind JSON, kein Stream)
-      const reader = await apiStream("/api/trends", { method: "POST", body: { niche: useNiche, ...getAiChoice() } });
+      const reader = await apiStream("/api/trends", { method: "POST", body: { niche: useNiche, ...getAiChoice("trends") } });
       const decoder = new TextDecoder();
       let buffer = "";
       while (true) {

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { scheduleSyncUp, syncDown, syncUp, SYNC_KEYS } from "@/lib/sync";
 import { THEMES, applyTheme } from "@/lib/theme";
 import { TEXT_MODELS, RESEARCH_ENGINES } from "@/lib/llm";
+import { AI_AREAS, AREA_LABELS } from "@/lib/aichoice";
 import { apiFetch, errorMessage } from "@/lib/api";
 import AiKeysCard from "@/components/AiKeysCard";
 import BillingCard from "@/components/BillingCard";
@@ -29,6 +30,8 @@ const DEFAULT_SETTINGS = {
   theme: "sand",
   ai_provider: "groq",
   ai_model: "llama-3.3-70b-versatile",
+  ai_default: "" as string,                              // Standard-Modell (leer = Legacy/ai_model)
+  ai_area: {} as Partial<Record<string, string>>,        // Overrides pro Bereich
   research_engine: "standard",
   trusted_sources: [] as string[],
 };
@@ -357,21 +360,45 @@ export default function SettingsPage() {
 
       {/* KI-Modell */}
       <div className="card" style={{ marginBottom: "1.25rem" }}>
-        <h3 style={{ marginBottom: "0.4rem" }}>🤖 KI-Modell</h3>
+        <h3 style={{ marginBottom: "0.4rem" }}>🤖 Deine KI</h3>
         <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginBottom: "1.25rem" }}>
-          Welche KI deine Texte schreibt. Ein Modell muss serverseitig konfiguriert sein (Key) — sonst kommt eine klare Fehlermeldung.
+          Du wählst frei, welche KI arbeitet — als Standard und optional in jedem Bereich eine andere.
+          Mit deinem eigenen Anbieter-Schlüssel (unten unter „KI-Verbindung") läuft alles über dein Konto.
         </p>
 
-        <label className="label">Text-Generierung (Karussell, Ideen, Pinterest, Blog, Newsletter …)</label>
-        <select className="select" value={s.ai_model}
+        <label className="label">Standard-Modell (gilt überall, wo unten nichts anderes gewählt ist)</label>
+        <select className="select" value={s.ai_default || s.ai_model}
           onChange={e => {
             const m = TEXT_MODELS.find(t => t.model === e.target.value);
-            setS(p => ({ ...p, ai_model: e.target.value, ai_provider: m?.provider || p.ai_provider }));
+            setS(p => ({ ...p, ai_default: e.target.value, ai_model: e.target.value, ai_provider: m?.provider || p.ai_provider }));
           }}>
           {TEXT_MODELS.map(t => (
             <option key={`${t.provider}:${t.model}`} value={t.model}>{t.label}</option>
           ))}
         </select>
+
+        <details style={{ marginTop: "1rem" }}>
+          <summary style={{ cursor: "pointer", fontSize: "0.85rem", fontWeight: 600, color: "var(--accent)" }}>
+            Pro Bereich anpassen — deine Lieblings-KI je Aufgabe
+          </summary>
+          <div style={{ marginTop: "0.85rem", display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+            {AI_AREAS.map(area => (
+              <div key={area} style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "0.8rem", color: "var(--text)", minWidth: 180, flex: "0 0 auto" }}>{AREA_LABELS[area]}</span>
+                <select className="select" style={{ flex: 1, minWidth: 180 }}
+                  value={s.ai_area?.[area] || ""}
+                  onChange={e => setS(p => {
+                    const next = { ...(p.ai_area || {}) };
+                    if (e.target.value) next[area] = e.target.value; else delete next[area];
+                    return { ...p, ai_area: next };
+                  })}>
+                  <option value="">— wie Standard —</option>
+                  {TEXT_MODELS.map(t => <option key={`${area}:${t.model}`} value={t.model}>{t.label}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+        </details>
 
         <label className="label" style={{ marginTop: "1.25rem" }}>Research-Modus</label>
         <select className="select" value={s.research_engine}
@@ -647,18 +674,6 @@ export default function SettingsPage() {
 
       {/* Pinterest Verbindung */}
       <PinterestCard />
-
-      {/* KI-Status */}
-      <div className="card" style={{ marginBottom: "1.25rem" }}>
-        <h3 style={{ marginBottom: "0.4rem" }}>🔑 KI &amp; API-Zugänge</h3>
-        <div className="alert alert-success" style={{ fontSize: "0.82rem" }}>
-          ✓ KI ist serverseitig konfiguriert — alle KI-Funktionen sind sofort einsatzbereit.
-        </div>
-        <p style={{ fontSize: "0.73rem", color: "var(--muted)", marginTop: "0.65rem" }}>
-          Die Schlüssel für Text-KI und Web-Recherche liegen sicher auf dem Server und
-          werden nicht mehr im Browser gespeichert. Du musst nichts eintragen.
-        </p>
-      </div>
 
       {/* Cross-Device Sync */}
       <div className="card" id="sync" style={{ marginBottom: "1.25rem", scrollMarginTop: "2rem" }}>

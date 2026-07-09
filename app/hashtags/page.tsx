@@ -70,7 +70,7 @@ export default function HashtagsPage() {
       const settings = getBrandVoice();
       const data = await apiFetch<{ hashtags?: string[]; _tokens?: number }>("/api/generate", {
         method: "POST",
-        body: { type: "hashtags", topic: suggestTopic, brandVoice: settings, ...getAiChoice() },
+        body: { type: "hashtags", topic: suggestTopic, brandVoice: settings, ...getAiChoice("hashtags") },
       });
       trackTokens(data._tokens || 0);
       if (data.hashtags?.length) {

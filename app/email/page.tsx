@@ -145,7 +145,7 @@ export default function EmailPage() {
     try {
       const data = await apiFetch<{ body?: string; subject?: string; _tokens?: number }>("/api/generate", {
         method: "POST",
-        body: { type: "newsletter", topic: nlSubject, brandVoice: getBrandVoice(), ...getAiChoice() },
+        body: { type: "newsletter", topic: nlSubject, brandVoice: getBrandVoice(), ...getAiChoice("newsletter") },
       });
       trackTokens(data._tokens || 0);
       if (data.body) setNlBody(data.body);
