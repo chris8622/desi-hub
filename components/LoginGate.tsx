@@ -202,6 +202,9 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
               {flags.status === "readonly" && <strong>Nur-Lese-Modus — Änderungen sind derzeit deaktiviert. </strong>}
               {flags.banner}
             </span>
+            {flags.status === "readonly" && pathname !== "/settings" && (
+              <a href="/settings" style={{ marginLeft: "auto", flexShrink: 0, color: "var(--accent2)", fontWeight: 600, textDecoration: "none", fontSize: "0.82rem", whiteSpace: "nowrap" }}>Zum Abo →</a>
+            )}
           </div>
         )}
         {lockedModule ? (

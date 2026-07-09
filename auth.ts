@@ -13,7 +13,8 @@ import { authLimiter, checkRateLimit, getClientIp } from "@/lib/ratelimit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
-  session: { strategy: "jwt" },
+  // 30 Tage Sitzung, täglich verlängert bei Aktivität.
+  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60, updateAge: 24 * 60 * 60 },
   pages: { signIn: "/login" },
   providers: [
     Credentials({
