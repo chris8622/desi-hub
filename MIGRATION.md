@@ -444,7 +444,17 @@ Setup-Guide für Christian: `~/Desktop/contentraum-phase1-setup.html`. Neon-Proj
   (Events checkout.session.completed, customer.subscription.updated/deleted, invoice.payment_failed).
   `db:push` der neuen Felder auf Prod (billing-Spalten + `users.agb_accepted_at`).
 
-**Rest-Kür (offen, P1)**: Medien → Vercel Blob, Login-Log via NextAuth-Event, Pinterest pro
-Tenant, Monitoring/Sentry, erste E2E-Tests, öffentliche Landingpage, E-Mail-Verifizierung,
-AVV-Vorlage je Kundin. Der **Multi-Tenant-SaaS-Kern ist komplett** (Auth, Daten, Entitlements,
-BYOK, Reset/Einladung, P0-Security, Registrierung, Abo/Bezahlung).
+**Launch-Reife-Politur ✅ (2026-07-09)**
+- **KI pro Bereich**: `getAiChoice(area)` — Standard-Modell + Overrides je Bereich; „serverseitig"-
+  Texte raus, BYOK-Framing. Verifiziert (Content-Anfrage trägt Bereichs-Modell).
+- **Landingpage** (`components/Landing`, auf „/" für Ausgeloggte): Hero/Features/Pricing/CTAs.
+- **Recht komplett**: `/impressum` `/datenschutz` `/agb` `/avv` (AVV mit Sub-Auftragsverarbeitern).
+- `app/robots.ts`: Landing+Recht indexierbar, App/Admin/API disallow.
+- **Stripe-Zahlarten** (Apple/Google Pay, Karte, PayPal): rein Dashboard-Sache — Checkout setzt
+  kein `payment_method_types`, zeigt also automatisch alle im Dashboard aktivierten Methoden.
+
+**Rest-Kür (offen, P1 — nicht Launch-Blocker)**: Medien → Vercel Blob, Login-Log **pro Tenant**
+(aktuell inaktiv/leer; global reaktivieren wäre Privacy-Leak → erst scopen), Pinterest pro Tenant,
+Monitoring/Sentry, E2E-Tests, E-Mail-Verifizierung. Der **Multi-Tenant-SaaS ist launch-ready**
+(Auth, Daten, Entitlements, BYOK, Reset/Einladung, P0-Security, Registrierung, Abo/Bezahlung/
+Rabatte, Recht, Landing).
