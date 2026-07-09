@@ -1,8 +1,63 @@
-# Release-Prozess — Contentraum
+# Release-Prozess — Raumo
 
 Verbindlicher Weg für jede Weiterentwicklung. Ziel: **`main` ist immer lauffähig**
-(die „Desi bleibt in jeder Phase arbeitsfähig"-Regel gilt weiter). Strategische
-Herleitung: `~/Desktop/contentraum-admin-release-plan.html` (INTERN).
+(die „Desi bleibt in jeder Phase arbeitsfähig"-Regel gilt weiter).
+
+---
+
+## 🚀 Phase-1-Go-Live (Raumo auf raumo.eu) — einmalige Erst-Inbetriebnahme
+
+Reihenfolge einhalten. Danach ist Raumo live und mehrkunden-sicher.
+
+### A. Konten/Dienste (falls noch nicht)
+1. **Neon** (Prod-DB, Frankfurt) — vorhanden. **Passwort rotieren** (Neon → Roles → Reset), weil das alte im Chat stand.
+2. **Upstash** Redis-DB anlegen → `KV_REST_API_URL` + `KV_REST_API_TOKEN`. (Ohne KV **kein** Rate-Limiting/Brute-Force-Schutz!)
+3. **Resend** — Key vorhanden. **Domain `raumo.eu` verifizieren** (SPF/DKIM/DMARC-Records eintragen) → Absender `login@raumo.eu`.
+4. **Serper**-Key neu erzeugen (alter stand im Chat).
+
+### B. Secrets frisch erzeugen (nicht die Dev-Werte nehmen!)
+```
+openssl rand -base64 32   # → AUTH_SECRET
+openssl rand -base64 32   # → ENCRYPTION_KEY  (⚠ NIE ändern, sonst sind BYOK-Keys unlesbar)
+openssl rand -base64 32   # → CRON_SECRET
+```
+Dazu ein **langes, eigenes `ADMIN_PASSWORD`** (≠ Kunden-Passwort).
+
+### C. Env-Vars in Vercel setzen (Production)
+```
+DATABASE_URL           Neon pooled (Host mit -pooler)
+DIRECT_URL             Neon direkt (ohne -pooler)
+AUTH_SECRET            (frisch)
+ENCRYPTION_KEY         (frisch, nie mehr ändern)
+ADMIN_PASSWORD         (lang, eigen)
+CRON_SECRET            (frisch)
+KV_REST_API_URL        Upstash
+KV_REST_API_TOKEN      Upstash
+RESEND_API_KEY         Resend
+AUTH_RESEND_FROM       "Raumo <login@raumo.eu>"
+SERPER_API_KEY         (frisch)
+GROQ_API_KEY           (Gültigkeit prüfen!) — plus optionale KI-Keys
+# NICHT setzen: PINTEREST_ENABLED (bleibt aus = sicher im Mehrkundenbetrieb)
+```
+
+### D. Datenbank scharf schalten
+1. Schema auf die **Prod-DB** pushen: lokal `DATABASE_URL`/`DIRECT_URL` auf Prod zeigen → `npm run db:push`.
+2. Desi seeden: `node scripts/seed-desi.mjs` (legt Tenant + Owner an; ihr KV-Blob importiert sich beim ersten Login automatisch, falls vorhanden).
+
+### E. Merge & Domain
+1. Auf einer **Vercel-Preview von `dev`** die Smoke-Checkliste (unten) durchklicken.
+2. `dev` → `main` mergen → Auto-Deploy.
+3. **DNS `raumo.eu`** → Vercel (A/CNAME laut Vercel-Domain-Setup). In Vercel die Domain dem Projekt zuweisen.
+4. Auf `https://raumo.eu` einloggen (Desi), `/impressum` + `/datenschutz` prüfen, `/admin` mit `ADMIN_PASSWORD` testen.
+
+### F. Nach dem Launch prüfen
+- Cron läuft (Vercel → Deployments → Cron, oder am Folgetag ein `auto <Datum>`-Backup je Tenant sichtbar).
+- Login-Rate-Limit greift (6× falsches Passwort → auch das richtige wird kurz blockiert).
+- Rechtsseiten öffentlich erreichbar, im Footer verlinkt.
+
+> **Noch offen (P1, nach Launch):** Session-Härtung, Monitoring/Sentry, erste E2E-Tests,
+> Login-Log reaktivieren, Medien→Blob, Pinterest pro Tenant, öffentliche Landingpage,
+> Marke „Raumo" anmelden, AVV-Vorlage je Kundin. Siehe `~/Desktop/raumo-pruefbericht-launch-plan.html`.
 
 ---
 

@@ -412,6 +412,19 @@ Setup-Guide für Christian: `~/Desktop/contentraum-phase1-setup.html`. Neon-Proj
   keine Konsolen-Fehler; npm run ci grün. **Vercel:** `RESEND_API_KEY` + `AUTH_RESEND_FROM`
   für echten Versand (sonst Link manuell aus der Admin-Antwort).
 
-**Increment 3d — Rest-Kür (offen)**: Medien → Vercel Blob (`BLOB_READ_WRITE_TOKEN`),
-offene Selbst-Registrierung neuer Mandanten, Login-Log via NextAuth-Event.
-Der **Multi-Tenant-Kern von Phase 1 ist komplett** (inkl. BYOK, Reset & Einladung).
+**P0-Launch-Blocker ✅ (2026-07-09)** — aus dem Prüfbericht `~/Desktop/raumo-pruefbericht-launch-plan.html`:
+- **P0-1** Mandanten-Isolation: `clearLocalData()` wischt alle `dh_*`-Keys bei Logout +
+  Nutzerwechsel (verhindert Cross-Tenant-Datenleck übers localStorage). Verifiziert.
+- **P0-2** Rate-Limits: Login (`auth.ts`, 5/15min) + Admin (`requireAdmin` async, adminLimiter
+  10 Fehlversuche/15min). Wie authLimiter → live gegen echtes Upstash scharf.
+- **P0-3** Auto-Backups: `/api/cron/backup` (vercel.json, tgl. 03:00 UTC, CRON_SECRET),
+  Tages-Snapshot je Tenant, Retention 30. Verifiziert (legt an, idempotent, auth-gated).
+- **P0-6** Recht: `/impressum` + `/datenschutz` (öffentlich, Auftragsverarbeiter gelistet).
+- **P0-7** Pinterest: per `PINTEREST_ENABLED` standardmäßig AUS (globales Token → unsicher
+  im Mehrkundenbetrieb); pro-Tenant-Umbau = P1.
+- **Offen für Go-Live (Christian):** P0-4 Deploy (Checkliste im RELEASE.md), P0-5 Secrets
+  rotieren. **P1** siehe Prüfbericht.
+
+**Increment 3d — Rest-Kür (offen)**: Medien → Vercel Blob, offene Selbst-Registrierung,
+Login-Log via NextAuth-Event, Pinterest pro Tenant, Monitoring, erste Tests, Landingpage.
+Der **Multi-Tenant-Kern von Phase 1 ist komplett** (inkl. BYOK, Reset, Einladung, P0-Security).
