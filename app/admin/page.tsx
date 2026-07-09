@@ -24,6 +24,16 @@ type Flags = {
   updatedAt: number;
 };
 type Tenant = { id: string; slug: string; name: string; plan: string; status: string };
+type Billing = {
+  plan: string; subscriptionStatus: string; billingInterval: string | null;
+  trialEndsAt: number | null; currentPeriodEnd: number | null;
+  stripeCustomerId: string | null; stripeSubscriptionId: string | null; discountPercent: number;
+};
+const PLAN_OPTIONS = [{ id: "starter", n: "Starter (29 €)" }, { id: "pro", n: "Pro (59 €)" }, { id: "studio", n: "Studio (99 €)" }];
+const SUB_OPTIONS = [
+  { v: "trialing", n: "Testphase" }, { v: "active", n: "Aktiv (zahlend)" },
+  { v: "past_due", n: "Zahlung offen" }, { v: "canceled", n: "Gekündigt" }, { v: "comped", n: "Freigeschaltet (gratis)" },
+];
 type Backup = { id: string; label: string; createdAt: number };
 type Status = { month: string; aiUsage: number; dataBytes: number; updatedAt: number; backups: Backup[] };
 type AuditEntry = { ts: number; action: string; detail: string; ip: string };
@@ -54,7 +64,7 @@ function fmtTs(ts: number): string {
 }
 const ACTION_LABELS: Record<string, string> = {
   flags_update: "Flags geändert", data_reset: "Daten geleert", data_restore: "Backup eingespielt",
-  invite: "Nutzer eingeladen",
+  invite: "Nutzer eingeladen", billing_update: "Abrechnung geändert",
 };
 
 export default function AdminPage() {
@@ -67,6 +77,7 @@ export default function AdminPage() {
   const [selected, setSelected] = useState<string>("");
   const [flags, setFlags] = useState<Flags | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
+  const [billing, setBilling] = useState<Billing | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -76,12 +87,14 @@ export default function AdminPage() {
   const [inviteLink, setInviteLink] = useState("");
 
   const loadForTenant = useCallback(async (t: string, tenantId: string) => {
-    const [f, s] = await Promise.all([
+    const [f, s, b] = await Promise.all([
       adminFetch<{ flags: Flags }>(`/api/admin/flags?tenantId=${tenantId}`, t),
       adminFetch<Status>(`/api/admin/status?tenantId=${tenantId}`, t),
+      adminFetch<{ billing: Billing | null }>(`/api/admin/billing?tenantId=${tenantId}`, t),
     ]);
     setFlags(f.flags);
     setStatus(s);
+    setBilling(b.billing);
     setRestoreId("");
   }, []);
 
@@ -188,6 +201,22 @@ export default function AdminPage() {
     }
   };
 
+  const saveBilling = async (patch: Record<string, unknown>) => {
+    if (!token || !selected) return;
+    setSaving(true);
+    try {
+      const r = await adminFetch<{ billing: Billing }>("/api/admin/billing", token, { tenantId: selected, ...patch });
+      setBilling(r.billing);
+      await loadForTenant(token, selected);
+      await loadAll(token, selected).catch(() => {});
+      flash("ok", "Abrechnung aktualisiert.");
+    } catch (err) {
+      flash("err", (err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const doInvite = async () => {
     if (!token || !selected || !inviteEmail.trim()) return;
     setSaving(true);
@@ -284,6 +313,45 @@ export default function AdminPage() {
                 <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text)" }}>{s.v}</div>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Abrechnung */}
+      {billing && selected && (
+        <section className="card" style={{ marginBottom: "1.25rem" }}>
+          <h3 style={{ marginBottom: "0.85rem" }}>💳 Abrechnung</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.75rem", marginBottom: "1rem" }}>
+            <div>
+              <label className="label">Plan</label>
+              <select className="select" value={billing.plan} disabled={saving}
+                onChange={e => saveBilling({ plan: e.target.value })} style={{ width: "100%" }}>
+                {PLAN_OPTIONS.map(p => <option key={p.id} value={p.id}>{p.n}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Status</label>
+              <select className="select" value={billing.subscriptionStatus} disabled={saving}
+                onChange={e => saveBilling({ subscriptionStatus: e.target.value })} style={{ width: "100%" }}>
+                {SUB_OPTIONS.map(s => <option key={s.v} value={s.v}>{s.n}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Rabatt&nbsp;%</label>
+              <input className="input" type="number" min={0} max={100} defaultValue={billing.discountPercent}
+                onBlur={e => { const v = Number(e.target.value) || 0; if (v !== billing.discountPercent) saveBilling({ discountPercent: v }); }}
+                style={{ width: "100%" }} />
+            </div>
+          </div>
+          <div style={{ fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.75rem" }}>
+            {billing.trialEndsAt ? `Testphase bis ${fmtTs(billing.trialEndsAt)}. ` : ""}
+            {billing.currentPeriodEnd ? `Periode bis ${fmtTs(billing.currentPeriodEnd)}. ` : ""}
+            {billing.billingInterval ? `Intervall: ${billing.billingInterval === "year" ? "jährlich" : "monatlich"}. ` : ""}
+            {billing.stripeCustomerId ? "Mit Stripe verbunden." : "Noch nicht mit Stripe verbunden."}
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button className="btn btn-secondary btn-sm" disabled={saving} onClick={() => saveBilling({ extendTrialDays: 14 })}>Testphase +14 Tage</button>
+            <button className="btn btn-secondary btn-sm" disabled={saving} onClick={() => saveBilling({ subscriptionStatus: "comped" })}>Gratis freischalten</button>
           </div>
         </section>
       )}

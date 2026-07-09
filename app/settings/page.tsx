@@ -5,6 +5,7 @@ import { THEMES, applyTheme } from "@/lib/theme";
 import { TEXT_MODELS, RESEARCH_ENGINES } from "@/lib/llm";
 import { apiFetch, errorMessage } from "@/lib/api";
 import AiKeysCard from "@/components/AiKeysCard";
+import BillingCard from "@/components/BillingCard";
 
 // Backup umfasst genau die synchronisierten Keys
 const BACKUP_KEYS = [...SYNC_KEYS];
@@ -384,6 +385,9 @@ export default function SettingsPage() {
           Groq ist günstig &amp; schnell · Claude/GPT-4o liefern die feinste deutsche Prosa · Perplexity recherchiert live mit echten Quellen. Änderungen mit „Speichern" unten übernehmen.
         </p>
       </div>
+
+      {/* Abo & Abrechnung */}
+      <BillingCard />
 
       {/* KI-Verbindung (eigene Keys, BYOK) */}
       <AiKeysCard />
