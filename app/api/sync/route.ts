@@ -7,6 +7,12 @@ export const maxDuration = 30;
 
 const MAX_PAYLOAD_BYTES = 2 * 1024 * 1024; // 2 MB
 const LEGACY_KV_KEY = "desi_hub_data_v1"; // Einmal-Import-Quelle (Phase-0-Blob)
+// Der Alt-Blob gehört EINEM Ursprungskonto (Desis Einzelnutzer-Stand). Nur der hier
+// freigegebene Tenant darf ihn importieren. Ohne Freigabe (Env leer) importiert KEIN
+// Konto den Blob → jede Neuregistrierung startet mit leerem Workspace (Multi-Tenant-sicher).
+// Migration: LEGACY_IMPORT_TENANT_ID einmalig auf Desis echte Tenant-ID setzen, sie
+// einloggen lassen (importiert), danach die Env wieder entfernen.
+const LEGACY_IMPORT_TENANT_ID = process.env.LEGACY_IMPORT_TENANT_ID?.trim() || null;
 
 // Antwortform bewusst identisch zum früheren KV-Sync — der Client (lib/sync.ts)
 // bleibt unverändert: { available, data, updatedAt } bzw. { available, saved, ... }.
@@ -22,6 +28,9 @@ function unwrapKv(raw: unknown): Record<string, unknown> {
 // Einmaliger Import: ist der Postgres-Workspace leer, aber im KV liegt noch
 // Desis alter Stand → übernehmen. Der KV-Blob bleibt als eingefrorenes Backup.
 async function importFromKvIfEmpty(tenantId: string): Promise<Record<string, unknown> | null> {
+  // Nur das freigegebene Ursprungskonto darf den Alt-Blob importieren. Alle anderen
+  // (jede Neuregistrierung) starten leer — kein Cross-Tenant-Datenübertrag.
+  if (!LEGACY_IMPORT_TENANT_ID || tenantId !== LEGACY_IMPORT_TENANT_ID) return null;
   const cfg = getKvConfig();
   if (!cfg) return null;
   try {
