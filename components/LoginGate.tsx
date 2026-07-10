@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Sidebar from "@/components/Sidebar";
-import Landing from "@/components/Landing";
 import { syncDown, syncUp, flushOnHide, clearLocalData } from "@/lib/sync";
 import { apiFetch } from "@/lib/api";
 
@@ -133,8 +132,11 @@ export default function LoginGate({ children }: { children: React.ReactNode }) {
   // Bypass-Pfade rendern ihr eigenes Gate.
   if (isBypass) return <>{children}</>;
 
-  // Nicht eingeloggt auf „/" → öffentliche Landingpage.
-  if (status === "unauthenticated" && pathname === "/") return <Landing />;
+  // „/" ist öffentlich: Ob Landing oder Dashboard, entscheidet die Server-
+  // Komponente app/page.tsx (Auth-Check serverseitig → Crawler bekommen die
+  // Landing im HTML). Solange nicht eingeloggt, die serverseitig gerenderte
+  // Seite unverändert durchreichen — ohne App-Shell, ohne Weiterleitung.
+  if (pathname === "/" && !authed) return <>{children}</>;
 
   // Während des Ladens oder solange die Weiterleitung zum Login läuft.
   if (status === "loading" || status === "unauthenticated") {

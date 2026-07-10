@@ -8,5 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       allow: ["/", "/impressum", "/datenschutz", "/agb", "/avv"],
       disallow: ["/admin", "/settings", "/api/", "/content", "/research", "/editor", "/planner", "/email", "/trends", "/hashtags", "/captions", "/vision", "/analytics", "/ideen", "/repurpose"],
     },
+    sitemap: "https://www.raumo.eu/sitemap.xml",
+    host: "https://www.raumo.eu",
   };
 }

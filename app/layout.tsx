@@ -20,8 +20,17 @@ const dmSerif = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Raumo",
-  description: "Raumo — wo Ideen Raum finden",
+  metadataBase: new URL("https://www.raumo.eu"),
+  title: {
+    default: "Raumo – dein Content-Betriebssystem",
+    template: "%s · Raumo",
+  },
+  description:
+    "Raumo – wo Ideen Raum finden. Der Content-Workspace für Creator & Coaches: Ideen, KI-Erstellung in deinem Ton, Planung und Auswertung an einem Ort.",
+  applicationName: "Raumo",
+  authors: [{ name: "Toelsner Digital", url: "https://toelsner.at" }],
+  creator: "Toelsner Digital",
+  publisher: "Toelsner Digital",
 };
 
 export const viewport: Viewport = {
