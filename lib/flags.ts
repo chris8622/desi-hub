@@ -267,6 +267,11 @@ export async function guardFeature(
     return blocked("module_disabled", "Dieser Bereich ist für deine Instanz derzeit nicht freigeschaltet.");
   }
   if (opts.ai) {
+    // KI-Aufrufe kosten Betreiber-Geld → im Nur-Lese-Modus (Trial abgelaufen,
+    // Abo beendet, Admin-Readonly) ebenfalls pausieren, nicht nur Schreibzugriffe.
+    if (flags.status === "readonly") {
+      return blocked("readonly", "Die KI-Erstellung ist pausiert — wähle einen Plan, um weiter zu erstellen.");
+    }
     if (!flags.ai.enabled) {
       return blocked("ai_disabled", "Die KI-Funktionen sind derzeit deaktiviert.");
     }
