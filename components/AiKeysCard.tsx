@@ -48,11 +48,11 @@ export default function AiKeysCard() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: p, key }),
       });
-      const d = await res.json().catch(() => ({}));
+      const d = await res.json().catch(() => ({})) as { error?: string; verified?: boolean; note?: string };
       if (!res.ok) throw new Error(d.error || "Fehler beim Speichern.");
       setDrafts(prev => ({ ...prev, [p]: "" }));
       await load();
-      flash("ok", "Schlüssel gespeichert.");
+      flash("ok", d.verified ? "Schlüssel geprüft & gespeichert ✓" : (d.note || "Schlüssel gespeichert."));
     } catch (e) {
       flash("err", (e as Error).message);
     } finally {

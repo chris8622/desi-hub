@@ -1,5 +1,5 @@
 import { getSessionContext, readJson } from "@/lib/server-auth";
-import { getKeyStatus, setTenantKey, deleteTenantKey } from "@/lib/aikeys";
+import { getKeyStatus, setTenantKey, deleteTenantKey, probeKey } from "@/lib/aikeys";
 import { isEncryptionConfigured } from "@/lib/crypto";
 import { PROVIDERS, type Provider } from "@/lib/llm";
 
@@ -33,9 +33,23 @@ export async function POST(req: Request) {
     return Response.json({ error: "Ungültiger Schlüssel." }, { status: 400 });
   }
 
+  // Live-Prüfung: nur eine eindeutige Anbieter-Ablehnung verhindert das Speichern.
+  const probe = await probeKey(body.provider, key);
+  if (!probe.valid && probe.authFail) {
+    return Response.json({
+      error: `Der Anbieter hat diesen Schlüssel abgelehnt${probe.message ? ` (${probe.message})` : ""}. Bitte prüfe ihn und versuche es erneut.`,
+    }, { status: 400 });
+  }
+
   try {
     await setTenantKey(ctx.tenantId, body.provider, key);
-    return Response.json({ ok: true, provider: body.provider });
+    return Response.json({
+      ok: true,
+      provider: body.provider,
+      verified: probe.valid,
+      // Prüfung nicht möglich (Netzwerk/Anbieter) → trotzdem speichern, aber ehrlich sagen.
+      note: probe.valid ? undefined : "Gespeichert — die Live-Prüfung war gerade nicht möglich. Beim ersten Einsatz siehst du, ob der Schlüssel funktioniert.",
+    });
   } catch (e) {
     return Response.json({ error: (e as Error).message }, { status: 500 });
   }

@@ -42,6 +42,48 @@ export async function deleteTenantKey(tenantId: string, provider: Provider): Pro
     .where(and(eq(tenantSecrets.tenantId, tenantId), eq(tenantSecrets.provider, provider)));
 }
 
+// ─── Live-Prüfung eines Kunden-Keys (beim Speichern) ─────
+// Minimaler Chat-Aufruf (2 Tokens, auf Kosten des Kunden-Keys — Centbruchteile).
+// Nur eine eindeutige Ablehnung (401/403) gilt als „Key ungültig"; alles andere
+// (Netzwerk, 5xx, Modellproblem) ist kein Beweis → speichern mit Hinweis, damit
+// ein Anbieter-Ausfall nie eine Kundin mit gültigem Schlüssel blockiert.
+const PROBE_MODELS: Record<Provider, string> = {
+  groq: "llama-3.3-70b-versatile",
+  openai: "gpt-4o-mini",
+  gemini: "gemini-2.5-flash",
+  anthropic: "claude-haiku-4-5-20251001",
+  perplexity: "sonar-pro",
+};
+
+export type KeyProbe = { valid: boolean; authFail: boolean; message?: string };
+
+export async function probeKey(provider: Provider, key: string): Promise<KeyProbe> {
+  const cfg = PROVIDERS[provider];
+  try {
+    const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: PROBE_MODELS[provider],
+        messages: [{ role: "user", content: "Hi" }],
+        max_tokens: 2,
+      }),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (res.ok) return { valid: true, authFail: false };
+    const authFail = res.status === 401 || res.status === 403;
+    let message = `Status ${res.status}`;
+    try {
+      const e = await res.json() as { error?: { message?: string } };
+      if (e?.error?.message) message = e.error.message;
+    } catch {}
+    return { valid: false, authFail, message };
+  } catch (e) {
+    // Timeout/Netzwerk — kein Urteil über den Key möglich.
+    return { valid: false, authFail: false, message: (e as Error).message };
+  }
+}
+
 // Welche Provider hat der Tenant selbst hinterlegt (nur Status, nie der Key).
 export async function getKeyStatus(tenantId: string): Promise<Record<Provider, boolean>> {
   const status = Object.fromEntries(
