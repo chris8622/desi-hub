@@ -30,6 +30,10 @@ export default function DashboardClient() {
   const [trendsDate, setTrendsDate] = useState("");
   const [myWhy, setMyWhy] = useState("");
   const [checkinDue, setCheckinDue] = useState(false);
+  // Das Dashboard lebt von localStorage + aktuellem Datum → rein clientseitig
+  // rendern. Verhindert Hydration-Mismatch (React #418), z. B. beim „Tipp des Tages".
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     setPlanner(getLS<PlannerItem[]>("dh_planner", []));
@@ -105,6 +109,17 @@ export default function DashboardClient() {
     { href: "/planner",   icon: "📅", label: "Post einplanen",        desc: "Wochenübersicht & Redaktionsplan" },
     { href: "/analytics", icon: "📊", label: "Learnings auswerten",   desc: "Kennzahlen eintragen & Muster erkennen" },
   ];
+
+  // Vor dem Mount ein neutrales Skelett rendern (identisch auf Server + Client)
+  // → kein Hydration-Mismatch. Danach übernimmt der volle, datenabhängige Inhalt.
+  if (!mounted) {
+    return (
+      <div style={{ marginBottom: "2rem" }}>
+        <h1 style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: "0.25rem" }}>Guten Tag 🌿</h1>
+        <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Lädt…</p>
+      </div>
+    );
+  }
 
   return (
     <>
