@@ -31,6 +31,9 @@ export const metadata: Metadata = {
   authors: [{ name: "Toelsner Digital", url: "https://toelsner.at" }],
   creator: "Toelsner Digital",
   publisher: "Toelsner Digital",
+  verification: {
+    google: "1LJ4mJkR35zPLXp_kVgtLvVLOzmisWxorDZh0Z0uQF8",
+  },
 };
 
 export const viewport: Viewport = {
