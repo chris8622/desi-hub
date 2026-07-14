@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getLS } from "@/lib/storage";
 import { DAILY_TIPS } from "@/lib/tips";
 import PostPaket from "@/components/PostPaket";
+import Onboarding from "@/components/Onboarding";
 import type { PlannerItem, Draft } from "@/lib/types";
 
 type Subscriber = { id: string; name: string; email: string; addedAt: string };
@@ -34,6 +35,14 @@ export default function DashboardClient() {
   // rendern. Verhindert Hydration-Mismatch (React #418), z. B. beim „Tipp des Tages".
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+
+  // Geführter Erststart: nur für echte Neukundinnen (Profil leer UND nie
+  // abgeschlossen). Bestandsnutzerinnen mit gepflegtem Profil sehen ihn nie.
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  useEffect(() => {
+    const s = getLS<{ name?: string; onboarded?: boolean }>("dh_settings", {});
+    setNeedsOnboarding(!s.onboarded && !(s.name || "").trim());
+  }, []);
 
   useEffect(() => {
     setPlanner(getLS<PlannerItem[]>("dh_planner", []));
@@ -119,6 +128,11 @@ export default function DashboardClient() {
         <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Lädt…</p>
       </div>
     );
+  }
+
+  // Neukundin ohne Profil → geführter Erststart statt leerem Dashboard.
+  if (needsOnboarding) {
+    return <Onboarding onDone={() => window.location.reload()} />;
   }
 
   return (
