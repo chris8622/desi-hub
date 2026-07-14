@@ -742,14 +742,12 @@ export default function SettingsPage() {
 
         {syncState === "error" && (
           <div style={{ marginTop: "1rem", background: "var(--surface2)", borderRadius: "var(--radius-sm)", padding: "1rem" }}>
-            <div style={{ fontWeight: 700, fontSize: "0.82rem", marginBottom: "0.5rem" }}>Einrichtung (einmalig):</div>
-            <ol style={{ paddingLeft: "1.2rem", fontSize: "0.82rem", color: "var(--muted)", lineHeight: 1.8 }}>
-              <li>Gehe zu <strong>vercel.com</strong> → Projekt <strong>desi-hub</strong> → <strong>Storage</strong></li>
-              <li>Klicke auf <strong>Upstash</strong> → <strong>Upstash for Redis</strong> → <strong>Create</strong></li>
-              <li>Klicke <strong>"Connect to Project"</strong> → desi-hub auswählen</li>
-              <li>Einmal <strong>Redeploy</strong> in Vercel auslösen</li>
-              <li>Zurück hier → <strong>Sync-Status prüfen</strong></li>
-            </ol>
+            <div style={{ fontWeight: 700, fontSize: "0.82rem", marginBottom: "0.5rem" }}>Synchronisierung gerade nicht möglich</div>
+            <p style={{ fontSize: "0.82rem", color: "var(--muted)", lineHeight: 1.6, margin: 0 }}>
+              Keine Sorge: Deine Daten sind in diesem Browser gespeichert und gehen nicht verloren.
+              Wir versuchen die Synchronisierung automatisch erneut. Falls es länger nicht klappt,
+              melde dich kurz bei uns — wir kümmern uns darum.
+            </p>
           </div>
         )}
       </div>
@@ -768,7 +766,7 @@ export default function SettingsPage() {
             }
             const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
             const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-            a.download = `desi-hub-backup-${new Date().toISOString().split("T")[0]}.json`; a.click();
+            a.download = `raumo-backup-${new Date().toISOString().split("T")[0]}.json`; a.click();
           }}>📦 Backup herunterladen</button>
           <label className="btn btn-secondary" style={{ cursor: "pointer" }}>
             📥 Backup wiederherstellen
