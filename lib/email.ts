@@ -29,6 +29,11 @@ export function emailShell(title: string, bodyHtml: string, cta?: { label: strin
 export async function sendEmail(opts: { to: string; subject: string; html: string }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.AUTH_RESEND_FROM || "Raumo <onboarding@resend.dev>";
+  // Der Absender (login@raumo.eu) ist ein reines Versand-Postfach ohne Empfang.
+  // Ohne reply-to verschwinden Antworten von Kundinnen spurlos. Daher: Antworten
+  // gehen an eine echte, gelesene Adresse. Später umstellbar auf support@raumo.eu
+  // (dann nur SUPPORT_EMAIL in Vercel setzen — kein Code-Eingriff nötig).
+  const replyTo = process.env.SUPPORT_EMAIL || "christian@toelsner.at";
 
   if (!apiKey) {
     console.log(`[email:dev] → ${opts.to} · ${opts.subject}\n${opts.html}`);
@@ -38,7 +43,7 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: opts.to, subject: opts.subject, html: opts.html }),
+    body: JSON.stringify({ from, to: opts.to, subject: opts.subject, html: opts.html, reply_to: replyTo }),
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) {
