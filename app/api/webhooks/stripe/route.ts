@@ -2,6 +2,7 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { setBilling, type SubStatus } from "@/lib/billing";
 import { isPlanId } from "@/lib/plans";
+import { notifyOperator } from "@/lib/email";
 
 export const maxDuration = 30;
 
@@ -47,6 +48,12 @@ export async function POST(req: Request) {
       if (tenantId && s.subscription) {
         const sub = await stripe.subscriptions.retrieve(String(s.subscription));
         await applySubscription(tenantId, sub, s.metadata?.plan);
+        // Der wichtigste Moment: zahlende Kundin. Sofort an den Betreiber melden.
+        await notifyOperator("💚 Neues Abo bei Raumo", [
+          `Plan: <strong>${s.metadata?.plan || "?"}</strong> · ${s.metadata?.interval === "year" ? "jährlich" : "monatlich"}`,
+          `Kundin: ${s.customer_details?.email || "(E-Mail unbekannt)"}`,
+          s.amount_total != null ? `Betrag: ${(s.amount_total / 100).toFixed(2)} ${(s.currency || "eur").toUpperCase()}` : "",
+        ].filter(Boolean));
       }
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       const sub = event.data.object as Stripe.Subscription;

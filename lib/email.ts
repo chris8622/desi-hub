@@ -51,3 +51,25 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
     throw new Error(`E-Mail-Versand fehlgeschlagen (${res.status}) ${t.slice(0, 120)}`);
   }
 }
+
+// ── Betreiber-Benachrichtigung ───────────────────────────
+// Interne Info an Christian bei wichtigen Ereignissen (neue Registrierung,
+// neues Abo). Bewusst Best-Effort: schlägt der Versand fehl, darf das die
+// Registrierung bzw. den Stripe-Webhook NIE scheitern lassen.
+export function operatorEmail(): string {
+  return process.env.OPERATOR_EMAIL || process.env.SUPPORT_EMAIL || "christian@toelsner.at";
+}
+
+export async function notifyOperator(subject: string, lines: string[]): Promise<void> {
+  try {
+    await sendEmail({
+      to: operatorEmail(),
+      subject,
+      html: emailShell(
+        subject,
+        `<p>${lines.map(l => l.replace(/</g, "&lt;")).join("<br>")}</p>`,
+        { label: "Zur Admin-Konsole", href: "https://www.raumo.eu/admin" },
+      ),
+    });
+  } catch { /* Benachrichtigung ist Beiwerk — nie den Hauptvorgang blockieren */ }
+}

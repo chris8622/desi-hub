@@ -4,9 +4,9 @@ import { readJson } from "@/lib/server-auth";
 import { db } from "@/lib/db";
 import { tenants, users, entitlements, workspaces } from "@/lib/db/schema";
 import { hashPassword } from "@/lib/password";
-import { isPlanId, DEFAULT_PLAN } from "@/lib/plans";
+import { isPlanId, DEFAULT_PLAN, TRIAL_DAYS } from "@/lib/plans";
 import { trialEndDate } from "@/lib/billing";
-import { sendEmail, emailShell, baseUrl } from "@/lib/email";
+import { sendEmail, emailShell, baseUrl, notifyOperator } from "@/lib/email";
 import { authLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 
 function slugify(s: string): string {
@@ -65,6 +65,12 @@ export async function POST(req: Request) {
         ),
       });
     } catch { /* Konto steht trotzdem */ }
+
+    // Interne Info an den Betreiber — jede neue Registrierung sofort sichtbar.
+    await notifyOperator("🌱 Neue Registrierung bei Raumo", [
+      `<strong>${name || "(kein Name)"}</strong> · ${email}`,
+      `Plan: ${plan} · Testphase ${TRIAL_DAYS} Tage`,
+    ]);
 
     return Response.json({ ok: true });
   } catch (e) {
