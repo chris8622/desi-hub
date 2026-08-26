@@ -26,7 +26,7 @@ export default function ImpressumPage() {
         <h2 style={h2}>Kontakt</h2>
         <p>
           E-Mail: <a href="mailto:christian@toelsner.at" style={{ color: "var(--accent)" }}>christian@toelsner.at</a><br />
-          Telefon: +43 664 500 11 80<br />
+          Telefon: +43 664 996 80 280<br />
           Web: <a href="https://toelsner.at" style={{ color: "var(--accent)" }}>toelsner.at</a>
         </p>
 
