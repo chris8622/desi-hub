@@ -1,10 +1,31 @@
 import type Stripe from "stripe";
+import { eq } from "drizzle-orm";
 import { getStripe } from "@/lib/stripe";
+import { db } from "@/lib/db";
+import { tenants } from "@/lib/db/schema";
 import { setBilling, type SubStatus } from "@/lib/billing";
 import { isPlanId } from "@/lib/plans";
 import { notifyOperator } from "@/lib/email";
 
 export const maxDuration = 30;
+
+// WICHTIG: Mehrere Produkte (Raumo, Aufruf eins) teilen sich EIN Stripe-Konto.
+// Stripe sendet jedem Endpunkt ALLE Kontoereignisse — auch fremde. Fremde
+// tenantIds sind keine UUIDs (bzw. existieren hier nicht) und ließen die
+// Postgres-Abfrage scheitern → HTTP 500 → endlose Stripe-Wiederholungen.
+// Deshalb: fremde Ereignisse sauber erkennen und mit 200 quittieren.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function isOwnTenant(tenantId: string | null | undefined): Promise<boolean> {
+  if (!tenantId || !UUID_RE.test(tenantId)) return false;
+  try {
+    const rows = await db.select({ id: tenants.id }).from(tenants)
+      .where(eq(tenants.id, tenantId)).limit(1);
+    return !!rows[0];
+  } catch {
+    return false;
+  }
+}
 
 function mapStatus(s: Stripe.Subscription.Status): SubStatus {
   if (s === "active" || s === "trialing") return "active";
@@ -45,7 +66,7 @@ export async function POST(req: Request) {
     if (event.type === "checkout.session.completed") {
       const s = event.data.object as Stripe.Checkout.Session;
       const tenantId = s.metadata?.tenantId;
-      if (tenantId && s.subscription) {
+      if (tenantId && s.subscription && await isOwnTenant(tenantId)) {
         const sub = await stripe.subscriptions.retrieve(String(s.subscription));
         await applySubscription(tenantId, sub, s.metadata?.plan);
         // Der wichtigste Moment: zahlende Kundin. Sofort an den Betreiber melden.
@@ -58,7 +79,7 @@ export async function POST(req: Request) {
     } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
       const sub = event.data.object as Stripe.Subscription;
       const tenantId = sub.metadata?.tenantId;
-      if (tenantId) {
+      if (tenantId && await isOwnTenant(tenantId)) {
         if (event.type === "customer.subscription.deleted") {
           await setBilling(tenantId, { subscriptionStatus: "canceled" });
         } else {
@@ -70,7 +91,9 @@ export async function POST(req: Request) {
       if (inv.subscription) {
         const sub = await stripe.subscriptions.retrieve(String(inv.subscription));
         const tenantId = sub.metadata?.tenantId;
-        if (tenantId) await setBilling(tenantId, { subscriptionStatus: "past_due" });
+        if (tenantId && await isOwnTenant(tenantId)) {
+          await setBilling(tenantId, { subscriptionStatus: "past_due" });
+        }
       }
     }
   } catch (e) {
