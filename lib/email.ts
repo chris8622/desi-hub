@@ -60,6 +60,18 @@ export function operatorEmail(): string {
   return process.env.OPERATOR_EMAIL || process.env.SUPPORT_EMAIL || "christian@toelsner.at";
 }
 
+// Fremde/eingegebene Werte (Name, E-Mail …) für HTML entschärfen. WICHTIG:
+// nur auf die dynamischen Werte anwenden, nicht auf die ganze Zeile — sonst
+// wird auch das gewollte Markup maskiert und als Text sichtbar.
+export function esc(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Zeilen dürfen bewusst Markup enthalten (z. B. <strong>); dynamische Werte
+// müssen die Aufrufer mit esc() übergeben.
 export async function notifyOperator(subject: string, lines: string[]): Promise<void> {
   try {
     await sendEmail({
@@ -67,7 +79,7 @@ export async function notifyOperator(subject: string, lines: string[]): Promise<
       subject,
       html: emailShell(
         subject,
-        `<p>${lines.map(l => l.replace(/</g, "&lt;")).join("<br>")}</p>`,
+        `<p>${lines.join("<br>")}</p>`,
         { label: "Zur Admin-Konsole", href: "https://www.raumo.eu/admin" },
       ),
     });
