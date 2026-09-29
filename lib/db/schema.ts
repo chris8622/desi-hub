@@ -53,6 +53,10 @@ export const usage = pgTable("usage", {
   tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
   month: text("month").notNull(), // YYYY-MM
   aiCalls: integer("ai_calls").notNull().default(0),
+  // Tokens, die auf dem OPERATOR-Schlüssel liefen, also echte Kosten für uns.
+  // Aufrufe mit eigenem Kundenschlüssel (BYOK) zählen hier 0, weil die Kundin
+  // sie selbst bezahlt. Grundlage für die Kostenschätzung in der Admin-Konsole.
+  aiTokens: integer("ai_tokens").notNull().default(0),
 }, (t) => [primaryKey({ columns: [t.tenantId, t.month] })]);
 
 export const workspaces = pgTable("workspaces", {

@@ -1,7 +1,7 @@
 import { getSessionContext, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 import { chat, extractJson, pickModel } from "@/lib/llm";
-import { guardFeature, incrAiUsage } from "@/lib/flags";
+import { guardFeature, incrAiUsage, addAiTokens } from "@/lib/flags";
 import { getTenantKey } from "@/lib/aikeys";
 
 export const maxDuration = 60;
@@ -161,7 +161,8 @@ export async function POST(req: Request) {
   // geteilt, daher nur der KI-Guard, kein einzelnes Modul.
   const featureBlock = await guardFeature(ctx.tenantId, { ai: true });
   if (featureBlock) return featureBlock;
-  await incrAiUsage(ctx.tenantId); // akzeptierten KI-Aufruf zählen (Monatsverbrauch)
+  // Gezählt wird erst nach einer erfolgreichen Antwort (siehe unten), damit
+  // fehlgeschlagene Aufrufe kein Kontingent verbrauchen.
 
   const body = await readJson<{ type: string; topic: string; context?: string; brandVoice?: BrandVoice; provider?: string; model?: string }>(req);
   if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });
@@ -185,6 +186,8 @@ export async function POST(req: Request) {
     });
     const result = extractJson<Record<string, unknown>>(text);
     result._tokens = tokens;
+    await incrAiUsage(ctx.tenantId);                              // erst jetzt zählen
+    await addAiTokens(ctx.tenantId, apiKey ? 0 : tokens);         // BYOK kostet uns nichts
     return Response.json(result);
   } catch (e) {
     // fehlender Key → 503, sonst 500 mit deutscher Meldung

@@ -235,14 +235,54 @@ export async function getAiUsage(tenantId: string, month = usageMonth()): Promis
 export async function incrAiUsage(tenantId: string): Promise<void> {
   const month = usageMonth();
   try {
-    await db
-      .insert(usage)
-      .values({ tenantId, month, aiCalls: 1 })
-      .onConflictDoUpdate({
-        target: [usage.tenantId, usage.month],
-        set: { aiCalls: sql`${usage.aiCalls} + 1` },
-      });
+    // BEWUSST rohes SQL statt des Query-Builders: Drizzle würde sonst die
+    // Spalte ai_tokens mit ins INSERT schreiben. Fehlt sie (Migration noch
+    // nicht gelaufen), schlüge das Statement fehl und es würde gar nichts
+    // mehr gezählt, womit das Monatslimit stillschweigend wirkungslos wäre.
+    await db.execute(sql`
+      INSERT INTO "usage" ("tenant_id", "month", "ai_calls")
+      VALUES (${tenantId}::uuid, ${month}, 1)
+      ON CONFLICT ("tenant_id", "month")
+      DO UPDATE SET "ai_calls" = "usage"."ai_calls" + 1
+    `);
   } catch { /* Zählen ist Best-Effort, darf die KI-Antwort nie blockieren */ }
+}
+
+// Verbrauchte Tokens nachtragen. BEWUSST getrennt von incrAiUsage: schlägt das
+// hier fehl (z. B. weil die Spalte ai_tokens noch nicht migriert ist), bleibt
+// die Kontingent-Zählung davon unberührt und greift weiter.
+export async function addAiTokens(tenantId: string, tokens: number): Promise<void> {
+  if (!Number.isFinite(tokens) || tokens <= 0) return;
+  const month = usageMonth();
+  try {
+    await db
+      .update(usage)
+      .set({ aiTokens: sql`${usage.aiTokens} + ${Math.round(tokens)}` })
+      .where(and(eq(usage.tenantId, tenantId), eq(usage.month, month)));
+  } catch { /* Best-Effort, nie blockierend */ }
+}
+
+export async function getAiTokens(tenantId: string, month = usageMonth()): Promise<number> {
+  try {
+    const rows = await db
+      .select({ t: usage.aiTokens })
+      .from(usage)
+      .where(and(eq(usage.tenantId, tenantId), eq(usage.month, month)))
+      .limit(1);
+    return rows[0]?.t ?? 0;
+  } catch {
+    return 0; // Spalte evtl. noch nicht migriert
+  }
+}
+
+// Grobe Kostenschätzung für Aufrufe auf dem Operator-Schlüssel.
+// Groq Llama 3.3 70B kostet 0,59 USD (Eingabe) bzw. 0,79 USD (Ausgabe) je
+// Million Tokens. Gespeichert ist nur die Gesamtzahl, daher ein Mischsatz,
+// bewusst eher zu hoch angesetzt. Ist ausdrücklich eine Schätzung.
+const EUR_PER_MILLION_TOKENS = 0.7;
+
+export function estimateAiCostEur(tokens: number): number {
+  return (Math.max(0, tokens) / 1_000_000) * EUR_PER_MILLION_TOKENS;
 }
 
 // ── Enforcement ──────────────────────────────────────────

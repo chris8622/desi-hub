@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/admin";
-import { getAiUsage, usageMonth } from "@/lib/flags";
+import { getAiUsage, getAiTokens, estimateAiCostEur, usageMonth } from "@/lib/flags";
 import { getWorkspace, listBackups } from "@/lib/db/workspace";
 
 // Übersicht für die Konsole, pro Tenant: KI-Verbrauch, Datengröße, Backups.
@@ -12,6 +12,9 @@ export async function GET(req: Request) {
 
   const month = usageMonth();
   const aiUsage = await getAiUsage(tenantId, month);
+  // Tokens auf unserem Operator-Schlüssel = was uns diese Kundin wirklich kostet.
+  const aiTokens = await getAiTokens(tenantId, month);
+  const aiCostEur = estimateAiCostEur(aiTokens);
 
   let dataBytes = 0;
   let updatedAt = 0;
@@ -25,5 +28,5 @@ export async function GET(req: Request) {
 
   const backups = await listBackups(tenantId).catch(() => []);
 
-  return Response.json({ month, aiUsage, dataBytes, updatedAt, backups });
+  return Response.json({ month, aiUsage, aiTokens, aiCostEur, dataBytes, updatedAt, backups });
 }

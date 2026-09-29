@@ -1,7 +1,7 @@
 import { getSessionContext, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 import { chat, extractJson, pickModel } from "@/lib/llm";
-import { guardFeature, incrAiUsage } from "@/lib/flags";
+import { guardFeature, incrAiUsage, addAiTokens } from "@/lib/flags";
 import { getTenantKey } from "@/lib/aikeys";
 
 export const maxDuration = 60;
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 
   const featureBlock = await guardFeature(ctx.tenantId, { ai: true, module: "trends" });
   if (featureBlock) return featureBlock;
-  await incrAiUsage(ctx.tenantId);
+  // Gezählt wird erst nach einer erfolgreichen Antwort (siehe unten).
 
   const body = await readJson<Record<string, unknown>>(req);
   if (!body) return new Response(JSON.stringify({ error: "Ungültige Anfrage." }), { status: 400 });
@@ -148,6 +148,8 @@ Wichtig:
           });
           trendTokens = tokens;
           try { result = extractJson(text); } catch {}
+          await incrAiUsage(ctx.tenantId);                       // erst nach Erfolg zählen
+          await addAiTokens(ctx.tenantId, apiKey ? 0 : tokens);  // BYOK kostet uns nichts
         } catch (e) {
           send({ type: "error", data: (e as Error).message });
           controller.close();

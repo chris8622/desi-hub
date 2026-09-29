@@ -1,7 +1,7 @@
 import { getSessionContext, readJson } from "@/lib/server-auth";
 import { aiLimiter, checkRateLimit, getClientIp, tooManyRequests } from "@/lib/ratelimit";
 import { chat, extractJson, pickModel } from "@/lib/llm";
-import { guardFeature, incrAiUsage } from "@/lib/flags";
+import { guardFeature, incrAiUsage, addAiTokens } from "@/lib/flags";
 import { getTenantKey } from "@/lib/aikeys";
 
 export const maxDuration = 60;
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 
   const featureBlock = await guardFeature(ctx.tenantId, { ai: true, module: "repurpose" });
   if (featureBlock) return featureBlock;
-  await incrAiUsage(ctx.tenantId);
+  // Gezählt wird erst nach einer erfolgreichen Antwort (siehe unten).
 
   const body = await readJson<{ sourceText: string; formats: string[]; brandVoice?: BrandVoice; provider?: string; model?: string }>(req);
   if (!body) return Response.json({ error: "Ungültige Anfrage." }, { status: 400 });
@@ -95,6 +95,8 @@ Antworte mit JSON:
     });
     const result = extractJson<Record<string, unknown>>(text);
     result._tokens = tokens;
+    await incrAiUsage(ctx.tenantId);
+    await addAiTokens(ctx.tenantId, apiKey ? 0 : tokens);
     return Response.json(result);
   } catch (e) {
     const msg = (e as Error).message;

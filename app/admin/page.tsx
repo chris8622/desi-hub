@@ -35,7 +35,7 @@ const SUB_OPTIONS = [
   { v: "past_due", n: "Zahlung offen" }, { v: "canceled", n: "Gekündigt" }, { v: "comped", n: "Freigeschaltet (gratis)" },
 ];
 type Backup = { id: string; label: string; createdAt: number };
-type Status = { month: string; aiUsage: number; dataBytes: number; updatedAt: number; backups: Backup[] };
+type Status = { month: string; aiUsage: number; aiTokens?: number; aiCostEur?: number; dataBytes: number; updatedAt: number; backups: Backup[] };
 type AuditEntry = { ts: number; action: string; detail: string; ip: string };
 
 async function adminFetch<T>(path: string, token: string, body?: unknown): Promise<T> {
@@ -304,6 +304,12 @@ export default function AdminPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.85rem" }}>
             {[
               { l: `KI-Aufrufe (${status.month})`, v: String(status.aiUsage) },
+              {
+                l: "KI-Kosten (geschätzt)",
+                v: (status.aiCostEur ?? 0) >= 0.01
+                  ? `~ ${(status.aiCostEur as number).toFixed(2).replace(".", ",")} €`
+                  : (status.aiTokens ?? 0) > 0 ? "< 0,01 €" : "0,00 €",
+              },
               { l: "Datengröße", v: fmtBytes(status.dataBytes) },
               { l: "Zuletzt geändert", v: fmtTs(status.updatedAt) },
               { l: "Backups", v: String(status.backups.length) },
